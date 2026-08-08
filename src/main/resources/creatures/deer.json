@@ -1,0 +1,31 @@
+{
+  "id": "deer",
+  "name": "鹿",
+  "hp": 30,
+  "speed": 110,
+  "stats": {
+    "strength": 8,
+    "agility": 14,
+    "endurance": 10
+  },
+  "perception": {
+    "vision": 8,
+    "hearing": 6
+  },
+  "displayChar": "d",
+  "displayColor": [180, 140, 80],
+  "lifeStages": [
+    {
+      "stage": "juvenile",
+      "name": "鹿羔",
+      "hp": 15,
+      "growTurns": 500
+    },
+    {
+      "stage": "adult",
+      "name": "鹿",
+      "hp": 30,
+      "growTurns": null
+    }
+  ]
+}

@@ -2,6 +2,8 @@ package com.github.game.cdda.screen.scene;
 
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.Player;
+import com.github.game.cdda.creature.CreatureActionContext;
+import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.Scene;
@@ -50,6 +52,7 @@ public class GameScene extends Scene {
     private TurnManager turnManager;
     private MetabolismManager metabolismManager;
     private HydrationManager hydrationManager;
+    private CreatureManager creatureManager;
 
     /** 是否处于检查模式 */
     private boolean inExamineMode = false;
@@ -83,6 +86,7 @@ public class GameScene extends Scene {
         turnManager = world.getTurnManager();
         metabolismManager = world.getMetabolismManager();
         hydrationManager = world.getHydrationManager();
+        creatureManager = world.getCreatureManager();
 
         // 仅创建渲染层组件
         tileMap = new TileMap(chunkManager, fontSize);
@@ -113,8 +117,12 @@ public class GameScene extends Scene {
         // 将玩家注册到回合系统
         world.registerPlayerToTurnSystem();
 
+        // 生成初始生物
+        world.spawnInitialCreatures();
+
         // 记录开局日志
         GameLog.getInstance().log("游戏开始。WASD移动，5等待，-持续等待，E检查，ESC菜单");
+        GameLog.getInstance().log(String.format("周围生成了 %d 个生物", creatureManager.getCreatureCount()));
 
         initialized = true;
     }
@@ -150,11 +158,17 @@ public class GameScene extends Scene {
     public void render(Renderer renderer) {
         if (!initialized) return;
 
+        int tileW = tileMap.getTileWidth();
+        int tileH = tileMap.getTileHeight();
+
         // 渲染瓦片地图
         tileMap.render(renderer, camera);
 
+        // 渲染生物（在玩家之下）
+        creatureManager.renderCreatures(renderer, camera, tileW, tileH);
+
         // 渲染玩家
-        player.render(renderer, camera);
+        player.render(renderer, camera, tileW, tileH);
 
         // 渲染调试信息（场景局部坐标，左上角）
         renderDebugInfo(renderer);
@@ -246,6 +260,8 @@ public class GameScene extends Scene {
         // ── 等待动作（时间流逝但不做其他事） ──
         if (keyCode == KeyEvent.VK_5) {
             turnManager.addAction(player, Constants.WAIT_BASE_TIME);
+            // 处理生物回合
+            processCreatureTurns();
             turnManager.processRound();
             metabolismManager.addActionCost(0);
             metabolismManager.update();
@@ -257,6 +273,8 @@ public class GameScene extends Scene {
         if (keyCode == KeyEvent.VK_MINUS || keyCode == KeyEvent.VK_SUBTRACT) {
             for (int i = 0; i < 10; i++) {
                 turnManager.addAction(player, Constants.WAIT_BASE_TIME);
+                // 处理生物回合
+                processCreatureTurns();
                 metabolismManager.update();
                 hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
                 hydrationManager.update();
@@ -283,6 +301,8 @@ public class GameScene extends Scene {
             metabolismManager.update();
             hydrationManager.addAction(Constants.ADD_THIRST_WALK);
             hydrationManager.update();
+            // 处理生物回合
+            processCreatureTurns();
             turnManager.processRound();
         }
     }
@@ -395,4 +415,17 @@ public class GameScene extends Scene {
     public Camera getGameCamera() { return camera; }
     public boolean isInitialized() { return initialized; }
     public boolean isInExamineMode() { return inExamineMode; }
+
+    // ── 生物回合处理 ──────────────────────────────────
+
+    /**
+     * 处理所有生物的回合。
+     * 创建行动上下文并委托给 CreatureManager。
+     */
+    private void processCreatureTurns() {
+        int tileW = tileMap.getTileWidth();
+        int tileH = tileMap.getTileHeight();
+        CreatureActionContext context = new CreatureActionContext(player, chunkManager, tileW, tileH);
+        creatureManager.processCreatureTurns(context);
+    }
 }

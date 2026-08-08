@@ -65,7 +65,7 @@ com.github.game.engine.core.time    — GameClock (通用游戏时钟，只有 t
 ### 游戏层 — `com.github.game.cdda`（CDDA 游戏特定代码）
 
 ```
-com.github.game.cdda                — CddaGame (extends GameApplication, 入口), Constants, Player, Entity, GameWorld, GameCalendar
+com.github.game.cdda                — CddaGame (extends GameApplication, 入口), Constants, Player (extends Creature), Entity, GameWorld, GameCalendar
 com.github.game.cdda                — Month, Season (日历枚举)
 com.github.game.cdda                — TurnManager (回合调度), TemperatureManager (环境温度)
 com.github.game.cdda                — MetabolismManager (能量/体温), HydrationManager (口渴/水分)
@@ -78,6 +78,9 @@ com.github.game.cdda.log            — GameLog (游戏日志单例)
 com.github.game.cdda.item           — ItemType, ItemStack, ItemRegistry（物品系统，支持 mod 扩展）
 com.github.game.cdda.game           — WorldSettings, CharacterSettings (游戏数据模型)
 com.github.game.cdda.config         — ConfigManager, GameConfig (配置管理)
+com.github.game.cdda.creature       — Creature (抽象基类), Animal, CreatureManager, CreatureActionContext
+com.github.game.cdda.creature.ai    — AIState (状态枚举), AnimalAI (动物 AI 状态机)
+com.github.game.cdda.creature.config — CreatureDefinition (JSON 数据结构), CreatureRegistry (注册表)
 com.github.game.cdda.world          — TileMap, TileType（地图渲染层 + 地形类型注册表）
 com.github.game.cdda.world.noise    — PerlinNoise (Perlin 噪声生成器)
 com.github.game.cdda.world.chunk    — Chunk, ChunkManager (区块管理)

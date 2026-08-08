@@ -1,0 +1,31 @@
+{
+  "id": "rabbit",
+  "name": "兔子",
+  "hp": 10,
+  "speed": 130,
+  "stats": {
+    "strength": 3,
+    "agility": 16,
+    "endurance": 6
+  },
+  "perception": {
+    "vision": 6,
+    "hearing": 10
+  },
+  "displayChar": "r",
+  "displayColor": [200, 180, 160],
+  "lifeStages": [
+    {
+      "stage": "juvenile",
+      "name": "幼兔",
+      "hp": 5,
+      "growTurns": 300
+    },
+    {
+      "stage": "adult",
+      "name": "兔子",
+      "hp": 10,
+      "growTurns": null
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 package com.github.game.cdda;
 
+import com.github.game.cdda.creature.CreatureManager;
+import com.github.game.cdda.creature.config.CreatureRegistry;
 import com.github.game.cdda.game.WorldSettings;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
@@ -36,6 +38,7 @@ public class GameWorld {
     private final TemperatureManager temperatureManager;
     private final MetabolismManager metabolismManager;
     private final HydrationManager hydrationManager;
+    private final CreatureManager creatureManager;
 
     // ── 玩家 ──────────────────────────────────
     private final Player player;
@@ -64,7 +67,11 @@ public class GameWorld {
         // 5) 口渴系统
         hydrationManager = new HydrationManager(gameTime, temperatureManager);
 
-        // 6) 玩家（在可通行的出生点创建）
+        // 6) 生物系统
+        CreatureRegistry.loadAll();
+        creatureManager = new CreatureManager(chunkManager, turnManager);
+
+        // 7) 玩家（在可通行的出生点创建）
         int[] spawn = findPassableSpawn();
         player = new Player(spawn[0], spawn[1]);
     }
@@ -90,6 +97,19 @@ public class GameWorld {
     public void registerPlayerToTurnSystem() {
         turnManager.addEntity(player);
         player.addEnergy(TurnManager.ENERGY_PER_ACTION);
+    }
+
+    /**
+     * 生成初始生物。
+     * 在玩家周围 3x3 区块范围内生成动物。
+     * 须在 initPlayerForRendering 之后调用。
+     */
+    public void spawnInitialCreatures() {
+        int tileWidth = player.getPixelWidth();
+        int tileHeight = player.getPixelHeight();
+        if (tileWidth > 0 && tileHeight > 0) {
+            creatureManager.spawnInitialCreatures(player.getTileX(), player.getTileY(), 1);
+        }
     }
 
     // ── 出生点搜索 ──────────────────────────────────
@@ -129,5 +149,6 @@ public class GameWorld {
     public TemperatureManager getTemperatureManager() { return temperatureManager; }
     public MetabolismManager getMetabolismManager() { return metabolismManager; }
     public HydrationManager getHydrationManager() { return hydrationManager; }
+    public CreatureManager getCreatureManager() { return creatureManager; }
     public Player getPlayer() { return player; }
 }

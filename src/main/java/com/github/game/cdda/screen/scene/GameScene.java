@@ -19,6 +19,8 @@ import com.github.game.cdda.world.chunk.ChunkManager;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 游戏世界场景（显示层）。负责世界渲染、摄像机跟随和输入处理。
@@ -54,8 +56,19 @@ public class GameScene extends Scene {
     private HydrationManager hydrationManager;
     private CreatureManager creatureManager;
 
-    /** 是否处于检查模式 */
-    private boolean inExamineMode = false;
+    // ── 观察模式（Look） ──────────────────────────────────
+
+    /** 是否处于观察模式 */
+    private boolean inLookMode = false;
+
+    /** 观察光标相对玩家瓦片的偏移 */
+    private int lookCursorDx = 0, lookCursorDy = 0;
+
+    /** 可见生物列表（Tab 循环用，按距离排序） */
+    private List<com.github.game.cdda.creature.Creature> visibleCreatureList = new ArrayList<>();
+
+    /** 当前循环到的生物索引 */
+    private int creatureCycleIndex = -1;
 
     /** 瓦片尺寸是否已初始化 */
     private boolean initialized = false;
@@ -121,7 +134,7 @@ public class GameScene extends Scene {
         world.spawnInitialCreatures();
 
         // 记录开局日志
-        GameLog.getInstance().log("游戏开始。WASD移动，5等待，-持续等待，E检查，ESC菜单");
+        GameLog.getInstance().log("游戏开始。WASD移动，5等待，-持续等待，E观察，ESC菜单");
         GameLog.getInstance().log(String.format("周围生成了 %d 个生物", creatureManager.getCreatureCount()));
 
         initialized = true;
@@ -173,8 +186,11 @@ public class GameScene extends Scene {
         // 渲染调试信息（场景局部坐标，左上角）
         renderDebugInfo(renderer);
 
-        // 渲染检查模式覆盖层（场景局部坐标，底部）
-        renderExamineOverlay(renderer);
+        // 渲染观察模式光标高亮（在玩家之上）
+        renderLookCursorHighlight(renderer, tileW, tileH);
+
+        // 渲染观察模式状态栏（场景局部坐标，底部）
+        renderLookStatusBar(renderer, tileW, tileH);
     }
 
     /**
@@ -251,9 +267,9 @@ public class GameScene extends Scene {
     public void onKeyPressed(int keyCode) {
         if (!initialized) return;
 
-        // 检查模式：拦截所有按键，不传递给移动逻辑
-        if (inExamineMode) {
-            handleExamineInput(keyCode);
+        // 观察模式：拦截所有按键，不传递给移动逻辑
+        if (inLookMode) {
+            handleLookInput(keyCode);
             return;
         }
 
@@ -312,100 +328,240 @@ public class GameScene extends Scene {
         // 网格式移动无需处理按键释放
     }
 
-    // ── 检查模式 ──────────────────────────────────
+    // ── 观察模式（Look） ──────────────────────────────────
 
-    /** 进入检查模式 */
-    public void enterExamineMode() {
-        inExamineMode = true;
-        GameLog.getInstance().log("按下方向键检查相邻位置，ESC 退出");
+    /** 进入观察模式 */
+    public void enterLookMode() {
+        inLookMode = true;
+        lookCursorDx = 0;
+        lookCursorDy = 0;
+        creatureCycleIndex = -1;
+        refreshVisibleCreatures();
+        GameLog.getInstance().log("观察模式：方向键/WASD 移动光标，Tab 切换生物，ESC 退出");
     }
 
-    /** 退出检查模式 */
-    private void exitExamineMode() {
-        inExamineMode = false;
-        GameLog.getInstance().log("退出检查模式");
+    /** 退出观察模式 */
+    private void exitLookMode() {
+        inLookMode = false;
+        visibleCreatureList.clear();
+        creatureCycleIndex = -1;
+        GameLog.getInstance().log("退出观察模式");
     }
 
-    /** 检查模式下的按键处理 */
-    private void handleExamineInput(int keyCode) {
-        int dx = 0, dy = 0;
+    /** 刷新可见生物列表（以玩家感知范围为半径） */
+    private void refreshVisibleCreatures() {
+        int maxRange = Math.max(player.getVisionRange(), player.getHearingRange());
+        visibleCreatureList = creatureManager.getVisibleCreatures(
+                player.getTileX(), player.getTileY(), maxRange);
+    }
+
+    /** 观察模式下的按键处理 */
+    private void handleLookInput(int keyCode) {
         switch (keyCode) {
-            case KeyEvent.VK_UP:    case KeyEvent.VK_W: dy = -1; break;
-            case KeyEvent.VK_DOWN:  case KeyEvent.VK_S: dy =  1; break;
-            case KeyEvent.VK_LEFT:  case KeyEvent.VK_A: dx = -1; break;
-            case KeyEvent.VK_RIGHT: case KeyEvent.VK_D: dx =  1; break;
             case KeyEvent.VK_ESCAPE:
-                exitExamineMode();
+                exitLookMode();
                 return;
-            default:
+            case KeyEvent.VK_TAB:
+                cycleCreatures();
                 return;
+            case KeyEvent.VK_UP:    case KeyEvent.VK_W: moveLookCursor(0, -1); break;
+            case KeyEvent.VK_DOWN:  case KeyEvent.VK_S: moveLookCursor(0, 1);  break;
+            case KeyEvent.VK_LEFT:  case KeyEvent.VK_A: moveLookCursor(-1, 0); break;
+            case KeyEvent.VK_RIGHT: case KeyEvent.VK_D: moveLookCursor(1, 0);  break;
+            default: break;
         }
-        examineDirection(dx, dy);
     }
 
-    /**
-     * 检查指定方向相邻瓦片，结果写入游戏日志。
-     * 支持 8 方向（含对角线）。
-     */
-    private void examineDirection(int dx, int dy) {
+    /** 移动观察光标（不受 1 格限制，可在整个视口范围内移动） */
+    private void moveLookCursor(int dx, int dy) {
         int tileW = tileMap.getTileWidth();
         int tileH = tileMap.getTileHeight();
         if (tileW == 0 || tileH == 0) return;
 
-        int playerTileX = Math.floorDiv(player.getWorldX(), tileW);
-        int playerTileY = Math.floorDiv(player.getWorldY(), tileH);
+        // 视口范围内可移动的瓦片数
+        int maxDx = viewport.getWidth() / tileW;
+        int maxDy = viewport.getHeight() / tileH;
 
-        int targetTileX = playerTileX + dx;
-        int targetTileY = playerTileY + dy;
+        lookCursorDx = Math.max(-maxDx, Math.min(maxDx, lookCursorDx + dx));
+        lookCursorDy = Math.max(-maxDy, Math.min(maxDy, lookCursorDy + dy));
 
-        TileType tile = chunkManager.getTile(targetTileX, targetTileY);
-        if (tile != null) {
-            String dirName = getDirectionName(dx, dy);
-            String passStr = tile.isPassable() ? "可通过" : "不可通过";
-            GameLog.getInstance().log(String.format(
-                    "检查 %s[%d,%d]: %s(%c) %s",
-                    dirName, targetTileX, targetTileY,
-                    tile.getName(), tile.getChar(), passStr));
-        } else {
-            String dirName = getDirectionName(dx, dy);
-            GameLog.getInstance().log(String.format(
-                    "检查 %s[%d,%d]: 未知区域",
-                    dirName, targetTileX, targetTileY));
-        }
-    }
-
-    /** 获取方向中文名称 */
-    private String getDirectionName(int dx, int dy) {
-        if (dx == 0 && dy == -1) return "北";
-        if (dx == 0 && dy == 1)  return "南";
-        if (dx == 1 && dy == 0)  return "东";
-        if (dx == -1 && dy == 0) return "西";
-        if (dx == 1 && dy == -1) return "东北";
-        if (dx == -1 && dy == -1) return "西北";
-        if (dx == 1 && dy == 1)  return "东南";
-        if (dx == -1 && dy == 1) return "西南";
-        return "";
+        // 光标移动后重置生物循环
+        creatureCycleIndex = -1;
     }
 
     /**
-     * 渲染检查模式覆盖层（游戏区域底部提示条）。
+     * Tab 键在可见生物之间循环切换。
+     * 每次按 Tab，光标跳转到下一个生物的位置。
      */
-    private void renderExamineOverlay(Renderer renderer) {
-        if (!inExamineMode) return;
+    private void cycleCreatures() {
+        if (visibleCreatureList.isEmpty()) {
+            GameLog.getInstance().log("视野内没有生物");
+            return;
+        }
+        creatureCycleIndex = (creatureCycleIndex + 1) % visibleCreatureList.size();
+        com.github.game.cdda.creature.Creature target = visibleCreatureList.get(creatureCycleIndex);
+
+        // 将光标跳转到目标生物位置
+        lookCursorDx = target.getTileX() - player.getTileX();
+        lookCursorDy = target.getTileY() - player.getTileY();
+
+        GameLog.getInstance().log(String.format("观察到：%s（距离 %d，HP %d/%d）",
+                target.getDisplayChar() + " " + getCreatureDisplayName(target),
+                Math.abs(lookCursorDx) + Math.abs(lookCursorDy),
+                target.getHp(), target.getMaxHp()));
+    }
+
+    /**
+     * 获取生物的完整显示名称（含生命阶段）。
+     * 对于 Animal，返回当前阶段的名称（如 "幼兔"）；其他情况返回通用名称。
+     */
+    private String getCreatureDisplayName(com.github.game.cdda.creature.Creature creature) {
+        if (creature instanceof com.github.game.cdda.creature.Animal) {
+            return ((com.github.game.cdda.creature.Animal) creature).getStageName();
+        }
+        // 其他类型（未来扩展：NPC、怪物等）
+        return "未知生物";
+    }
+
+    /**
+     * 渲染观察模式光标高亮。
+     * 在目标瓦片上绘制青色边框 + 半透明叠加，重绘目标字符为高亮色。
+     */
+    private void renderLookCursorHighlight(Renderer renderer, int tileW, int tileH) {
+        if (!inLookMode) return;
+
+        int targetTileX = player.getTileX() + lookCursorDx;
+        int targetTileY = player.getTileY() + lookCursorDy;
+
+        int pixelX = targetTileX * tileW;
+        int pixelY = targetTileY * tileH;
+        int viewX = camera.toViewX(pixelX);
+        int viewY = camera.toViewY(pixelY);
+
+        // 边界检查：只在视口内绘制
+        if (viewX < -tileW || viewX >= viewport.getWidth()
+                || viewY < -tileH || viewY >= viewport.getHeight()) {
+            return;
+        }
+
+        // 1. 绘制半透明蓝色叠加层
+        renderer.setColor(new Color(50, 100, 200, 80));
+        renderer.fillRect(viewX, viewY, tileW, tileH);
+
+        // 2. 绘制青色边框
+        renderer.setColor(Color.CYAN);
+        renderer.drawRect(viewX, viewY, tileW, tileH);
+
+        // 3. 高亮重绘该瓦片上的内容（生物或玩家）
+        int ascent = renderer.getFontMetrics().getAscent();
+
+        // 检查是否有生物
+        com.github.game.cdda.creature.Creature creature = creatureManager.getCreatureAtTile(targetTileX, targetTileY);
+        if (creature != null) {
+            renderer.setColor(Color.YELLOW);
+            renderer.drawText(String.valueOf(creature.getDisplayChar()), viewX, viewY + ascent);
+        }
+
+        // 检查是否是玩家位置（玩家在最上层，覆盖生物高亮）
+        if (lookCursorDx == 0 && lookCursorDy == 0) {
+            renderer.setColor(Color.YELLOW);
+            renderer.drawText(String.valueOf(player.getDisplayChar()), viewX, viewY + ascent);
+        }
+    }
+
+    /**
+     * 渲染观察模式状态栏（游戏区域底部）。
+     * 显示光标指向的瓦片信息和生物信息。
+     */
+    private void renderLookStatusBar(Renderer renderer, int tileW, int tileH) {
+        if (!inLookMode) return;
 
         int vpW = viewport.getWidth();
         int vpH = viewport.getHeight();
-
-        renderer.setColor(new Color(0, 0, 0, 160));
-        int barHeight = 24;
+        int barHeight = 40;
         int barY = vpH - barHeight;
+
+        // 背景
+        renderer.setColor(new Color(0, 0, 0, 200));
         renderer.fillRect(0, barY, vpW, barHeight);
 
+        int targetTileX = player.getTileX() + lookCursorDx;
+        int targetTileY = player.getTileY() + lookCursorDy;
+        int distance = Math.abs(lookCursorDx) + Math.abs(lookCursorDy);
+
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        renderer.setColor(Color.YELLOW);
-        String hint = "检查模式：方向键/WASD 检查  ESC 退出";
-        int textX = (vpW - renderer.getTextWidth(hint)) / 2;
-        renderer.drawText(hint, textX, barY + 16);
+
+        // 第一行：坐标 + 地形 + 距离
+        TileType tile = chunkManager.getTile(targetTileX, targetTileY);
+        String coordStr = String.format("[%d,%d] 距离:%d", targetTileX, targetTileY, distance);
+        if (tile != null) {
+            String tileStr = String.format("  %s(%c) %s",
+                    tile.getName(), tile.getChar(),
+                    tile.isPassable() ? "可通过" : "不可通过");
+            coordStr += tileStr;
+        } else {
+            coordStr += "  未知区域";
+        }
+
+        renderer.setColor(Color.WHITE);
+        renderer.drawText(coordStr, 4, barY + 14);
+
+        // 第二行：生物信息
+        com.github.game.cdda.creature.Creature creature = creatureManager.getCreatureAtTile(targetTileX, targetTileY);
+        if (creature != null) {
+            int hpPercent = creature.getMaxHp() > 0
+                    ? (creature.getHp() * 100 / creature.getMaxHp()) : 0;
+            Color hpColor = hpPercent > 60 ? Color.GREEN
+                    : hpPercent > 30 ? Color.YELLOW : Color.RED;
+
+            // 生物描述
+            String bioStr = String.format("%s %s  HP:",
+                    creature.getDisplayChar(), getCreatureDisplayName(creature));
+            renderer.setColor(Color.CYAN);
+            renderer.drawText(bioStr, 4, barY + 30);
+
+            int bioStrWidth = renderer.getTextWidth(bioStr);
+            int hpBarWidth = 80;
+            int hpBarX = 4 + bioStrWidth + 4;
+            int hpBarY = barY + 20;
+
+            // HP 条背景
+            renderer.setColor(Color.DARK_GRAY);
+            renderer.fillRect(hpBarX, hpBarY, hpBarWidth, 12);
+            // HP 条填充
+            renderer.setColor(hpColor);
+            renderer.fillRect(hpBarX, hpBarY, (int) (hpBarWidth * hpPercent / 100.0), 12);
+            // HP 条边框
+            renderer.setColor(Color.GRAY);
+            renderer.drawRect(hpBarX, hpBarY, hpBarWidth, 12);
+
+            // HP 数字
+            String hpStr = String.format("%d/%d", creature.getHp(), creature.getMaxHp());
+            renderer.setColor(Color.WHITE);
+            renderer.drawText(hpStr, hpBarX + hpBarWidth + 4, barY + 30);
+
+            // 循环提示
+            if (!visibleCreatureList.isEmpty()) {
+                String cycleHint = String.format("  Tab 切换 (%d/%d)",
+                        creatureCycleIndex + 1, visibleCreatureList.size());
+                renderer.setColor(Color.GRAY);
+                renderer.drawText(cycleHint, hpBarX + hpBarWidth + 4 + renderer.getTextWidth(hpStr), barY + 30);
+            }
+        } else {
+            // 无生物时显示地形名称
+            if (tile != null) {
+                renderer.setColor(Color.GRAY);
+                renderer.drawText("地形：" + tile.getName(), 4, barY + 30);
+            }
+        }
+
+        // 底部提示行（右对齐）
+        String hint = "方向键/WASD 移动光标 | Tab 切换生物 | ESC 退出";
+        renderer.setColor(new Color(180, 180, 180));
+        renderer.setFont(new Font("Monospaced", Font.PLAIN, 10));
+        int hintY = barY + barHeight - 4;
+        int hintX = vpW - renderer.getTextWidth(hint) - 4;
+        renderer.drawText(hint, hintX, hintY);
     }
 
     // ── 访问器 ──────────────────────────────────
@@ -414,7 +570,7 @@ public class GameScene extends Scene {
     public GameWorld getWorld() { return world; }
     public Camera getGameCamera() { return camera; }
     public boolean isInitialized() { return initialized; }
-    public boolean isInExamineMode() { return inExamineMode; }
+    public boolean isInLookMode() { return inLookMode; }
 
     // ── 生物回合处理 ──────────────────────────────────
 

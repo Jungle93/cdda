@@ -31,6 +31,9 @@ public class TemperatureManager {
     private double currentTemperature = 10.0;
     private double driftOffset = 0.0;
     private double driftTarget = 0.0;
+    /** 上次漂移计算时的游戏秒数（用于时间驱动插值） */
+    private long lastDriftCalcSeconds = -1;
+    /** 上次更新漂移目标的游戏分钟数 */
     private long lastDriftUpdateMinute = -1;
 
     // ── 月均温表（欧洲温带气候参考，°C） ──────────────────────────────────
@@ -169,21 +172,44 @@ public class TemperatureManager {
     }
 
     /**
-     * 更新随机漂移（每 TEMP_DRIFT_UPDATE_INTERVAL 游戏分钟更新一次目标值）。
-     * 漂移值线性逼近目标，确保"连续几回合不变"。
+     * 更新随机漂移。
+     *
+     * <p>两层机制：
+     * <ol>
+     *   <li>每 {@code TEMP_DRIFT_UPDATE_INTERVAL_MINUTES} 游戏分钟更新一次漂移目标</li>
+     *   <li>漂移值基于游戏时间（非帧率）指数平滑逼近目标，
+     *       时间常数 {@code TEMP_DRIFT_SMOOTH_SECONDS} 控制趋近速度</li>
+     * </ol>
+     *
+     * <p>使用指数衰减公式：{@code offset += (target - offset) × (1 - e^(-dt/τ))}
+     * 其中 dt 为经过的游戏秒数，τ 为平滑时间常数。
+     * 无论帧率如何，相同游戏时间内漂移量一致。
      */
     private void updateDriftIfNeeded() {
-        long currentMinute = calendar.getTotalSeconds() / 60;
+        long totalSeconds = calendar.getTotalSeconds();
+
+        // 检查是否需要更新漂移目标
+        long currentMinute = totalSeconds / 60;
         long interval = Constants.TEMP_DRIFT_UPDATE_INTERVAL_MINUTES;
 
-        if (currentMinute / interval != lastDriftUpdateMinute / interval) {
+        if (lastDriftUpdateMinute < 0
+                || currentMinute / interval != lastDriftUpdateMinute / interval) {
             // 进入新的漂移周期 → 生成新目标
             driftTarget = (random.nextDouble() * 2 - 1) * Constants.TEMP_DRIFT_RANGE;
             lastDriftUpdateMinute = currentMinute;
         }
 
-        // 线性逼近目标（每周期接近 10%）
-        driftOffset += (driftTarget - driftOffset) * 0.1;
+        // 基于游戏时间平滑逼近目标（帧率无关）
+        if (lastDriftCalcSeconds < 0) {
+            lastDriftCalcSeconds = totalSeconds;
+        }
+        long dtSeconds = totalSeconds - lastDriftCalcSeconds;
+        if (dtSeconds > 0) {
+            // 指数衰减系数：dt=τ 时逼近 63.2%，dt=3τ 时逼近 95%
+            double factor = 1.0 - Math.exp(-dtSeconds / Constants.TEMP_DRIFT_SMOOTH_SECONDS);
+            driftOffset += (driftTarget - driftOffset) * factor;
+            lastDriftCalcSeconds = totalSeconds;
+        }
 
         // 重算完整温度
         recalculateTemperature();

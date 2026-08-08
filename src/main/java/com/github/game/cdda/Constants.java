@@ -50,11 +50,13 @@ public final class Constants {
 
     // ── 温度系统 ──────────────────────────────────────
     /** 日内温度波动振幅（°C）。14:00 峰值+amplitude，02:00 谷值-amplitude */
-    public static final double TEMP_DAILY_AMPLITUDE = 5.0;
+    public static final double TEMP_DAILY_AMPLITUDE = 3.0;
     /** 随机漂移更新间隔（游戏分钟）。每 N 分钟重新选择漂移目标 */
     public static final int TEMP_DRIFT_UPDATE_INTERVAL_MINUTES = 10;
     /** 随机漂移范围（°C）。漂移值在 [-range, +range] 内 */
-    public static final double TEMP_DRIFT_RANGE = 3.0;
+    public static final double TEMP_DRIFT_RANGE = 2.0;
+    /** 漂移平滑时间常数（游戏秒）。越大漂移越慢，600=10游戏分钟趋于稳定 */
+    public static final double TEMP_DRIFT_SMOOTH_SECONDS = 600.0;
 
     // ── 代谢系统 ──────────────────────────────────────
     /** 最大能量储备（cal）。≈ 2500 kcal × 1000倍率，约2.5天基础消耗 */

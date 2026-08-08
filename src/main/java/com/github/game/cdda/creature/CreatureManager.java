@@ -167,8 +167,8 @@ public class CreatureManager {
             if (turnManager.canAct(creature)) {
                 // 执行回合行动
                 creature.takeTurn(context);
-                // 消耗能量并推进时间
-                turnManager.addAction(creature, Constants.MOVE_BASE_TIME);
+                // 消耗能量（不推进全局时钟，时钟仅由玩家行动推进）
+                creature.spendEnergy(com.github.game.cdda.TurnManager.ENERGY_PER_ACTION);
             }
         }
 
@@ -214,5 +214,48 @@ public class CreatureManager {
      */
     public int getCreatureCount() {
         return creatures.size();
+    }
+
+    /**
+     * 获取指定瓦片位置的生物。
+     * 用于 Look 模式查询。
+     *
+     * @param tileX 瓦片 X
+     * @param tileY 瓦片 Y
+     * @return 该位置的生物，无则返回 null
+     */
+    public Creature getCreatureAtTile(int tileX, int tileY) {
+        for (Creature creature : creatures) {
+            if (creature.isAlive() && creature.getTileX() == tileX && creature.getTileY() == tileY) {
+                return creature;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 获取指定范围内的所有存活生物，按曼哈顿距离升序排序。
+     *
+     * @param centerTileX 中心瓦片 X
+     * @param centerTileY 中心瓦片 Y
+     * @param maxDistance 最大曼哈顿距离（含）
+     * @return 排序后的生物列表（可能为空）
+     */
+    public List<Creature> getVisibleCreatures(int centerTileX, int centerTileY, int maxDistance) {
+        List<Creature> result = new ArrayList<>();
+        for (Creature creature : creatures) {
+            if (!creature.isAlive()) continue;
+            int dist = Math.abs(creature.getTileX() - centerTileX)
+                     + Math.abs(creature.getTileY() - centerTileY);
+            if (dist <= maxDistance) {
+                result.add(creature);
+            }
+        }
+        result.sort((a, b) -> {
+            int distA = Math.abs(a.getTileX() - centerTileX) + Math.abs(a.getTileY() - centerTileY);
+            int distB = Math.abs(b.getTileX() - centerTileX) + Math.abs(b.getTileY() - centerTileY);
+            return Integer.compare(distA, distB);
+        });
+        return result;
     }
 }

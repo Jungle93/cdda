@@ -154,8 +154,8 @@ public class MainScreen extends Screen {
 
     @Override
     public void onKeyPressed(int keyCode) {
-        // 1. 检查模式：直接转发给 GameScene，不处理全局快捷键
-        if (gameScene.isInExamineMode()) {
+        // 1. 观察模式：直接转发给 GameScene，不处理全局快捷键
+        if (gameScene.isInLookMode()) {
             gameScene.onKeyPressed(keyCode);
             return;
         }
@@ -176,9 +176,9 @@ public class MainScreen extends Screen {
                 engine.getScreenManager().pushScreen(new InventoryScreen(engine));
                 return;
 
-            // 5. E → 进入检查模式
+            // 5. E → 进入观察模式
             case KeyEvent.VK_E:
-                gameScene.enterExamineMode();
+                gameScene.enterLookMode();
                 return;
 
             // 6. UP/DOWN 在日志扩展模式下 → 滚动日志

@@ -38,7 +38,7 @@ public class BiomeType {
 
     /** 平原 — 开阔草地，稀疏植被 */
     public static final BiomeType PLAINS = register(1, "plains", '.',
-            new Color(100, 190, 40), 0.02f, 0.20f, 0.0f, 0.0f);
+            new Color(100, 190, 40), 0.00f, 0.20f, 0.0f, 0.0f);
 
     /** 森林 — 密集树木 */
     public static final BiomeType FOREST = register(2, "forest", '&',

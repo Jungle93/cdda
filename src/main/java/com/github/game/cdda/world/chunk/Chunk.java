@@ -98,9 +98,14 @@ public class Chunk {
      */
     private void generate(PerlinNoise noise) {
         // 根据群落计算实际阈值
-        // waterLevel 越高 → 水域越多（阈值上移）
-        double waterThreshold = BASE_WATER_LEVEL + biome.getWaterLevel() * 0.35;
-        double beachThreshold = BASE_BEACH_LEVEL + biome.getWaterLevel() * 0.10;
+        // waterLevel > 0 → 有内陆水域（阈值上移，水域面积更大）
+        // waterLevel = 0 → 无内陆水域（阈值压到最低，只有极低洼处可能有小水坑）
+        double waterThreshold = biome.getWaterLevel() > 0
+                ? BASE_WATER_LEVEL + biome.getWaterLevel() * 0.35   // 有水域群落
+                : -0.55;                                              // 无水域群落（几乎不可能触发）
+        double beachThreshold = biome.getWaterLevel() > 0
+                ? BASE_BEACH_LEVEL + biome.getWaterLevel() * 0.10
+                : -0.45;
         // rockiness 越高 → 石头越多（阈值下移）
         double rockThreshold = BASE_ROCK_LEVEL - biome.getRockiness() * 0.30;
 

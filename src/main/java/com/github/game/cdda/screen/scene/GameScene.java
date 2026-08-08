@@ -4,6 +4,10 @@ import com.github.game.cdda.Constants;
 import com.github.game.cdda.Player;
 import com.github.game.cdda.creature.CreatureActionContext;
 import com.github.game.cdda.creature.CreatureManager;
+import com.github.game.cdda.item.GroundItem;
+import com.github.game.cdda.item.GroundItemManager;
+import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.screen.overlay.PickupScreen;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.Scene;
@@ -55,6 +59,7 @@ public class GameScene extends Scene {
     private MetabolismManager metabolismManager;
     private HydrationManager hydrationManager;
     private CreatureManager creatureManager;
+    private GroundItemManager groundItemManager;
 
     // ── 观察模式（Look） ──────────────────────────────────
 
@@ -100,6 +105,7 @@ public class GameScene extends Scene {
         metabolismManager = world.getMetabolismManager();
         hydrationManager = world.getHydrationManager();
         creatureManager = world.getCreatureManager();
+        groundItemManager = world.getGroundItemManager();
 
         // 仅创建渲染层组件
         tileMap = new TileMap(chunkManager, fontSize);
@@ -134,7 +140,7 @@ public class GameScene extends Scene {
         world.spawnInitialCreatures();
 
         // 记录开局日志
-        GameLog.getInstance().log("游戏开始。WASD移动，5等待，-持续等待，E观察，ESC菜单");
+        GameLog.getInstance().log("游戏开始。方向键移动，5等待，-持续等待，L观察，E进食，G拾取，D丢弃，I背包，`调试，ESC菜单");
         GameLog.getInstance().log(String.format("周围生成了 %d 个生物", creatureManager.getCreatureCount()));
 
         initialized = true;
@@ -176,6 +182,9 @@ public class GameScene extends Scene {
 
         // 渲染瓦片地图
         tileMap.render(renderer, camera);
+
+        // 渲染地面物品
+        renderGroundItems(renderer, tileW, tileH);
 
         // 渲染生物（在玩家之下）
         creatureManager.renderCreatures(renderer, camera, tileW, tileH);
@@ -300,13 +309,13 @@ public class GameScene extends Scene {
             return;
         }
 
-        // ── 网格式移动：每次按键移动恰好一个瓦片 ──
+        // ── 网格式移动：每次按键移动恰好一个瓦片（仅方向键） ──
         int dx = 0, dy = 0;
         switch (keyCode) {
-            case KeyEvent.VK_W: case KeyEvent.VK_UP:    dy = -1; break;
-            case KeyEvent.VK_S: case KeyEvent.VK_DOWN:  dy =  1; break;
-            case KeyEvent.VK_A: case KeyEvent.VK_LEFT:  dx = -1; break;
-            case KeyEvent.VK_D: case KeyEvent.VK_RIGHT: dx =  1; break;
+            case KeyEvent.VK_UP:    dy = -1; break;
+            case KeyEvent.VK_DOWN:  dy =  1; break;
+            case KeyEvent.VK_LEFT:  dx = -1; break;
+            case KeyEvent.VK_RIGHT: dx =  1; break;
             default: return;
         }
 
@@ -503,6 +512,12 @@ public class GameScene extends Scene {
             coordStr += "  未知区域";
         }
 
+        // 附加地面物品提示
+        java.util.List<GroundItem> groundItems = groundItemManager.getItemsAt(targetTileX, targetTileY);
+        if (!groundItems.isEmpty()) {
+            coordStr += String.format("  [%c物品x%d]", Constants.GROUND_ITEM_CHAR, groundItems.size());
+        }
+
         renderer.setColor(Color.WHITE);
         renderer.drawText(coordStr, 4, barY + 14);
 
@@ -562,6 +577,85 @@ public class GameScene extends Scene {
         int hintY = barY + barHeight - 4;
         int hintX = vpW - renderer.getTextWidth(hint) - 4;
         renderer.drawText(hint, hintX, hintY);
+    }
+
+    // ── 地面物品渲染 ──────────────────────────────────
+
+    /**
+     * 渲染所有地面物品。
+     * 物品显示为 '~' 字符（黄色），在生物和玩家之下渲染。
+     */
+    private void renderGroundItems(Renderer renderer, int tileW, int tileH) {
+        if (groundItemManager == null) return;
+
+        int ascent = renderer.getFontMetrics().getAscent();
+        for (GroundItem gi : groundItemManager.getAllGroundItems()) {
+            int worldX = gi.getTileX() * tileW;
+            int worldY = gi.getTileY() * tileH;
+            int viewX = camera.toViewX(worldX);
+            int viewY = camera.toViewY(worldY);
+
+            // 边界检查
+            if (viewX < -tileW || viewX >= viewport.getWidth()
+                    || viewY < -tileH || viewY >= viewport.getHeight()) {
+                continue;
+            }
+
+            renderer.setColor(Color.YELLOW);
+            renderer.drawText(String.valueOf(Constants.GROUND_ITEM_CHAR), viewX, viewY + ascent);
+        }
+    }
+
+    // ── 拾取操作 ──────────────────────────────────
+
+    /**
+     * 处理拾取操作（G 键）。
+     * 查询玩家脚下的地面物品列表。
+     * 如果只有一个物品，直接尝试拾取；否则返回列表供 UI 显示。
+     *
+     * @return 脚下物品列表（可能为空）；单个物品时已自动拾取，返回空列表
+     */
+    public java.util.List<GroundItem> handlePickup() {
+        if (!initialized || groundItemManager == null) {
+            return java.util.Collections.emptyList();
+        }
+
+        java.util.List<GroundItem> items = groundItemManager.getItemsAt(
+                player.getTileX(), player.getTileY());
+
+        if (items.isEmpty()) {
+            GameLog.getInstance().log("这里没有物品");
+            return items;
+        }
+
+        if (items.size() == 1) {
+            // 单个物品：直接尝试拾取
+            tryPickupItem(items.get(0));
+            return java.util.Collections.emptyList();
+        }
+
+        // 多个物品：返回列表，由 MainScreen 打开拾取 UI
+        return items;
+    }
+
+    /**
+     * 尝试拾取单个地面物品到玩家背包。
+     *
+     * @param groundItem 地面物品
+     */
+    private void tryPickupItem(GroundItem groundItem) {
+        ItemStack stack = groundItem.getItemStack();
+        if (!player.getInventory().canCarry(stack)) {
+            GameLog.getInstance().log(String.format("%s 太重了，无法携带",
+                    stack.getType().getName()));
+            return;
+        }
+
+        if (player.getInventory().addItem(stack)) {
+            groundItemManager.removeGroundItem(groundItem);
+            GameLog.getInstance().log(String.format("拾取了 %s x%d",
+                    stack.getType().getName(), stack.getCount()));
+        }
     }
 
     // ── 访问器 ──────────────────────────────────

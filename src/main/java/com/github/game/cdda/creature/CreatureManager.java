@@ -3,6 +3,9 @@ package com.github.game.cdda.creature;
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.creature.config.CreatureDefinition;
 import com.github.game.cdda.creature.config.CreatureRegistry;
+import com.github.game.cdda.item.GroundItemManager;
+import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.item.LootTable;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.ChunkManager;
 import com.github.game.engine.core.Camera;
@@ -35,6 +38,9 @@ public class CreatureManager {
     /** 随机数生成器 */
     private final Random random = new Random();
 
+    /** 地面物品管理器（用于生物死亡掉落） */
+    private GroundItemManager groundItemManager;
+
     /** 每个区块最大生物数 */
     private static final int MAX_CREATURES_PER_CHUNK = 5;
 
@@ -50,6 +56,16 @@ public class CreatureManager {
     public CreatureManager(ChunkManager chunkManager, com.github.game.cdda.TurnManager turnManager) {
         this.chunkManager = chunkManager;
         this.turnManager = turnManager;
+    }
+
+    /**
+     * 设置地面物品管理器（用于生物死亡掉落）。
+     * 由 GameWorld 在构造时调用。
+     *
+     * @param groundItemManager 地面物品管理器
+     */
+    public void setGroundItemManager(GroundItemManager groundItemManager) {
+        this.groundItemManager = groundItemManager;
     }
 
     /**
@@ -172,14 +188,38 @@ public class CreatureManager {
             }
         }
 
-        // 清理死亡生物
+        // 清理死亡生物，掉落战利品
         creatures.removeIf(c -> {
             if (!c.isAlive()) {
                 turnManager.removeEntity(c);
+                dropCreatureLoot(c);
                 return true;
             }
             return false;
         });
+    }
+
+    /**
+     * 生物死亡时掉落战利品。
+     * 根据生物的 CreatureDefinition.lootTable 随机生成地面物品。
+     *
+     * @param creature 死亡的生物
+     */
+    private void dropCreatureLoot(Creature creature) {
+        if (groundItemManager == null) return;
+        if (!(creature instanceof Animal)) return;
+
+        CreatureDefinition def = ((Animal) creature).getDefinition();
+        LootTable lootTable = def.lootTable;
+        if (lootTable == null) return;
+
+        List<ItemStack> drops = lootTable.roll(random);
+        for (ItemStack stack : drops) {
+            groundItemManager.dropItem(stack, creature.getTileX(), creature.getTileY());
+        }
+        if (!drops.isEmpty()) {
+            logger.debug("{} 死亡，掉落 {} 件物品", def.name, drops.size());
+        }
     }
 
     /**

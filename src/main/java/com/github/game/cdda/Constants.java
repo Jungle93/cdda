@@ -58,6 +58,22 @@ public final class Constants {
     /** 漂移平滑时间常数（游戏秒）。越大漂移越慢，600=10游戏分钟趋于稳定 */
     public static final double TEMP_DRIFT_SMOOTH_SECONDS = 600.0;
 
+    // ── 物品系统 ──────────────────────────────────────
+    /** 每点力量的携带量（克）。strength × 此值 = 最大携带重量 */
+    public static final int CARRY_PER_STRENGTH = 5000;
+    /** 拾取动作的基础时间（游戏秒） */
+    public static final int PICKUP_BASE_TIME = 50;
+    /** 丢弃动作的基础时间（游戏秒） */
+    public static final int DROP_BASE_TIME = 30;
+    /** 地面物品显示字符 */
+    public static final char GROUND_ITEM_CHAR = '~';
+    /** 拾取动作的脱水倍率 */
+    public static final double ADD_THIRST_PICKUP = 1.0;
+    /** 进食/饮水动作的基础时间（游戏秒） */
+    public static final int EAT_BASE_TIME = 50;
+    /** 药品默认回复量（HP） */
+    public static final int MEDICINE_HEAL_AMOUNT = 20;
+
     // ── 代谢系统 ──────────────────────────────────────
     /** 最大能量储备（cal）。≈ 2500 kcal × 1000倍率，约2.5天基础消耗 */
     public static final int CALORIE_MAX_POOL = 2_500_000;
@@ -120,15 +136,15 @@ public final class Constants {
 
     // ── 调试信息 ──────────────────────────────────────
     /** 是否显示调试信息叠加层（总开关） */
-    public static final boolean SHOW_DEBUG_INFO = true;
+    public static boolean SHOW_DEBUG_INFO = true;
     /** 显示玩家所在瓦片坐标 */
-    public static final boolean DEBUG_SHOW_TILE_POS = true;
+    public static boolean DEBUG_SHOW_TILE_POS = true;
     /** 显示摄像机世界坐标 */
-    public static final boolean DEBUG_SHOW_CAMERA = true;
+    public static boolean DEBUG_SHOW_CAMERA = true;
     /** 显示已加载区块数 */
-    public static final boolean DEBUG_SHOW_CHUNK_COUNT = true;
+    public static boolean DEBUG_SHOW_CHUNK_COUNT = true;
     /** 显示 FPS */
-    public static final boolean DEBUG_SHOW_FPS = true;
+    public static boolean DEBUG_SHOW_FPS = true;
     /** 显示环境温度和季节 */
-    public static final boolean DEBUG_SHOW_TEMPERATURE = true;
+    public static boolean DEBUG_SHOW_TEMPERATURE = true;
 }

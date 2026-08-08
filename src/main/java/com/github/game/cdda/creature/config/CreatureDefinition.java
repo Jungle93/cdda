@@ -35,6 +35,9 @@ public class CreatureDefinition {
     /** 生命阶段列表 */
     public List<LifeStage> lifeStages;
 
+    /** 战利品表（死亡掉落物品，可为 null） */
+    public com.github.game.cdda.item.LootTable lootTable;
+
     /**
      * 基础属性。
      */

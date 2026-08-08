@@ -3,6 +3,7 @@ package com.github.game.cdda;
 import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.creature.config.CreatureRegistry;
 import com.github.game.cdda.game.WorldSettings;
+import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.ChunkManager;
@@ -39,6 +40,7 @@ public class GameWorld {
     private final MetabolismManager metabolismManager;
     private final HydrationManager hydrationManager;
     private final CreatureManager creatureManager;
+    private final GroundItemManager groundItemManager;
 
     // ── 玩家 ──────────────────────────────────
     private final Player player;
@@ -71,7 +73,11 @@ public class GameWorld {
         CreatureRegistry.loadAll();
         creatureManager = new CreatureManager(chunkManager, turnManager);
 
-        // 7) 玩家（在可通行的出生点创建）
+        // 7) 地面物品系统
+        groundItemManager = new GroundItemManager();
+        creatureManager.setGroundItemManager(groundItemManager);
+
+        // 8) 玩家（在可通行的出生点创建）
         int[] spawn = findPassableSpawn();
         player = new Player(spawn[0], spawn[1]);
     }
@@ -150,5 +156,6 @@ public class GameWorld {
     public MetabolismManager getMetabolismManager() { return metabolismManager; }
     public HydrationManager getHydrationManager() { return hydrationManager; }
     public CreatureManager getCreatureManager() { return creatureManager; }
+    public GroundItemManager getGroundItemManager() { return groundItemManager; }
     public Player getPlayer() { return player; }
 }

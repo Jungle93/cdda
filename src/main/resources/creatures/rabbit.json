@@ -27,5 +27,10 @@
       "hp": 10,
       "growTurns": null
     }
-  ]
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 2, "chance": 0.4, "minCount": 1, "maxCount": 1 }
+    ]
+  }
 }

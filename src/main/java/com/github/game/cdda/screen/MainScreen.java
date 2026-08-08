@@ -1,6 +1,7 @@
 package com.github.game.cdda.screen;
 
 import com.github.game.cdda.config.ConfigManager;
+import com.github.game.cdda.screen.overlay.*;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.Viewport;
@@ -10,8 +11,6 @@ import com.github.game.cdda.game.WorldSettings;
 import com.github.game.cdda.screen.hud.CharacterInfoPanel;
 import com.github.game.cdda.screen.hud.GameLogPanel;
 import com.github.game.cdda.screen.hud.TimePanel;
-import com.github.game.cdda.screen.overlay.InGameMenuScreen;
-import com.github.game.cdda.screen.overlay.InventoryScreen;
 import com.github.game.cdda.screen.scene.GameScene;
 import com.github.game.cdda.screen.scene.HudScene;
 import com.github.game.cdda.GameWorld;
@@ -34,13 +33,17 @@ import java.awt.event.KeyEvent;
  *
  * <p>按键路由优先级（从高到低）：
  * <ol>
- *   <li>检查模式 → 直接转发给 GameScene</li>
+ *   <li>观察模式 → 直接转发给 GameScene</li>
  *   <li>ESC → 游戏内菜单</li>
+ *   <li>` → 调试菜单</li>
  *   <li>V → 切换日志面板扩展/紧凑</li>
  *   <li>I → 物品栏</li>
- *   <li>E → 进入检查模式</li>
+ *   <li>E → 进食</li>
+ *   <li>L → 观察模式</li>
+ *   <li>D → 丢弃物品</li>
+ *   <li>G → 拾取物品</li>
  *   <li>UP/DOWN（日志扩展时）→ 滚动日志</li>
- *   <li>其他 → 广播给所有场景（WASD 移动等）</li>
+ *   <li>其他 → 广播给所有场景（方向键移动等）</li>
  * </ol>
  */
 public class MainScreen extends Screen {
@@ -166,6 +169,11 @@ public class MainScreen extends Screen {
                 engine.getScreenManager().pushScreen(new InGameMenuScreen(engine));
                 return;
 
+            // 2.5. ` → 调试菜单
+            case KeyEvent.VK_BACK_QUOTE:
+                engine.getScreenManager().pushScreen(new DebugMenuScreen(engine, gameWorld));
+                return;
+
             // 3. V → 切换日志面板扩展/紧凑模式
             case KeyEvent.VK_V:
                 gameLogPanel.toggleExpanded();
@@ -173,12 +181,38 @@ public class MainScreen extends Screen {
 
             // 4. I → 物品栏
             case KeyEvent.VK_I:
-                engine.getScreenManager().pushScreen(new InventoryScreen(engine));
+                engine.getScreenManager().pushScreen(
+                        new InventoryScreen(engine, gameWorld.getPlayer(),
+                                gameWorld.getGroundItemManager()));
                 return;
 
-            // 5. E → 进入观察模式
+            // 5. E → 进食
             case KeyEvent.VK_E:
+                engine.getScreenManager().pushScreen(
+                        new EatingScreen(engine, gameWorld));
+                return;
+
+            // 5.4. L → 进入观察模式
+            case KeyEvent.VK_L:
                 gameScene.enterLookMode();
+                return;
+
+            // 5.5. D → 丢弃物品
+            case KeyEvent.VK_D:
+                engine.getScreenManager().pushScreen(
+                        new DropScreen(engine, gameWorld.getPlayer(),
+                                gameWorld.getGroundItemManager()));
+                return;
+
+            // 5.6. G → 拾取物品
+            case KeyEvent.VK_G:
+                java.util.List<com.github.game.cdda.item.GroundItem> pickupItems =
+                        gameScene.handlePickup();
+                if (pickupItems.size() > 1) {
+                    engine.getScreenManager().pushScreen(
+                            new PickupScreen(engine, gameWorld.getPlayer(),
+                                    gameWorld.getGroundItemManager(), pickupItems));
+                }
                 return;
 
             // 6. UP/DOWN 在日志扩展模式下 → 滚动日志

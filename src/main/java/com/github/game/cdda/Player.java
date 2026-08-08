@@ -2,6 +2,7 @@ package com.github.game.cdda;
 
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureActionContext;
+import com.github.game.cdda.item.PlayerInventory;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.cdda.world.TileType;
@@ -36,6 +37,9 @@ public class Player extends Creature {
     private int tileWidth;
     private int tileHeight;
 
+    /** 玩家背包 */
+    private final PlayerInventory inventory;
+
     public Player(int startX, int startY) {
         this.worldX = startX;
         this.worldY = startY;
@@ -58,6 +62,9 @@ public class Player extends Creature {
         // 玩家渲染
         this.displayChar = '@';
         this.displayColor = Color.WHITE;
+
+        // 背包
+        this.inventory = new PlayerInventory(this);
     }
 
     /**
@@ -177,6 +184,9 @@ public class Player extends Creature {
     public int getWorldY() { return worldY; }
     public int getPixelWidth() { return pixelWidth; }
     public int getPixelHeight() { return pixelHeight; }
+
+    /** 获取玩家背包 */
+    public PlayerInventory getInventory() { return inventory; }
 
     @Override
     public int getTileX() {

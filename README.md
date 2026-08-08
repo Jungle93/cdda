@@ -81,7 +81,7 @@ mvn compile
 mvn package
 
 # Run
-java -cp target/cdda-1.0-SNAPSHOT.jar com.github.game.cdda.Game
+java -cp target/cdda-1.0-SNAPSHOT.jar com.github.game.cdda.CddaGame
 ```
 
 ## 🎮 Controls
@@ -116,7 +116,7 @@ cdda/
 │   │   ├── screen/                  # Screen state machine
 │   │   └── time/                    # Generic clock
 │   └── cdda/                        # Game code (42 files)
-│       ├── Game.java                # Entry point
+│       ├── CddaGame.java            # Entry point
 │       ├── GameWorld.java           # Logic layer
 │       ├── GameCalendar.java        # Calendar
 │       ├── TurnManager.java         # Turn scheduling

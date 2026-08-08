@@ -81,7 +81,7 @@ mvn compile
 mvn package
 
 # 运行
-java -cp target/cdda-1.0-SNAPSHOT.jar com.github.game.cdda.Game
+java -cp target/cdda-1.0-SNAPSHOT.jar com.github.game.cdda.CddaGame
 ```
 
 ## 🎮 操作
@@ -116,7 +116,7 @@ cdda/
 │   │   ├── screen/                  # 屏幕状态机
 │   │   └── time/                    # 通用时钟
 │   └── cdda/                        # 游戏代码（42 文件）
-│       ├── Game.java                # 入口
+│       ├── CddaGame.java            # 入口
 │       ├── GameWorld.java           # 逻辑层
 │       ├── GameCalendar.java        # 日历
 │       ├── TurnManager.java         # 回合调度

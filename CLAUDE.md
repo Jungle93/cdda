@@ -11,7 +11,7 @@ CDDA is a lightweight Java 17 Swing-based 2D game engine for card/strategy games
 ```bash
 mvn compile                    # Compile
 mvn package                    # Package JAR
-java -cp target/cdda-1.0-SNAPSHOT.jar com.github.game.cdda.Game   # Run
+java -cp target/cdda-1.0-SNAPSHOT.jar com.github.game.cdda.CddaGame   # Run
 ```
 
 No exec plugin or test framework is configured yet.
@@ -21,6 +21,8 @@ No exec plugin or test framework is configured yet.
 ### Game Loop (GameEngine)
 - `javax.swing.Timer` at ~30 FPS (~33ms), all logic on Swing EDT
 - Each tick: `deltaTime` → `screen.update(deltaTime)` → `gamePanel.repaint()`
+- `EngineConfig` 封装引擎配置（帧率、窗口尺寸、字体、资源路径），由游戏层注入
+- 引擎层不依赖 JFrame 或游戏配置类，通过 `EngineConfig.OnChangeListener` 回调通知游戏层
 
 ### Screen System (state pattern)
 - **Screen** — abstract base with lifecycle: `init()` → `update(dt)` → `render(renderer)` → `dispose()`
@@ -51,7 +53,7 @@ No exec plugin or test framework is configured yet.
 ### 引擎层 — `com.github.game.engine.core`（通用，与具体游戏无关）
 
 ```
-com.github.game.engine.core         — GameEngine, GamePanel, Camera (loop, render, input, viewport)
+com.github.game.engine.core         — GameEngine, GamePanel, EngineConfig, GameApplication, Camera (loop, render, input, viewport)
 com.github.game.engine.core.screen  — Screen (abstract, 场景容器), ScreenManager
 com.github.game.engine.core.scene   — Scene (抽象基类), Viewport (屏幕区域)
 com.github.game.engine.core.render  — Renderer (interface, pushClip/popClip), Graphics2DRenderer, RenderContext
@@ -63,7 +65,7 @@ com.github.game.engine.core.time    — GameClock (通用游戏时钟，只有 t
 ### 游戏层 — `com.github.game.cdda`（CDDA 游戏特定代码）
 
 ```
-com.github.game.cdda                — Game (入口), Constants, Player, Entity, GameWorld, GameCalendar
+com.github.game.cdda                — CddaGame (extends GameApplication, 入口), Constants, Player, Entity, GameWorld, GameCalendar
 com.github.game.cdda                — Month, Season (日历枚举)
 com.github.game.cdda                — TurnManager (回合调度), TemperatureManager (环境温度)
 com.github.game.cdda                — MetabolismManager (能量/体温), HydrationManager (口渴/水分)

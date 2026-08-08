@@ -1,6 +1,5 @@
 package com.github.game.engine.core;
 
-import com.github.game.cdda.config.ConfigManager;
 import com.github.game.engine.core.render.Graphics2DRenderer;
 import com.github.game.engine.core.render.RenderContext;
 import com.github.game.engine.core.render.Renderer;
@@ -13,7 +12,7 @@ import java.awt.event.*;
 /**
  * 游戏渲染面板，同时作为输入事件入口。
  * 在 paintComponent 中创建 Renderer 并委托给当前 Screen 渲染。
- * 尺寸由 ConfigManager 驱动，支持运行时动态调整。
+ * 尺寸和字体由 DisplayConfig 驱动（通过 GameEngine 获取），支持运行时动态调整。
  */
 public class GamePanel extends JPanel
         implements MouseListener, MouseMotionListener, KeyListener {
@@ -28,16 +27,17 @@ public class GamePanel extends JPanel
         addMouseMotionListener(this);
         addKeyListener(this);
 
-        // 监听面板尺寸变化，同步到配置
+        // 监听面板尺寸变化，通知配置层持久化
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                ConfigManager cm = ConfigManager.getInstance();
+                EngineConfig config = engine.getConfig();
                 int w = getWidth();
                 int h = getHeight();
                 if (w > 0 && h > 0) {
-                    cm.setGameInt(ConfigManager.KEY_WINDOW_WIDTH, w);
-                    cm.setGameInt(ConfigManager.KEY_WINDOW_HEIGHT, h);
+                    config.setWindowWidth(w);
+                    config.setWindowHeight(h);
+                    config.fireWindowResized(w, h);
                 }
             }
         });
@@ -46,8 +46,8 @@ public class GamePanel extends JPanel
     /** 动态返回配置中的窗口尺寸 */
     @Override
     public Dimension getPreferredSize() {
-        ConfigManager cm = ConfigManager.getInstance();
-        return new Dimension(cm.getWindowWidth(), cm.getWindowHeight());
+        EngineConfig config = engine.getConfig();
+        return new Dimension(config.getWindowWidth(), config.getWindowHeight());
     }
 
     @Override
@@ -65,7 +65,7 @@ public class GamePanel extends JPanel
         Screen screen = engine.getScreenManager().getCurrentScreen();
         if (screen != null) {
             // 使用配置中的字体大小（而非硬编码常量）
-            int fontSize = ConfigManager.getInstance().getFontSize();
+            int fontSize = engine.getConfig().getFontSize();
             renderer.setFont(new Font("Monospaced", Font.PLAIN, fontSize));
             renderer.setColor(RenderContext.DEFAULT_TEXT_COLOR);
             screen.render(renderer);

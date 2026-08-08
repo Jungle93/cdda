@@ -1,6 +1,5 @@
 package com.github.game.engine.core;
 
-import com.github.game.cdda.config.ConfigManager;
 import com.github.game.engine.core.input.InputManager;
 import com.github.game.engine.core.resource.ResourceManager;
 import com.github.game.engine.core.screen.ScreenManager;
@@ -8,20 +7,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 /**
- * 游戏引擎核心，管理游戏循环和子系统。
+ * 游戏引擎核心，管理游戏循环、子系统和窗口。
  * 使用 Swing Timer 驱动，所有逻辑在 EDT 上执行。
+ * 引擎负责创建和管理 JFrame 窗口，游戏层只需配置 EngineConfig。
  */
-public class GameEngine implements ActionListener {
+public class GameEngine {
 
     private static final Logger logger = LoggerFactory.getLogger(GameEngine.class);
 
     private static final int TARGET_FPS = 30;
     private static final int TIMER_DELAY = 1000 / TARGET_FPS; // ~33ms
 
+    private final EngineConfig config;
     private final JFrame frame;
     private final GamePanel gamePanel;
     private final ScreenManager screenManager;
@@ -32,26 +31,62 @@ public class GameEngine implements ActionListener {
     private long lastFrameTime;
     private boolean running;
 
-    public GameEngine(JFrame frame) {
-        this.frame = frame;
+    /**
+     * 构造引擎。
+     * 自动创建 JFrame 窗口并配置。
+     * @param config 引擎配置（由游戏层构造并注入）
+     */
+    public GameEngine(EngineConfig config) {
+        this.config = config;
+
+        // 创建窗口
+        frame = new JFrame();
+        frame.setTitle("Game");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setResizable(true);
+
+        // 初始化子系统
         this.screenManager = new ScreenManager(this);
         this.inputManager = new InputManager(this);
-        this.resourceManager = new ResourceManager(ConfigManager.getInstance().getResourceBase());
+        this.resourceManager = new ResourceManager(config.getResourceBase());
         this.gamePanel = new GamePanel(this);
-        this.timer = new Timer(TIMER_DELAY, this);
+
+        // 将 GamePanel 加入窗口
+        frame.add(gamePanel);
+
+        // 设置窗口尺寸
+        frame.setSize(config.getWindowWidth(), config.getWindowHeight());
+
+        // 初始化定时器
+        this.timer = new Timer(TIMER_DELAY, new java.awt.event.ActionListener() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                tick();
+            }
+        });
     }
 
+    /**
+     * 启动游戏引擎。
+     * 居中显示窗口并开始游戏循环。
+     */
     public void start() {
         if (running) return;
+
+        // 居中并显示窗口
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+
         running = true;
         lastFrameTime = System.currentTimeMillis();
         timer.start();
-        logger.info("游戏引擎启动，目标帧率: {} FPS", TARGET_FPS);
+        logger.info("游戏引擎启动，目标帧率: {} FPS", config.getTargetFps());
     }
 
     public void stop() {
         running = false;
         timer.stop();
+        frame.dispose();
         logger.info("游戏引擎停止");
     }
 
@@ -68,8 +103,8 @@ public class GameEngine implements ActionListener {
         }
     }
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
+    /** 单帧逻辑更新 */
+    private void tick() {
         long now = System.currentTimeMillis();
         long deltaTime = now - lastFrameTime;
         lastFrameTime = now;
@@ -84,6 +119,10 @@ public class GameEngine implements ActionListener {
     }
 
     // ── 访问器 ──────────────────────────────────────
+
+    public EngineConfig getConfig() {
+        return config;
+    }
 
     public JFrame getFrame() {
         return frame;

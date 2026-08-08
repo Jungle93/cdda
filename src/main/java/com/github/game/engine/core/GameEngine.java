@@ -44,6 +44,7 @@ public class GameEngine {
         frame.setTitle("Game");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setResizable(true);
+        frame.setMinimumSize(new java.awt.Dimension(400, 300));
 
         // 初始化子系统
         this.screenManager = new ScreenManager(this);

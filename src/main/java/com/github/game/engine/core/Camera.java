@@ -22,7 +22,7 @@ public class Camera {
     /** 视口宽度（像素），用于居中计算和 TileMap 裁剪范围 */
     private int viewportWidth;
     /** 视口高度（像素） */
-    private final int viewportHeight;
+    private int viewportHeight;
 
     /**
      * 创建摄像机（无限世界，无边界）。
@@ -65,4 +65,10 @@ public class Camera {
     public int getViewportWidth() { return viewportWidth; }
     public int getViewportHeight() { return viewportHeight; }
     public void setViewportWidth(int width) { this.viewportWidth = width; }
+    public void setViewportHeight(int height) { this.viewportHeight = height; }
+    /** 同时设置视口宽高（窗口 resize 时便捷方法） */
+    public void setViewportSize(int width, int height) {
+        this.viewportWidth = width;
+        this.viewportHeight = height;
+    }
 }

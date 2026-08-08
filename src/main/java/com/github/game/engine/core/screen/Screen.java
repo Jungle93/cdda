@@ -161,6 +161,16 @@ public abstract class Screen {
         }
     }
 
+    /**
+     * 窗口尺寸变更通知。
+     * 当用户拖拽调整窗口大小时，引擎通过 ScreenManager 调用此方法。
+     * 默认空实现，子类可覆写以更新布局（如重新计算 Viewport 尺寸）。
+     *
+     * @param width  新窗口宽度（像素）
+     * @param height 新窗口高度（像素）
+     */
+    public void onWindowResized(int width, int height) {}
+
     // ── 工具方法 ──────────────────────────────────
 
     public GameEngine getEngine() {

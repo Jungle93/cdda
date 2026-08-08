@@ -70,4 +70,20 @@ public class ScreenManager {
     public Screen getCurrentScreen() {
         return currentScreen;
     }
+
+    /**
+     * 窗口尺寸变更时，通知所有 Screen（当前 + 栈中）更新布局。
+     * 由 GamePanel 在 componentResized 事件中调用。
+     *
+     * @param width  新窗口宽度（像素）
+     * @param height 新窗口高度（像素）
+     */
+    public void onWindowResized(int width, int height) {
+        if (currentScreen != null) {
+            currentScreen.onWindowResized(width, height);
+        }
+        for (Screen screen : screenStack) {
+            screen.onWindowResized(width, height);
+        }
+    }
 }

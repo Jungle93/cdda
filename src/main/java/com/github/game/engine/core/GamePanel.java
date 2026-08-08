@@ -27,7 +27,7 @@ public class GamePanel extends JPanel
         addMouseMotionListener(this);
         addKeyListener(this);
 
-        // 监听面板尺寸变化，通知配置层持久化
+        // 监听面板尺寸变化，通知配置层持久化 + 通知屏幕更新布局
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -38,6 +38,8 @@ public class GamePanel extends JPanel
                     config.setWindowWidth(w);
                     config.setWindowHeight(h);
                     config.fireWindowResized(w, h);
+                    // 通知所有 Screen 更新布局（Viewport、Camera 等）
+                    engine.getScreenManager().onWindowResized(w, h);
                 }
             }
         });

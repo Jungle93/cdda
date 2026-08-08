@@ -100,7 +100,7 @@ java -cp target/cdda-1.0-SNAPSHOT.jar com.github.game.cdda.Game
 cdda/
 ├── CLAUDE.md                    # AI 辅助开发指南
 ├── pom.xml                      # Maven 配置
-├── src/main/java/com/darwin/game/
+├── src/main/java/com/github/game/
 │   ├── engine/core/             # 通用引擎（13 文件）
 │   │   ├── GameEngine.java      # 主循环
 │   │   ├── GamePanel.java       # 渲染面板

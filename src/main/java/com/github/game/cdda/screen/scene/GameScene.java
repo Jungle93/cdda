@@ -224,12 +224,16 @@ public class GameScene extends Scene {
         int tileW = tileMap.getTileWidth();
         int tileH = tileMap.getTileHeight();
 
-        // 第一行：位置 + 摄像机 + 区块 + FPS
+        // 第一行：位置 + 生物群落 + 摄像机 + 区块 + FPS
         StringBuilder sb = new StringBuilder();
         if (Constants.DEBUG_SHOW_TILE_POS && tileW > 0 && tileH > 0) {
             int ptx = Math.floorDiv(player.getWorldX(), tileW);
             int pty = Math.floorDiv(player.getWorldY(), tileH);
             sb.append(String.format("瓦片:(%d,%d)", ptx, pty));
+            // 显示当前生物群落
+            com.github.game.cdda.world.biome.BiomeType biome =
+                    world.getWorldMap().getBiomeAt(ptx, pty);
+            sb.append(String.format(" [%s]", biome.getName()));
         }
         if (Constants.DEBUG_SHOW_CAMERA) {
             if (sb.length() > 0) sb.append("  ");
@@ -245,6 +249,12 @@ public class GameScene extends Scene {
         }
 
         if (sb.length() > 0) {
+            // 用群落的颜色显示（如果包含群落信息）
+            int ptx = Math.floorDiv(player.getWorldX(), tileW);
+            int pty = Math.floorDiv(player.getWorldY(), tileH);
+            com.github.game.cdda.world.biome.BiomeType biome =
+                    world.getWorldMap().getBiomeAt(ptx, pty);
+            renderer.setColor(biome.getColor().brighter());
             renderer.drawText(sb.toString(), 4, debugFontSize + 2);
         }
 

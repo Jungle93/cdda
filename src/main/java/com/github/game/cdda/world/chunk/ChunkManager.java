@@ -1,0 +1,198 @@
+package com.github.game.cdda.world.chunk;
+
+import com.github.game.cdda.world.TileType;
+import com.github.game.cdda.world.noise.PerlinNoise;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
+/**
+ * 区块管理器。负责区块的加载、缓存、预加载和卸载。
+ *
+ * 核心职责：
+ * 1. 根据玩家位置自动加载周围区块（可配置预加载半径）
+ * 2. 提供世界坐标 → 瓦片的查询接口
+ * 3. 卸载远离玩家的区块以释放内存
+ *
+ * 设计要点：
+ * - 仅在玩家跨越区块边界时触发加载/卸载（避免每帧重复操作）
+ * - 使用 HashMap 缓存已加载区块，O(1) 查找
+ * - 全局 Perlin 噪声保证区块间地形无缝
+ */
+public class ChunkManager {
+
+    private static final Logger logger = LoggerFactory.getLogger(ChunkManager.class);
+
+    /** 世界种子 */
+    private final long worldSeed;
+
+    /** 世界 Perlin 噪声生成器 */
+    private final PerlinNoise noise;
+
+    /** 已加载区块缓存，key = chunkKey(cx, cy) */
+    private final Map<Long, Chunk> chunks;
+
+    /** 预加载半径（以区块为单位） */
+    private int preloadRadius;
+
+    /** 上次触发加载/卸载时的玩家区块坐标（用于避免重复触发） */
+    private int lastPlayerChunkX = Integer.MIN_VALUE;
+    private int lastPlayerChunkY = Integer.MIN_VALUE;
+
+    /**
+     * 创建区块管理器。
+     *
+     * @param worldSeed     世界种子
+     * @param preloadRadius 预加载半径（区块数）
+     */
+    public ChunkManager(long worldSeed, int preloadRadius) {
+        this.worldSeed = worldSeed;
+        this.noise = new PerlinNoise(worldSeed);
+        this.chunks = new HashMap<>();
+        this.preloadRadius = preloadRadius;
+        logger.info("区块管理器初始化 — 种子: {}, 预加载半径: {}", worldSeed, preloadRadius);
+    }
+
+    /**
+     * 获取世界瓦片坐标处的地形类型。
+     * 自动加载所在区块（如果尚未加载）。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 地形类型；区块未加载时返回 null
+     */
+    public TileType getTile(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        if (chunk == null) {
+            // 即时加载（通常不应发生，因为 updateChunks 会预加载）
+            chunk = loadChunk(cx, cy);
+        }
+
+        // 局部坐标
+        int localCol = floorMod(worldTileX, Chunk.SIZE);
+        int localRow = floorMod(worldTileY, Chunk.SIZE);
+        return chunk.getTile(localCol, localRow);
+    }
+
+    /**
+     * 根据玩家位置更新区块加载状态。
+     * 仅在玩家跨越区块边界时触发实际加载/卸载。
+     *
+     * @param playerWorldPixelX 玩家世界像素 X
+     * @param playerWorldPixelY 玩家世界像素 Y
+     * @param tileWidth         瓦像素宽度
+     * @param tileHeight        瓦素高度
+     */
+    public void updateChunks(int playerWorldPixelX, int playerWorldPixelY,
+                             int tileWidth, int tileHeight) {
+        // 像素 → 瓦片坐标 → 区块坐标（使用 floorDiv 正确处理负坐标）
+        int playerTileX = Math.floorDiv(playerWorldPixelX, tileWidth);
+        int playerTileY = Math.floorDiv(playerWorldPixelY, tileHeight);
+        int playerChunkX = floorDiv(playerTileX, Chunk.SIZE);
+        int playerChunkY = floorDiv(playerTileY, Chunk.SIZE);
+
+        // 玩家区块未变化则跳过（避免每帧重复操作）
+        if (playerChunkX == lastPlayerChunkX && playerChunkY == lastPlayerChunkY) {
+            return;
+        }
+        lastPlayerChunkX = playerChunkX;
+        lastPlayerChunkY = playerChunkY;
+
+        // 加载预加载范围内的所有区块
+        preloadAround(playerChunkX, playerChunkY);
+
+        // 卸载远离玩家的区块
+        unloadDistant(playerChunkX, playerChunkY);
+    }
+
+    /**
+     * 预加载指定区块周围的区块。
+     * 加载 [cx-r, cx+r] × [cy-r, cy+r] 范围内的所有区块。
+     */
+    private void preloadAround(int centerChunkX, int centerChunkY) {
+        int loaded = 0;
+        for (int dy = -preloadRadius; dy <= preloadRadius; dy++) {
+            for (int dx = -preloadRadius; dx <= preloadRadius; dx++) {
+                int cx = centerChunkX + dx;
+                int cy = centerChunkY + dy;
+                long key = chunkKey(cx, cy);
+                if (!chunks.containsKey(key)) {
+                    loadChunk(cx, cy);
+                    loaded++;
+                }
+            }
+        }
+        if (loaded > 0) {
+            logger.info("预加载 {} 个区块，当前缓存: {}", loaded, chunks.size());
+        }
+    }
+
+    /**
+     * 卸载距离玩家超过预加载半径的区块。
+     * 额外保留 1 个区块的缓冲（避免频繁加载/卸载边界区块）。
+     */
+    private void unloadDistant(int playerChunkX, int playerChunkY) {
+        int unloadThreshold = preloadRadius + 1;
+        Iterator<Map.Entry<Long, Chunk>> it = chunks.entrySet().iterator();
+        int unloaded = 0;
+        while (it.hasNext()) {
+            Map.Entry<Long, Chunk> entry = it.next();
+            Chunk chunk = entry.getValue();
+            int dx = Math.abs(chunk.getChunkX() - playerChunkX);
+            int dy = Math.abs(chunk.getChunkY() - playerChunkY);
+            if (dx > unloadThreshold || dy > unloadThreshold) {
+                it.remove();
+                unloaded++;
+            }
+        }
+        if (unloaded > 0) {
+            logger.debug("卸载 {} 个区块，剩余: {}", unloaded, chunks.size());
+        }
+    }
+
+    /**
+     * 加载指定区块。
+     */
+    private Chunk loadChunk(int cx, int cy) {
+        Chunk chunk = new Chunk(cx, cy, noise, worldSeed);
+        chunks.put(chunkKey(cx, cy), chunk);
+        return chunk;
+    }
+
+    /**
+     * 将两个 int 合并为 long key。
+     * 高 32 位存 cx，低 32 位存 cy。
+     */
+    private static long chunkKey(int cx, int cy) {
+        return ((long) cx << 32) | (cy & 0xFFFFFFFFL);
+    }
+
+    /** 设置预加载半径 */
+    public void setPreloadRadius(int radius) {
+        this.preloadRadius = radius;
+    }
+
+    public int getPreloadRadius() { return preloadRadius; }
+    public long getWorldSeed() { return worldSeed; }
+
+    /** 获取当前已加载区块数 */
+    public int getLoadedChunkCount() { return chunks.size(); }
+
+    // ── 整数除法工具（正确处理负数） ──────────────
+
+    /** 地板除法（向负无穷取整） */
+    private static int floorDiv(int x, int y) {
+        return Math.floorDiv(x, y);
+    }
+
+    /** 地板取模（结果始终 >= 0） */
+    private static int floorMod(int x, int y) {
+        return Math.floorMod(x, y);
+    }
+}

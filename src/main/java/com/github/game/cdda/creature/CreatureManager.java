@@ -6,6 +6,7 @@ import com.github.game.cdda.creature.config.CreatureRegistry;
 import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.item.ItemStack;
 import com.github.game.cdda.item.LootTable;
+import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.ChunkManager;
 import com.github.game.engine.core.Camera;
@@ -206,19 +207,40 @@ public class CreatureManager {
      * @param creature 死亡的生物
      */
     private void dropCreatureLoot(Creature creature) {
-        if (groundItemManager == null) return;
-        if (!(creature instanceof Animal)) return;
+        logger.info("dropCreatureLoot 被调用，生物: {}, 类型: {}", creature, creature.getClass().getSimpleName());
 
-        CreatureDefinition def = ((Animal) creature).getDefinition();
+        if (groundItemManager == null) {
+            logger.warn("groundItemManager 为 null，无法掉落物品");
+            return;
+        }
+        if (!(creature instanceof Animal)) {
+            logger.info("生物不是 Animal 类型，跳过掉落");
+            return;
+        }
+
+        Animal animal = (Animal) creature;
+        CreatureDefinition def = animal.getDefinition();
         LootTable lootTable = def.lootTable;
-        if (lootTable == null) return;
+
+        logger.info("生物定义: {}, lootTable: {}", def.name, lootTable);
+
+        if (lootTable == null) {
+            logger.info("{} 没有战利品表，跳过掉落", def.name);
+            return;
+        }
 
         List<ItemStack> drops = lootTable.roll(random);
+        logger.info("{} 掉落 {} 件物品", def.name, drops.size());
+
         for (ItemStack stack : drops) {
             groundItemManager.dropItem(stack, creature.getTileX(), creature.getTileY());
+            logger.info("掉落物品: {} x{} 在位置 ({}, {})",
+                    stack.getType().getName(), stack.getCount(),
+                    creature.getTileX(), creature.getTileY());
         }
         if (!drops.isEmpty()) {
-            logger.debug("{} 死亡，掉落 {} 件物品", def.name, drops.size());
+            GameLog.getInstance().log(String.format("%s 掉落了 %d 件物品",
+                    def.name, drops.size()));
         }
     }
 

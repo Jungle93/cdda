@@ -1,6 +1,8 @@
 package com.github.game.cdda.world.chunk;
 
 import com.github.game.cdda.world.TileType;
+import com.github.game.cdda.world.biome.BiomeType;
+import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,15 +14,19 @@ import java.util.Map;
 /**
  * 区块管理器。负责区块的加载、缓存、预加载和卸载。
  *
- * 核心职责：
- * 1. 根据玩家位置自动加载周围区块（可配置预加载半径）
- * 2. 提供世界坐标 → 瓦片的查询接口
- * 3. 卸载远离玩家的区块以释放内存
+ * <p>核心职责：
+ * <ol>
+ *   <li>根据玩家位置自动加载周围区块（可配置预加载半径）</li>
+ *   <li>提供世界坐标 → 瓦片的查询接口</li>
+ *   <li>卸载远离玩家的区块以释放内存</li>
+ * </ol>
  *
- * 设计要点：
- * - 仅在玩家跨越区块边界时触发加载/卸载（避免每帧重复操作）
- * - 使用 HashMap 缓存已加载区块，O(1) 查找
- * - 全局 Perlin 噪声保证区块间地形无缝
+ * <p>设计要点：
+ * <ul>
+ *   <li>仅在玩家跨越区块边界时触发加载/卸载（避免每帧重复操作）</li>
+ *   <li>使用 HashMap 缓存已加载区块，O(1) 查找</li>
+ *   <li>区块生成由 {@link WorldMap} 的生物群落驱动（大地图→小地图分层架构）</li>
+ * </ul>
  */
 public class ChunkManager {
 
@@ -29,8 +35,11 @@ public class ChunkManager {
     /** 世界种子 */
     private final long worldSeed;
 
-    /** 世界 Perlin 噪声生成器 */
+    /** 世界 Perlin 噪声生成器（局部地形细节） */
     private final PerlinNoise noise;
+
+    /** 世界地图（大地图，提供生物群落信息） */
+    private final WorldMap worldMap;
 
     /** 已加载区块缓存，key = chunkKey(cx, cy) */
     private final Map<Long, Chunk> chunks;
@@ -47,10 +56,12 @@ public class ChunkManager {
      *
      * @param worldSeed     世界种子
      * @param preloadRadius 预加载半径（区块数）
+     * @param worldMap      世界地图（提供生物群落信息）
      */
-    public ChunkManager(long worldSeed, int preloadRadius) {
+    public ChunkManager(long worldSeed, int preloadRadius, WorldMap worldMap) {
         this.worldSeed = worldSeed;
         this.noise = new PerlinNoise(worldSeed);
+        this.worldMap = worldMap;
         this.chunks = new HashMap<>();
         this.preloadRadius = preloadRadius;
         logger.info("区块管理器初始化 — 种子: {}, 预加载半径: {}", worldSeed, preloadRadius);
@@ -158,9 +169,12 @@ public class ChunkManager {
 
     /**
      * 加载指定区块。
+     * 从世界地图获取该位置的生物群落，驱动地形生成。
      */
     private Chunk loadChunk(int cx, int cy) {
-        Chunk chunk = new Chunk(cx, cy, noise, worldSeed);
+        // 从世界地图获取此区块的生物群落
+        BiomeType biome = worldMap.getBiomeAtChunk(cx, cy);
+        Chunk chunk = new Chunk(cx, cy, noise, biome);
         chunks.put(chunkKey(cx, cy), chunk);
         return chunk;
     }
@@ -178,8 +192,23 @@ public class ChunkManager {
         this.preloadRadius = radius;
     }
 
+    /**
+     * 检查指定区块是否已加载（不触发自动加载）。
+     * 用于世界地图等需要大范围渲染但不想触发卡顿的场景。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 该瓦片所在区块是否已缓存
+     */
+    public boolean isChunkLoaded(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+        return chunks.containsKey(chunkKey(cx, cy));
+    }
+
     public int getPreloadRadius() { return preloadRadius; }
     public long getWorldSeed() { return worldSeed; }
+    public WorldMap getWorldMap() { return worldMap; }
 
     /** 获取当前已加载区块数 */
     public int getLoadedChunkCount() { return chunks.size(); }

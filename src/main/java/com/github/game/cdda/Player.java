@@ -3,12 +3,14 @@ package com.github.game.cdda;
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureActionContext;
 import com.github.game.cdda.item.PlayerInventory;
+import com.github.game.cdda.log.GameLog;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.ChunkManager;
 
 import java.awt.*;
+import java.util.Random;
 
 /**
  * 玩家角色。继承自 {@link Creature}，管理世界坐标位置、移动输入和字符渲染。
@@ -36,6 +38,9 @@ public class Player extends Creature {
     /** 瓦片像素尺寸（碰撞检测用） */
     private int tileWidth;
     private int tileHeight;
+
+    /** 随机数生成器（伤害浮动用） */
+    private final Random random = new Random();
 
     /** 玩家背包 */
     private final PlayerInventory inventory;
@@ -147,6 +152,56 @@ public class Player extends Creature {
             }
         }
         return true;
+    }
+
+    // ── 战斗 ──────────────────────────────────
+
+    /**
+     * 近战攻击目标生物。
+     * 伤害公式：基础伤害 = strength / 2，浮动 ±20%。
+     * 未来可扩展：装备武器时加上武器攻击加成。
+     *
+     * @param target 目标生物
+     * @return 实际造成的伤害值
+     */
+    public int meleeAttack(Creature target) {
+        if (target == null || !target.isAlive()) return 0;
+
+        // 基础伤害 = 力量的一半
+        int baseDamage = strength / 2;
+        // 至少造成 1 点伤害
+        baseDamage = Math.max(1, baseDamage);
+
+        // ±20% 随机浮动
+        double variance = 0.8 + random.nextDouble() * 0.4; // 0.8 ~ 1.2
+        int finalDamage = (int) Math.round(baseDamage * variance);
+        finalDamage = Math.max(1, finalDamage);
+
+        // 应用伤害
+        target.takeDamage(finalDamage);
+
+        // 记录日志
+        String targetName = getCreatureDisplayName(target);
+        if (target.isAlive()) {
+            GameLog.getInstance().log(String.format("攻击了 %s，造成 %d 点伤害（剩余 %d/%d）",
+                    targetName, finalDamage, target.getHp(), target.getMaxHp()));
+        } else {
+            GameLog.getInstance().log(String.format("击杀了 %s！（造成 %d 点伤害）",
+                    targetName, finalDamage));
+        }
+
+        return finalDamage;
+    }
+
+    /**
+     * 获取生物的显示名称（用于日志）。
+     * 如果是 Animal，使用其当前生命阶段的名称。
+     */
+    private String getCreatureDisplayName(Creature creature) {
+        if (creature instanceof com.github.game.cdda.creature.Animal) {
+            return ((com.github.game.cdda.creature.Animal) creature).getStageName();
+        }
+        return "未知生物";
     }
 
     // ── 回合行动（玩家由输入驱动，空实现） ──────────────────────────────────

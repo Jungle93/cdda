@@ -113,6 +113,10 @@ public class CreatureRegistry {
                     new InputStreamReader(is, StandardCharsets.UTF_8),
                     CreatureDefinition.class
             );
+            // 调试：打印加载的定义
+            logger.info("加载生物定义: id={}, name={}, lootTable={}",
+                    def.id, def.name,
+                    def.lootTable != null ? (def.lootTable.entries != null ? def.lootTable.entries.size() + " entries" : "null entries") : "null");
             register(def);
         } catch (Exception e) {
             logger.error("加载生物定义失败: {}", path, e);

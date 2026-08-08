@@ -13,6 +13,7 @@ import com.github.game.cdda.screen.hud.GameLogPanel;
 import com.github.game.cdda.screen.hud.TimePanel;
 import com.github.game.cdda.screen.scene.GameScene;
 import com.github.game.cdda.screen.scene.HudScene;
+import com.github.game.cdda.screen.scene.WorldMapScene;
 import com.github.game.cdda.GameWorld;
 import com.github.game.cdda.Month;
 
@@ -56,6 +57,9 @@ public class MainScreen extends Screen {
 
     /** HUD 信息面板场景 */
     private HudScene hudScene;
+
+    /** 世界地图场景（按 M 切换） */
+    private WorldMapScene worldMapScene;
 
     /** 游戏日志面板（用于 V 键切换扩展/紧凑模式） */
     private GameLogPanel gameLogPanel;
@@ -126,9 +130,20 @@ public class MainScreen extends Screen {
         gameLogPanel = new GameLogPanel();
         hudScene.addPanel(gameLogPanel);
 
-        // 注册场景（渲染顺序：游戏场景 → HUD 场景）
+        // ── 世界地图场景（覆盖游戏区域，按 M 切换） ──
+        worldMapScene = new WorldMapScene(
+                new Viewport(0, 0, gameWidth, gameHeight),
+                gameWorld.getWorldMap(),
+                gameWorld.getPlayer(),
+                gameWorld.getCreatureManager()
+        );
+        worldMapScene.init();
+        gameScene.setWorldMapScene(worldMapScene);
+
+        // 注册场景（渲染顺序：游戏场景 → HUD 场景 → 世界地图）
         addScene(gameScene);
         addScene(hudScene);
+        addScene(worldMapScene);
 
         initialized = true;
     }
@@ -157,6 +172,12 @@ public class MainScreen extends Screen {
 
     @Override
     public void onKeyPressed(int keyCode) {
+        // 0. 世界地图模式：优先转发给 WorldMapScene
+        if (gameScene.isWorldMapOpen()) {
+            worldMapScene.onKeyPressed(keyCode);
+            return;
+        }
+
         // 1. 观察模式：直接转发给 GameScene，不处理全局快捷键
         if (gameScene.isInLookMode()) {
             gameScene.onKeyPressed(keyCode);
@@ -195,6 +216,11 @@ public class MainScreen extends Screen {
             // 5.4. L → 进入观察模式
             case KeyEvent.VK_L:
                 gameScene.enterLookMode();
+                return;
+
+            // 5.45. M → 切换世界地图
+            case KeyEvent.VK_M:
+                gameScene.toggleWorldMap();
                 return;
 
             // 5.5. D → 丢弃物品
@@ -240,5 +266,37 @@ public class MainScreen extends Screen {
     @Override
     public void dispose() {
         super.dispose();
+    }
+
+    // ── 窗口 resize 处理 ──────────────────────────────────
+
+    /**
+     * 窗口尺寸变更时，重新计算游戏区域和 HUD 区域的 Viewport，
+     * 并更新 Camera 的视口尺寸。
+     */
+    @Override
+    public void onWindowResized(int width, int height) {
+        if (gameScene == null || hudScene == null) return; // 尚未初始化
+
+        int infoPanelWidth = ConfigManager.getInstance().getInfoPanelWidth();
+        int gameWidth = width - infoPanelWidth;
+        int gameHeight = height;
+
+        // 更新游戏场景 viewport
+        gameScene.getViewport().setSize(gameWidth, gameHeight);
+
+        // 更新 HUD 场景 viewport（位置 + 尺寸）
+        hudScene.getViewport().setPosition(gameWidth, 0);
+        hudScene.getViewport().setSize(infoPanelWidth, gameHeight);
+
+        // 更新摄像机视口尺寸
+        if (gameScene.getCamera() != null) {
+            gameScene.getCamera().setViewportSize(gameWidth, gameHeight);
+        }
+
+        // 更新世界地图 viewport
+        if (worldMapScene != null) {
+            worldMapScene.getViewport().setSize(gameWidth, gameHeight);
+        }
     }
 }

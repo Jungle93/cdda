@@ -6,6 +6,7 @@ import com.github.game.cdda.game.WorldSettings;
 import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
+import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.chunk.ChunkManager;
 /**
  * 游戏世界（逻辑层）。创建并持有所有游戏子系统，是游戏状态的唯一权威来源。
@@ -33,6 +34,7 @@ import com.github.game.cdda.world.chunk.ChunkManager;
 public class GameWorld {
 
     // ── 游戏子系统 ──────────────────────────────────
+    private final WorldMap worldMap;
     private final ChunkManager chunkManager;
     private final GameCalendar gameTime;
     private final TurnManager turnManager;
@@ -53,8 +55,11 @@ public class GameWorld {
      * @param startHour  起始小时（0-23）
      */
     public GameWorld(WorldSettings settings, Month startMonth, int startHour) {
-        // 1) 地图数据
-        chunkManager = new ChunkManager(settings.getSeed(), Constants.DEFAULT_PRELOAD_RADIUS);
+        // 0) 世界地图（大地图 — 生物群落分布）
+        worldMap = new WorldMap(settings.getSeed());
+
+        // 1) 地图数据（小地图 — 由世界地图驱动区块生成）
+        chunkManager = new ChunkManager(settings.getSeed(), Constants.DEFAULT_PRELOAD_RADIUS, worldMap);
 
         // 2) 时间系统
         gameTime = new GameCalendar(startMonth, startHour);
@@ -149,6 +154,7 @@ public class GameWorld {
 
     // ── 访问器 ──────────────────────────────────
 
+    public WorldMap getWorldMap() { return worldMap; }
     public ChunkManager getChunkManager() { return chunkManager; }
     public GameCalendar getGameTime() { return gameTime; }
     public TurnManager getTurnManager() { return turnManager; }

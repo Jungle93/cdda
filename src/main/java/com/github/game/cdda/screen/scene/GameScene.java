@@ -78,6 +78,11 @@ public class GameScene extends Scene {
     /** 瓦片尺寸是否已初始化 */
     private boolean initialized = false;
 
+    // ── 世界地图（大地图） ──────────────────────────────────
+
+    /** 世界地图场景 */
+    private WorldMapScene worldMapScene;
+
     // ── FPS 计算 ──────────────────────────────────
     private long fpsFrameCount = 0;
     private long fpsLastTime = System.currentTimeMillis();
@@ -140,7 +145,7 @@ public class GameScene extends Scene {
         world.spawnInitialCreatures();
 
         // 记录开局日志
-        GameLog.getInstance().log("游戏开始。方向键移动，5等待，-持续等待，L观察，E进食，G拾取，D丢弃，I背包，`调试，ESC菜单");
+        GameLog.getInstance().log("游戏开始。方向键移动/攻击，5等待，L观察，M大地图，E进食，G拾取，D丢弃，I背包，`调试，ESC菜单");
         GameLog.getInstance().log(String.format("周围生成了 %d 个生物", creatureManager.getCreatureCount()));
 
         initialized = true;
@@ -149,6 +154,9 @@ public class GameScene extends Scene {
     @Override
     public void update(long deltaTime) {
         if (!initialized) return;
+
+        // 世界地图打开时，暂停游戏逻辑更新（摄像机不跟随、区块不加载）
+        if (isWorldMapOpen()) return;
 
         // FPS 计算
         fpsFrameCount++;
@@ -276,6 +284,9 @@ public class GameScene extends Scene {
     public void onKeyPressed(int keyCode) {
         if (!initialized) return;
 
+        // 世界地图模式：输入由 WorldMapScene 处理，GameScene 跳过移动/攻击
+        if (isWorldMapOpen()) return;
+
         // 观察模式：拦截所有按键，不传递给移动逻辑
         if (inLookMode) {
             handleLookInput(keyCode);
@@ -310,6 +321,7 @@ public class GameScene extends Scene {
         }
 
         // ── 网格式移动：每次按键移动恰好一个瓦片（仅方向键） ──
+        // 移动即攻击：先检查目标位置是否有生物
         int dx = 0, dy = 0;
         switch (keyCode) {
             case KeyEvent.VK_UP:    dy = -1; break;
@@ -319,6 +331,29 @@ public class GameScene extends Scene {
             default: return;
         }
 
+        // 目标瓦片坐标
+        int targetTileX = player.getTileX() + dx;
+        int targetTileY = player.getTileY() + dy;
+
+        // 检查目标位置是否有生物 → 近战攻击
+        com.github.game.cdda.creature.Creature target =
+                creatureManager.getCreatureAtTile(targetTileX, targetTileY);
+
+        if (target != null) {
+            // 近战攻击（消耗 ATTACK_BASE_TIME）
+            player.meleeAttack(target);
+            turnManager.addAction(player, Constants.ATTACK_BASE_TIME);
+            metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);
+            metabolismManager.update();
+            hydrationManager.addAction(Constants.ADD_THIRST_COMBAT);
+            hydrationManager.update();
+            // 处理生物回合
+            processCreatureTurns();
+            turnManager.processRound();
+            return;
+        }
+
+        // 无生物 → 正常移动
         // 回合制：玩家行动后推进时间
         if (player.move(dx, dy)) {
             turnManager.addAction(player, Constants.MOVE_BASE_TIME);
@@ -356,6 +391,45 @@ public class GameScene extends Scene {
         creatureCycleIndex = -1;
         GameLog.getInstance().log("退出观察模式");
     }
+
+    // ── 世界地图（大地图） ──────────────────────────────────
+
+    /** 设置世界地图场景引用（由 MainScreen 在创建后调用） */
+    public void setWorldMapScene(WorldMapScene scene) {
+        this.worldMapScene = scene;
+    }
+
+    /** 世界地图是否打开 */
+    public boolean isWorldMapOpen() {
+        return worldMapScene != null && worldMapScene.isOpen();
+    }
+
+    /** 打开世界地图 */
+    public void openWorldMap() {
+        if (worldMapScene != null) {
+            worldMapScene.getViewport().setSize(viewport.getWidth(), viewport.getHeight());
+            worldMapScene.openMap();
+        }
+    }
+
+    /** 关闭世界地图 */
+    public void closeWorldMap() {
+        if (worldMapScene != null) {
+            worldMapScene.closeMap();
+        }
+    }
+
+    /** 切换世界地图 */
+    public void toggleWorldMap() {
+        if (isWorldMapOpen()) {
+            closeWorldMap();
+        } else {
+            openWorldMap();
+        }
+    }
+
+    /** 获取世界地图场景（用于 MainScreen 转发输入） */
+    public WorldMapScene getWorldMapScene() { return worldMapScene; }
 
     /** 刷新可见生物列表（以玩家感知范围为半径） */
     private void refreshVisibleCreatures() {

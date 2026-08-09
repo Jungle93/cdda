@@ -23,21 +23,23 @@ import java.util.List;
  * <p>大地图上每个色块对应一个 {@link Chunk}（64×64 瓦片）的生物群落。
  * 由 {@link WorldMap} 提供数据，直接渲染群落颜色，无需加载区块。
  *
+ * <p>采用光标模式：地图上显示一个可移动的光标，方向键移动光标，地图视口跟随光标滚动。
+ *
  * <p>特性：
  * <ul>
  *   <li>每个色块 = 1 个区块的生物群落颜色</li>
- *   <li>支持多级缩放（4/6/8/12/16 像素/区块）</li>
- *   <li>方向键/WASD 平移视角</li>
+ *   <li>支持多级缩放（6/8/12/16/24 像素/区块）</li>
+ *   <li>光标模式：方向键移动光标，地图跟随</li>
  *   <li>玩家显示为黄色 '@' 标记</li>
+ *   <li>光标位置显示青色高亮边框</li>
  *   <li>附近生物显示为红色点</li>
- *   <li>即时渲染——无需加载区块，性能极高</li>
  * </ul>
  *
  * <p>控制：
  * <ul>
- *   <li>方向键/WASD — 平移地图</li>
+ *   <li>方向键/WASD — 移动光标（每次 1 区块）</li>
  *   <li>+/- — 缩放</li>
- *   <li>Home — 回到玩家位置</li>
+ *   <li>Home — 光标回到玩家位置</li>
  *   <li>ESC/M/Enter — 关闭地图</li>
  * </ul>
  */
@@ -46,9 +48,6 @@ public class WorldMapScene extends Scene {
     /** 缩放级别定义（像素/区块 cell） */
     private static final int[] ZOOM_LEVELS = {6, 8, 12, 16, 24};
     private static final int DEFAULT_ZOOM_INDEX = 2; // 12px
-
-    /** 每次平移的区块数 */
-    private static final int PAN_STEP_CHUNKS = 3;
 
     // ── 游戏数据引用 ──
     private final WorldMap worldMap;
@@ -60,9 +59,9 @@ public class WorldMapScene extends Scene {
     /** 当前缩放级别索引 */
     private int zoomIndex = DEFAULT_ZOOM_INDEX;
 
-    /** 平移偏移量（以区块为单位），相对于玩家所在区块 */
-    private int panOffsetChunksX = 0;
-    private int panOffsetChunksY = 0;
+    /** 光标所在区块坐标 */
+    private int cursorChunkX = 0;
+    private int cursorChunkY = 0;
 
     /** 输入状态机引用（由 MainScreen 注入，用于查询模式和关闭地图） */
     private InputStateMachine inputStateMachine;
@@ -97,13 +96,13 @@ public class WorldMapScene extends Scene {
 
     /**
      * 打开大地图（生命周期回调）。
-     * 重置平移到玩家所在区块。
+     * 光标重置到玩家所在区块。
      */
     public void onOpen() {
-        panOffsetChunksX = 0;
-        panOffsetChunksY = 0;
+        cursorChunkX = playerChunkX();
+        cursorChunkY = playerChunkY();
         zoomIndex = DEFAULT_ZOOM_INDEX;
-        GameLog.getInstance().log("打开大地图 — 方向键平移，+/- 缩放，Home 居中，M/ESC 关闭");
+        GameLog.getInstance().log("打开大地图 — 方向键移动光标，+/- 缩放，Home 回到玩家，M/ESC 关闭");
     }
 
     /**
@@ -131,12 +130,11 @@ public class WorldMapScene extends Scene {
 
     /**
      * 区块坐标 → 屏幕像素 X。
-     * 以玩家所在区块为中心，加上平移偏移。
+     * 以光标所在区块为中心。
      */
     private int chunkToScreenX(int chunkX) {
         int cs = cellSize();
-        int centerScreenX = viewport.getWidth() / 2 + panOffsetChunksX * cs;
-        return centerScreenX + (chunkX - playerChunkX()) * cs;
+        return viewport.getWidth() / 2 + (chunkX - cursorChunkX) * cs;
     }
 
     /**
@@ -144,8 +142,7 @@ public class WorldMapScene extends Scene {
      */
     private int chunkToScreenY(int chunkY) {
         int cs = cellSize();
-        int centerScreenY = viewport.getHeight() / 2 + panOffsetChunksY * cs;
-        return centerScreenY + (chunkY - playerChunkY()) * cs;
+        return viewport.getHeight() / 2 + (chunkY - cursorChunkY) * cs;
     }
 
     // ── 渲染 ──────────────────────────────────
@@ -162,16 +159,14 @@ public class WorldMapScene extends Scene {
         renderer.setColor(new Color(20, 20, 30));
         renderer.fillRect(0, 0, vpW, vpH);
 
-        // 2. 渲染生物群落色块
+        // 2. 渲染生物群落色块（以光标为中心）
         int halfCellsW = (vpW / 2 / cs) + 2;
         int halfCellsH = (vpH / 2 / cs) + 2;
-        int pChunkX = playerChunkX();
-        int pChunkY = playerChunkY();
 
         for (int dy = -halfCellsH; dy <= halfCellsH; dy++) {
             for (int dx = -halfCellsW; dx <= halfCellsW; dx++) {
-                int chunkX = pChunkX + dx;
-                int chunkY = pChunkY + dy;
+                int chunkX = cursorChunkX + dx;
+                int chunkY = cursorChunkY + dy;
 
                 BiomeType biome = worldMap.getBiomeAtChunk(chunkX, chunkY);
                 int screenX = chunkToScreenX(chunkX);
@@ -181,7 +176,7 @@ public class WorldMapScene extends Scene {
                 renderer.setColor(biome.getColor());
                 renderer.fillRect(screenX, screenY, cs, cs);
 
-                // 区块边界线（缩放较大时显示，增强网格感）
+                // 区块边界线（缩放较大时显示）
                 if (cs >= 8) {
                     renderer.setColor(new Color(0, 0, 0, 40));
                     renderer.drawRect(screenX, screenY, cs, cs);
@@ -199,17 +194,40 @@ public class WorldMapScene extends Scene {
             }
         }
 
-        // 3. 渲染玩家标记（黄色 '@'）
+        // 3. 渲染光标高亮
+        renderCursorHighlight(renderer, cs);
+
+        // 4. 渲染玩家标记（黄色 '@'）
         renderPlayerMarker(renderer);
 
-        // 4. 渲染附近生物（红色点）
+        // 5. 渲染附近生物（红色点）
         renderCreatures(renderer);
 
-        // 5. 底部状态栏
+        // 6. 底部状态栏
         renderStatusBar(renderer, vpW, vpH);
 
-        // 6. 操作提示（左上角）
+        // 7. 操作提示（左上角）
         renderHints(renderer);
+    }
+
+    /**
+     * 渲染光标高亮（青色边框 + 半透明叠加）。
+     */
+    private void renderCursorHighlight(Renderer renderer, int cs) {
+        int cx = chunkToScreenX(cursorChunkX);
+        int cy = chunkToScreenY(cursorChunkY);
+
+        // 半透明叠加
+        renderer.setColor(new Color(0, 255, 255, 40));
+        renderer.fillRect(cx, cy, cs, cs);
+
+        // 青色边框
+        renderer.setColor(Color.CYAN);
+        renderer.drawRect(cx, cy, cs, cs);
+        // 双线效果（缩放大时）
+        if (cs >= 12) {
+            renderer.drawRect(cx + 1, cy + 1, cs - 2, cs - 2);
+        }
     }
 
     /**
@@ -249,7 +267,6 @@ public class WorldMapScene extends Scene {
         int cs = cellSize();
         int vpW = viewport.getWidth();
         int vpH = viewport.getHeight();
-        // 将视口像素范围转换为区块范围
         int halfCellsW = (vpW / 2 / cs) + 2;
         int halfCellsH = (vpH / 2 / cs) + 2;
         int maxRangeTiles = Math.max(halfCellsW, halfCellsH) * Chunk.SIZE;
@@ -271,6 +288,7 @@ public class WorldMapScene extends Scene {
 
     /**
      * 渲染底部状态栏。
+     * 显示光标区块坐标 + 生物群落 + 玩家位置。
      */
     private void renderStatusBar(Renderer renderer, int vpW, int vpH) {
         int barHeight = 20;
@@ -281,17 +299,17 @@ public class WorldMapScene extends Scene {
 
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 11));
 
-        // 玩家区块坐标 + 视野中心区块坐标
-        int centerChunkX = playerChunkX() - panOffsetChunksX;
-        int centerChunkY = playerChunkY() - panOffsetChunksY;
-        BiomeType centerBiome = worldMap.getBiomeAtChunk(centerChunkX, centerChunkY);
+        BiomeType cursorBiome = worldMap.getBiomeAtChunk(cursorChunkX, cursorChunkY);
 
-        renderer.setColor(Color.WHITE);
-        String posInfo = String.format("区块:(%d,%d)  视野:(%d,%d)  %s  缩放:%dpx/区块",
-                playerChunkX(), playerChunkY(),
-                centerChunkX, centerChunkY,
-                centerBiome.getName(), cellSize());
-        renderer.drawText(posInfo, 4, barY + 14);
+        renderer.setColor(Color.CYAN);
+        String cursorInfo = String.format("光标:(%d,%d) %s",
+                cursorChunkX, cursorChunkY, cursorBiome.getName());
+        renderer.drawText(cursorInfo, 4, barY + 14);
+
+        renderer.setColor(Color.YELLOW);
+        String playerInfo = String.format("  玩家:(%d,%d)  缩放:%dpx/区块",
+                playerChunkX(), playerChunkY(), cellSize());
+        renderer.drawText(playerInfo, 4 + renderer.getTextWidth(cursorInfo), barY + 14);
     }
 
     /**
@@ -301,7 +319,7 @@ public class WorldMapScene extends Scene {
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 10));
 
         String[] hints = {
-                "方向键/WASD: 平移",
+                "方向键/WASD: 移动光标",
                 "+/-: 缩放",
                 "Home: 回到玩家",
                 "M/ESC/Enter: 关闭"
@@ -311,7 +329,7 @@ public class WorldMapScene extends Scene {
         int hintY = 12;
         int lineHeight = 13;
 
-        int panelW = 140;
+        int panelW = 150;
         int panelH = hints.length * lineHeight + 6;
         renderer.setColor(new Color(0, 0, 0, 150));
         renderer.fillRect(hintX - 2, hintY - 11, panelW, panelH);
@@ -345,28 +363,28 @@ public class WorldMapScene extends Scene {
                 inputStateMachine.closeWorldMap();
                 return;
 
-            // 回到玩家位置
+            // 光标回到玩家位置
             case KeyEvent.VK_HOME:
-                panOffsetChunksX = 0;
-                panOffsetChunksY = 0;
+                cursorChunkX = playerChunkX();
+                cursorChunkY = playerChunkY();
                 return;
 
-            // 平移（以区块为单位）
+            // 移动光标（每次 1 区块）
             case KeyEvent.VK_UP:
             case KeyEvent.VK_W:
-                panOffsetChunksY -= PAN_STEP_CHUNKS;
+                cursorChunkY--;
                 return;
             case KeyEvent.VK_DOWN:
             case KeyEvent.VK_S:
-                panOffsetChunksY += PAN_STEP_CHUNKS;
+                cursorChunkY++;
                 return;
             case KeyEvent.VK_LEFT:
             case KeyEvent.VK_A:
-                panOffsetChunksX -= PAN_STEP_CHUNKS;
+                cursorChunkX--;
                 return;
             case KeyEvent.VK_RIGHT:
             case KeyEvent.VK_D:
-                panOffsetChunksX += PAN_STEP_CHUNKS;
+                cursorChunkX++;
                 return;
 
             default:
@@ -374,31 +392,17 @@ public class WorldMapScene extends Scene {
         }
     }
 
-    /**
-     * 放大（增加像素/区块 cell）。
-     * 调整平移偏移以保持视野中心的区块不变。
-     */
+    /** 放大（增加像素/区块 cell）。 */
     private void zoomIn() {
         if (zoomIndex < ZOOM_LEVELS.length - 1) {
-            int oldCs = cellSize();
             zoomIndex++;
-            int newCs = cellSize();
-            // 保持视野中心区块不变
-            panOffsetChunksX = panOffsetChunksX * oldCs / newCs;
-            panOffsetChunksY = panOffsetChunksY * oldCs / newCs;
         }
     }
 
-    /**
-     * 缩小（减少像素/区块 cell）。
-     */
+    /** 缩小（减少像素/区块 cell）。 */
     private void zoomOut() {
         if (zoomIndex > 0) {
-            int oldCs = cellSize();
             zoomIndex--;
-            int newCs = cellSize();
-            panOffsetChunksX = panOffsetChunksX * oldCs / newCs;
-            panOffsetChunksY = panOffsetChunksY * oldCs / newCs;
         }
     }
 

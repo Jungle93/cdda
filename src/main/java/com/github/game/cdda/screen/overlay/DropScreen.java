@@ -17,16 +17,13 @@ import java.util.List;
  * 丢弃物品界面。
  * 从背包中选择物品并指定数量丢弃到脚下。
  *
- * <p>操作：
- * <ul>
- *   <li>↑/↓ — 选择物品</li>
- *   <li>←/→ — 调整丢弃数量（仅可堆叠物品）</li>
- *   <li>Enter — 确认丢弃</li>
- *   <li>Esc — 返回</li>
- * </ul>
+ * <p>操作流程（两步）：
+ * <ol>
+ *   <li>↑/↓ 选择物品，Enter 进入数量输入</li>
+ *   <li>输入数字，Enter 确认丢弃</li>
+ * </ol>
  *
- * <p>可堆叠物品（maxStackSize > 1 且非 unique）可按数量丢弃；
- * 不可堆叠物品只能整件丢弃。
+ * <p>不可堆叠物品直接整件丢弃（跳过数量输入）。
  */
 public class DropScreen extends MenuScreen {
 
@@ -39,6 +36,11 @@ public class DropScreen extends MenuScreen {
     /** 每项当前选定的丢弃数量 */
     private int[] dropCounts;
 
+    /** 是否处于数量输入模式 */
+    private boolean quantityInputMode = false;
+    /** 数量输入缓冲 */
+    private StringBuilder numberBuffer = new StringBuilder();
+
     public DropScreen(GameEngine engine, Player player, GroundItemManager groundItemManager) {
         super(engine);
         this.player = player;
@@ -47,30 +49,20 @@ public class DropScreen extends MenuScreen {
         refreshDropCounts();
     }
 
-    /** 重新初始化丢弃数量数组（物品变动后调用） */
     private void refreshDropCounts() {
         int count = inventory.getItemCount();
         dropCounts = new int[count];
         for (int i = 0; i < count; i++) {
-            ItemStack stack = inventory.getItem(i);
-            if (stack != null) {
-                // 不可堆叠物品只能整体丢弃（数量固定为 1）
-                dropCounts[i] = isStackable(stack.getType()) ? stack.getCount() : 1;
-            }
+            dropCounts[i] = 1;
         }
     }
 
-    /** 当前选中物品是否可堆叠 */
     private boolean isCurrentStackable() {
         if (selectedIndex < 0 || selectedIndex >= inventory.getItemCount()) return false;
         ItemStack stack = inventory.getItem(selectedIndex);
         return stack != null && isStackable(stack.getType());
     }
 
-    /**
-     * 判断物品是否可堆叠（支持按数量丢弃）。
-     * maxStackSize > 1 且非 unique 的物品可堆叠。
-     */
     private boolean isStackable(com.github.game.cdda.item.ItemType type) {
         return type.getMaxStackSize() > 1 && !type.isUnique();
     }
@@ -87,29 +79,80 @@ public class DropScreen extends MenuScreen {
             return;
         }
 
+        // ── 数量输入模式 ──
+        if (quantityInputMode) {
+            handleQuantityInput(keyCode);
+            return;
+        }
+
+        // ── 选择模式 ──
         switch (keyCode) {
-            case KeyEvent.VK_LEFT:
-                // 仅可堆叠物品可调整丢弃数量
-                if (isCurrentStackable()) {
-                    if (dropCounts[selectedIndex] > 1) {
-                        dropCounts[selectedIndex]--;
-                    }
-                }
-                return;
-            case KeyEvent.VK_RIGHT:
-                // 仅可堆叠物品可调整丢弃数量
-                if (isCurrentStackable()) {
-                    ItemStack curStack = inventory.getItem(selectedIndex);
-                    if (curStack != null && dropCounts[selectedIndex] < curStack.getCount()) {
-                        dropCounts[selectedIndex]++;
-                    }
-                }
-                return;
             case KeyEvent.VK_ENTER:
-                confirmDrop();
+                if (isCurrentStackable()) {
+                    // 可堆叠物品：进入数量输入模式
+                    quantityInputMode = true;
+                    numberBuffer.setLength(0);
+                } else {
+                    // 不可堆叠物品：直接整件丢弃
+                    dropCounts[selectedIndex] = 1;
+                    confirmDrop();
+                }
                 return;
             default:
                 super.onKeyPressed(keyCode);
+        }
+    }
+
+    /** 数量输入模式下的按键处理 */
+    private void handleQuantityInput(int keyCode) {
+        int digit = toDigit(keyCode);
+        if (digit >= 0) {
+            numberBuffer.append(digit);
+            int max = inventory.getItem(selectedIndex).getCount();
+            int value = parseClamped(max);
+            dropCounts[selectedIndex] = Math.max(1, Math.min(value, max));
+            return;
+        }
+
+        switch (keyCode) {
+            case KeyEvent.VK_BACK_SPACE:
+                if (numberBuffer.length() > 0) {
+                    numberBuffer.deleteCharAt(numberBuffer.length() - 1);
+                    int max = inventory.getItem(selectedIndex).getCount();
+                    dropCounts[selectedIndex] = numberBuffer.length() == 0
+                            ? 1
+                            : Math.max(1, Math.min(parseClamped(max), max));
+                }
+                return;
+            case KeyEvent.VK_ENTER:
+                quantityInputMode = false;
+                numberBuffer.setLength(0);
+                confirmDrop();
+                return;
+            case KeyEvent.VK_ESCAPE:
+                quantityInputMode = false;
+                numberBuffer.setLength(0);
+                dropCounts[selectedIndex] = 1;
+                return;
+            default:
+                break;
+        }
+    }
+
+    private int toDigit(int keyCode) {
+        if (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9)
+            return keyCode - KeyEvent.VK_0;
+        if (keyCode >= KeyEvent.VK_NUMPAD0 && keyCode <= KeyEvent.VK_NUMPAD9)
+            return keyCode - KeyEvent.VK_NUMPAD0;
+        return -1;
+    }
+
+    private int parseClamped(int max) {
+        if (numberBuffer.length() == 0) return 1;
+        try {
+            return Integer.parseInt(numberBuffer.toString());
+        } catch (NumberFormatException e) {
+            return 1;
         }
     }
 
@@ -121,7 +164,6 @@ public class DropScreen extends MenuScreen {
         int width = getWidth();
         int height = getHeight();
 
-        // 标题
         drawTitle(renderer, TITLE, 24, height / 5);
 
         if (inventory.isEmpty()) {
@@ -144,7 +186,7 @@ public class DropScreen extends MenuScreen {
         int listStartY = height / 5 + 55;
         int itemHeight = 24;
         int fontSize = 14;
-        int maxVisible = (height * 3 / 5 - 40) / itemHeight;
+        int maxVisible = (height * 3 / 5 - 60) / itemHeight;
 
         int scrollOffset = 0;
         if (selectedIndex >= maxVisible) {
@@ -164,7 +206,6 @@ public class DropScreen extends MenuScreen {
             int dropWeight = singleWeight * dropCount;
             boolean stackable = isStackable(stack.getType());
 
-            // 高亮选中行背景
             if (sel) {
                 renderer.setColor(new Color(60, 60, 0, 120));
                 renderer.fillRect(20, listStartY + vi * itemHeight - 14, width - 40, itemHeight);
@@ -174,16 +215,14 @@ public class DropScreen extends MenuScreen {
             String prefix = sel ? "▶ " : "  ";
             String name = stack.getType().getName();
 
-            // 物品名 + 总数（可堆叠）或仅名称（不可堆叠）
             String nameStr = stackable
                     ? String.format("%s%s (共%d)", prefix, name, totalCount)
                     : String.format("%s%s", prefix, name);
             renderer.setColor(sel ? Color.YELLOW : Color.WHITE);
             renderer.drawText(nameStr, 30, listStartY + vi * itemHeight);
 
-            // 丢弃数量/整件丢弃
             if (stackable) {
-                String countStr = String.format("丢弃: %d  ←→调整", dropCount);
+                String countStr = String.format("丢弃: %d", dropCount);
                 renderer.setColor(sel ? new Color(255, 200, 60) : Color.LIGHT_GRAY);
                 renderer.drawText(countStr, 30 + renderer.getTextWidth(nameStr) + 20,
                         listStartY + vi * itemHeight);
@@ -193,20 +232,36 @@ public class DropScreen extends MenuScreen {
                         listStartY + vi * itemHeight);
             }
 
-            // 丢弃重量
             String wStr = String.format("(%dg)", dropWeight);
             renderer.setColor(Color.GRAY);
             renderer.drawText(wStr, width - 80, listStartY + vi * itemHeight);
         }
 
-        // 底部提示（根据选中物品是否可堆叠动态显示）
-        String hint = isCurrentStackable()
-                ? "↑↓ 选择 | ←→ 数量 | Enter 确认丢弃 | Esc 返回"
-                : "↑↓ 选择 | Enter 整件丢弃 | Esc 返回";
-        drawHintBar(renderer, hint);
+        // ── 数量输入提示框 ──
+        if (quantityInputMode) {
+            int promptY = height - 55;
+            renderer.setColor(new Color(30, 30, 10, 200));
+            renderer.fillRect(20, promptY - 18, width - 40, 36);
+
+            renderer.setFont(new Font("Monospaced", Font.BOLD, 14));
+            renderer.setColor(Color.YELLOW);
+            String prompt = String.format("输入数量 (最多 %d): %s_",
+                    inventory.getItem(selectedIndex).getCount(),
+                    numberBuffer.length() > 0 ? numberBuffer.toString() : "");
+            renderer.drawText(prompt, 30, promptY);
+        }
+
+        // 底部提示
+        if (quantityInputMode) {
+            drawHintBar(renderer, "数字键输入 | Backspace 删除 | Enter 确认 | Esc 取消");
+        } else {
+            String hint = isCurrentStackable()
+                    ? "↑↓ 选择 | Enter 输入数量 | Esc 返回"
+                    : "↑↓ 选择 | Enter 整件丢弃 | Esc 返回";
+            drawHintBar(renderer, hint);
+        }
     }
 
-    /** 确认丢弃当前选中物品 */
     private void confirmDrop() {
         if (selectedIndex < 0 || selectedIndex >= inventory.getItemCount()) return;
 
@@ -216,14 +271,12 @@ public class DropScreen extends MenuScreen {
         ItemStack stack = inventory.getItem(selectedIndex);
         if (stack == null) return;
 
-        // 从背包移除指定数量
         ItemStack dropped = inventory.removeItem(selectedIndex, dropCount);
         if (dropped != null) {
             groundItemManager.dropItem(dropped, player.getTileX(), player.getTileY());
             GameLog.getInstance().log(String.format("丢弃了 %s x%d",
                     dropped.getType().getName(), dropped.getCount()));
 
-            // 刷新数量数组（物品可能已完全移除）
             refreshDropCounts();
             if (selectedIndex >= inventory.getItemCount() && selectedIndex > 0) {
                 selectedIndex--;
@@ -238,7 +291,6 @@ public class DropScreen extends MenuScreen {
 
     @Override
     protected void onCancel() {
-        // 返回背包（pop 自己后，如果背包还在栈上就显示背包）
         engine.getScreenManager().popScreen();
     }
 }

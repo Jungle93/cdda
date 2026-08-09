@@ -30,13 +30,11 @@ import java.util.List;
  *   <li>药品 (MEDICINE) — 回复生命值</li>
  * </ul>
  *
- * <p>操作：
- * <ul>
- *   <li>↑/↓ — 选择物品</li>
- *   <li>←/→ — 调整消耗数量（仅可堆叠物品）</li>
- *   <li>Enter — 确认消耗</li>
- *   <li>Esc — 返回</li>
- * </ul>
+ * <p>操作流程（两步）：
+ * <ol>
+ *   <li>↑/↓ 选择物品，Enter 进入数量输入</li>
+ *   <li>输入数字，Enter 确认消耗</li>
+ * </ol>
  */
 public class EatingScreen extends MenuScreen {
 
@@ -53,6 +51,11 @@ public class EatingScreen extends MenuScreen {
     private int[] consumableIndices;
     /** 每项当前选定的消耗数量 */
     private int[] consumeCounts;
+
+    /** 是否处于数量输入模式 */
+    private boolean quantityInputMode = false;
+    /** 数量输入缓冲 */
+    private StringBuilder numberBuffer = new StringBuilder();
 
     public EatingScreen(GameEngine engine, GameWorld world) {
         super(engine);
@@ -77,17 +80,13 @@ public class EatingScreen extends MenuScreen {
         consumableIndices = indices.stream().mapToInt(Integer::intValue).toArray();
         consumeCounts = new int[consumableIndices.length];
         for (int i = 0; i < consumableIndices.length; i++) {
-            ItemStack stack = inventory.getItem(consumableIndices[i]);
-            // 不可堆叠物品只能消耗 1 个
-            consumeCounts[i] = isStackable(stack.getType()) ? stack.getCount() : 1;
+            consumeCounts[i] = 1;
         }
-        // 确保选中索引有效
         if (selectedIndex >= consumableIndices.length) {
             selectedIndex = Math.max(0, consumableIndices.length - 1);
         }
     }
 
-    /** 当前选中物品是否可堆叠 */
     private boolean isCurrentStackable() {
         if (!hasConsumables()) return false;
         ItemStack stack = getSelectedStack();
@@ -102,7 +101,6 @@ public class EatingScreen extends MenuScreen {
         return consumableIndices.length > 0;
     }
 
-    /** 获取当前选中的 ItemStack */
     private ItemStack getSelectedStack() {
         if (selectedIndex < 0 || selectedIndex >= consumableIndices.length) return null;
         return inventory.getItem(consumableIndices[selectedIndex]);
@@ -120,25 +118,85 @@ public class EatingScreen extends MenuScreen {
             return;
         }
 
+        // ── 数量输入模式 ──
+        if (quantityInputMode) {
+            handleQuantityInput(keyCode);
+            return;
+        }
+
+        // ── 选择模式 ──
         switch (keyCode) {
-            case KeyEvent.VK_LEFT:
-                if (isCurrentStackable() && consumeCounts[selectedIndex] > 1) {
-                    consumeCounts[selectedIndex]--;
-                }
-                return;
-            case KeyEvent.VK_RIGHT:
-                if (isCurrentStackable()) {
-                    ItemStack curStack = getSelectedStack();
-                    if (curStack != null && consumeCounts[selectedIndex] < curStack.getCount()) {
-                        consumeCounts[selectedIndex]++;
-                    }
-                }
-                return;
             case KeyEvent.VK_ENTER:
-                confirmConsume();
+                if (isCurrentStackable()) {
+                    // 可堆叠物品：进入数量输入模式
+                    quantityInputMode = true;
+                    numberBuffer.setLength(0);
+                } else {
+                    // 不可堆叠物品：直接消耗 1 个
+                    consumeCounts[selectedIndex] = 1;
+                    confirmConsume();
+                }
                 return;
             default:
                 super.onKeyPressed(keyCode);
+        }
+    }
+
+    /** 数量输入模式下的按键处理 */
+    private void handleQuantityInput(int keyCode) {
+        int digit = toDigit(keyCode);
+        if (digit >= 0) {
+            numberBuffer.append(digit);
+            int max = getSelectedStack().getCount();
+            int value = parseClamped(max);
+            consumeCounts[selectedIndex] = Math.max(1, Math.min(value, max));
+            return;
+        }
+
+        switch (keyCode) {
+            case KeyEvent.VK_BACK_SPACE:
+                // 退格：删除最后一位
+                if (numberBuffer.length() > 0) {
+                    numberBuffer.deleteCharAt(numberBuffer.length() - 1);
+                    int max = getSelectedStack().getCount();
+                    consumeCounts[selectedIndex] = numberBuffer.length() == 0
+                            ? 1
+                            : Math.max(1, Math.min(parseClamped(max), max));
+                }
+                return;
+            case KeyEvent.VK_ENTER:
+                // 确认消耗
+                quantityInputMode = false;
+                numberBuffer.setLength(0);
+                confirmConsume();
+                return;
+            case KeyEvent.VK_ESCAPE:
+                // 取消输入，回到选择模式（数量重置为 1）
+                quantityInputMode = false;
+                numberBuffer.setLength(0);
+                consumeCounts[selectedIndex] = 1;
+                return;
+            default:
+                break;
+        }
+    }
+
+    /** 将按键码转换为数字 0-9，非数字键返回 -1 */
+    private int toDigit(int keyCode) {
+        if (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9)
+            return keyCode - KeyEvent.VK_0;
+        if (keyCode >= KeyEvent.VK_NUMPAD0 && keyCode <= KeyEvent.VK_NUMPAD9)
+            return keyCode - KeyEvent.VK_NUMPAD0;
+        return -1;
+    }
+
+    /** 解析数字缓冲，限制不超过 max */
+    private int parseClamped(int max) {
+        if (numberBuffer.length() == 0) return 1;
+        try {
+            return Integer.parseInt(numberBuffer.toString());
+        } catch (NumberFormatException e) {
+            return 1;
         }
     }
 
@@ -165,19 +223,16 @@ public class EatingScreen extends MenuScreen {
         int statusY = height / 5 + 28;
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
-        // 能量条
         int energyPct = metabolismManager.getHungerPercent();
         renderer.setColor(energyPct > 30 ? Color.ORANGE : Color.RED);
         String energyStr = String.format("能量: %d%%", energyPct);
         renderer.drawText(energyStr, 30, statusY);
 
-        // 水分条
         int waterPct = hydrationManager.getWaterPercent();
         renderer.setColor(waterPct > 30 ? Color.CYAN : Color.RED);
         String waterStr = String.format("水分: %d%%", waterPct);
         renderer.drawText(waterStr, 30 + renderer.getTextWidth(energyStr) + 30, statusY);
 
-        // HP
         renderer.setColor(player.getHp() > player.getMaxHp() / 2 ? Color.GREEN : Color.RED);
         String hpStr = String.format("HP: %d/%d", player.getHp(), player.getMaxHp());
         renderer.drawText(hpStr, width - 120, statusY);
@@ -186,7 +241,7 @@ public class EatingScreen extends MenuScreen {
         int listStartY = statusY + 28;
         int itemHeight = 28;
         int fontSize = 13;
-        int maxVisible = (height - listStartY - 50) / itemHeight;
+        int maxVisible = (height - listStartY - 70) / itemHeight;
 
         int scrollOffset = 0;
         if (selectedIndex >= maxVisible) {
@@ -202,7 +257,6 @@ public class EatingScreen extends MenuScreen {
             int count = consumeCounts[i];
             boolean stackable = isStackable(stack.getType());
 
-            // 高亮选中行背景
             if (sel) {
                 renderer.setColor(new Color(50, 50, 0, 120));
                 renderer.fillRect(20, listStartY + vi * itemHeight - 16, width - 40, itemHeight);
@@ -211,7 +265,6 @@ public class EatingScreen extends MenuScreen {
             renderer.setFont(new Font("Monospaced", Font.PLAIN, fontSize));
             String prefix = sel ? "▶ " : "  ";
 
-            // 物品名 + 数量
             String name = stack.getType().getName();
             String nameStr = stackable
                     ? String.format("%s%s (共%d)", prefix, name, stack.getCount())
@@ -219,27 +272,42 @@ public class EatingScreen extends MenuScreen {
             renderer.setColor(sel ? Color.YELLOW : Color.WHITE);
             renderer.drawText(nameStr, 30, listStartY + vi * itemHeight);
 
-            // 效果描述
             String effectStr = buildEffectString(stack.getType(), count);
             renderer.setColor(sel ? new Color(180, 255, 180) : Color.LIGHT_GRAY);
             renderer.drawText(effectStr, 30, listStartY + vi * itemHeight + 14);
 
-            // 消耗数量提示（右侧）
             if (stackable && stack.getCount() > 1) {
-                String countStr = String.format("×%d ←→", count);
+                String countStr = String.format("×%d", count);
                 renderer.setColor(sel ? new Color(255, 200, 60) : Color.GRAY);
                 renderer.drawText(countStr, width - 90, listStartY + vi * itemHeight);
             }
         }
 
+        // ── 数量输入提示框 ──
+        if (quantityInputMode) {
+            int promptY = height - 55;
+            renderer.setColor(new Color(30, 30, 10, 200));
+            renderer.fillRect(20, promptY - 18, width - 40, 36);
+
+            renderer.setFont(new Font("Monospaced", Font.BOLD, 14));
+            renderer.setColor(Color.YELLOW);
+            String prompt = String.format("输入数量 (最多 %d): %s_",
+                    getSelectedStack().getCount(),
+                    numberBuffer.length() > 0 ? numberBuffer.toString() : "");
+            renderer.drawText(prompt, 30, promptY);
+        }
+
         // 底部提示
-        String hint = isCurrentStackable()
-                ? "↑↓ 选择 | ←→ 数量 | Enter 食用 | Esc 返回"
-                : "↑↓ 选择 | Enter 食用 | Esc 返回";
-        drawHintBar(renderer, hint);
+        if (quantityInputMode) {
+            drawHintBar(renderer, "数字键输入 | Backspace 删除 | Enter 确认 | Esc 取消");
+        } else {
+            String hint = isCurrentStackable()
+                    ? "↑↓ 选择 | Enter 输入数量 | Esc 返回"
+                    : "↑↓ 选择 | Enter 食用 | Esc 返回";
+            drawHintBar(renderer, hint);
+        }
     }
 
-    /** 构建物品效果描述字符串（根据消耗类型） */
     private String buildEffectString(com.github.game.cdda.item.ItemType type, int count) {
         StringBuilder sb = new StringBuilder();
         var types = type.getConsumableTypes();
@@ -260,12 +328,10 @@ public class EatingScreen extends MenuScreen {
         return sb.toString().trim();
     }
 
-    /** 获取指定列表索引处的 ItemStack */
     private ItemStack getStackAtIndex(int listIndex) {
         return inventory.getItem(consumableIndices[listIndex]);
     }
 
-    /** 确认消耗当前选中物品 */
     private void confirmConsume() {
         if (selectedIndex < 0 || selectedIndex >= consumableIndices.length) return;
 
@@ -277,46 +343,38 @@ public class EatingScreen extends MenuScreen {
 
         com.github.game.cdda.item.ItemType type = stack.getType();
 
-        // ── 应用效果 ──
         StringBuilder effectLog = new StringBuilder();
 
-        // 食物 → 热量 + 饱腹度
         if (type.hasConsumableType(ConsumableType.FOOD)) {
             double calories = type.getCalories() * count;
             metabolismManager.addCalories(calories);
-            // 饱腹度直接提升能量储备（satiety 0~100 映射为 maxEnergy 的百分比）
             double satietyBoost = type.getSatiety() * count / 100.0 * metabolismManager.getMaxEnergy();
             metabolismManager.addCalories(satietyBoost);
             effectLog.append(String.format("热量+%dkcal 饱腹+%d ",
                     (int) calories, (int) (type.getSatiety() * count)));
         }
 
-        // 水 → 水分
         if (type.hasConsumableType(ConsumableType.WATER)) {
             double water = type.getWaterContent() * count;
             hydrationManager.addWater(water);
             effectLog.append(String.format("水分+%dml ", (int) water));
         }
 
-        // 药品 → 治疗
         if (type.hasConsumableType(ConsumableType.MEDICINE)) {
             int heal = Constants.MEDICINE_HEAL_AMOUNT * count;
             player.heal(heal);
             effectLog.append(String.format("HP+%d ", heal));
         }
 
-        // ── 从背包移除 ──
         ItemStack consumed = inventory.removeItem(consumableIndices[selectedIndex], count);
 
         if (consumed != null) {
-            // 消耗游戏时间
             turnManager.addAction(player, Constants.EAT_BASE_TIME);
             turnManager.processRound();
 
             GameLog.getInstance().log(String.format("食用了 %s x%d (%s)",
                     type.getName(), count, effectLog.toString().trim()));
 
-            // 刷新列表（物品可能已完全移除）
             refreshConsumables();
         }
     }

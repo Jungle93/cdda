@@ -6,6 +6,7 @@ import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.world.biome.BiomeType;
 import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.chunk.Chunk;
+import com.github.game.cdda.input.InputStateMachine;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.Scene;
 import com.github.game.engine.core.scene.Viewport;
@@ -63,8 +64,8 @@ public class WorldMapScene extends Scene {
     private int panOffsetChunksX = 0;
     private int panOffsetChunksY = 0;
 
-    /** 地图是否打开 */
-    private boolean open = false;
+    /** 输入状态机引用（由 MainScreen 注入，用于查询模式和关闭地图） */
+    private InputStateMachine inputStateMachine;
 
     /**
      * 创建世界地图场景。
@@ -87,14 +88,18 @@ public class WorldMapScene extends Scene {
         this.zoomIndex = DEFAULT_ZOOM_INDEX;
     }
 
-    // ── 打开/关闭 ──────────────────────────────────
+    // ── 生命周期回调（由输入状态机调用） ──────────────────────────────────
+
+    /** 设置输入状态机引用（由 MainScreen 在创建后调用） */
+    public void setInputStateMachine(InputStateMachine inputStateMachine) {
+        this.inputStateMachine = inputStateMachine;
+    }
 
     /**
-     * 打开大地图。
+     * 打开大地图（生命周期回调）。
      * 重置平移到玩家所在区块。
      */
-    public void openMap() {
-        open = true;
+    public void onOpen() {
         panOffsetChunksX = 0;
         panOffsetChunksY = 0;
         zoomIndex = DEFAULT_ZOOM_INDEX;
@@ -102,14 +107,11 @@ public class WorldMapScene extends Scene {
     }
 
     /**
-     * 关闭大地图。
+     * 关闭大地图（生命周期回调）。
      */
-    public void closeMap() {
-        open = false;
+    public void onClose() {
         GameLog.getInstance().log("关闭大地图");
     }
-
-    public boolean isOpen() { return open; }
 
     // ── 坐标转换 ──────────────────────────────────
 
@@ -150,7 +152,7 @@ public class WorldMapScene extends Scene {
 
     @Override
     public void render(Renderer renderer) {
-        if (!open) return;
+        if (inputStateMachine == null || !inputStateMachine.isWorldMapOpen()) return;
 
         int vpW = viewport.getWidth();
         int vpH = viewport.getHeight();
@@ -325,8 +327,6 @@ public class WorldMapScene extends Scene {
 
     @Override
     public void onKeyPressed(int keyCode) {
-        if (!open) return;
-
         switch (keyCode) {
             // 缩放
             case KeyEvent.VK_ADD:
@@ -342,7 +342,7 @@ public class WorldMapScene extends Scene {
             case KeyEvent.VK_ESCAPE:
             case KeyEvent.VK_M:
             case KeyEvent.VK_ENTER:
-                closeMap();
+                inputStateMachine.closeWorldMap();
                 return;
 
             // 回到玩家位置

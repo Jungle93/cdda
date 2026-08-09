@@ -75,6 +75,8 @@ public final class Constants {
     public static final int MEDICINE_HEAL_AMOUNT = 20;
     /** 近战攻击动作的基础时间（游戏秒） */
     public static final int ATTACK_BASE_TIME = 80;
+    /** 砍树动作的基础时间（游戏秒） */
+    public static final int CHOP_BASE_TIME = 150;
 
     // ── 代谢系统 ──────────────────────────────────────
     /** 最大能量储备（cal）。≈ 2500 kcal × 1000倍率，约2.5天基础消耗 */

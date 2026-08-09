@@ -92,6 +92,27 @@ public class ChunkManager {
     }
 
     /**
+     * 设置指定世界瓦片坐标的地形类型。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @param type       新的地形类型
+     */
+    public void setTile(int worldTileX, int worldTileY, TileType type) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        if (chunk == null) {
+            chunk = loadChunk(cx, cy);
+        }
+
+        int localCol = floorMod(worldTileX, Chunk.SIZE);
+        int localRow = floorMod(worldTileY, Chunk.SIZE);
+        chunk.setTile(localCol, localRow, type);
+    }
+
+    /**
      * 根据玩家位置更新区块加载状态。
      * 仅在玩家跨越区块边界时触发实际加载/卸载。
      *

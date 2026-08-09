@@ -2,6 +2,7 @@ package com.github.game.cdda.item;
 
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -25,6 +26,8 @@ public class ItemType {
     private final boolean unique;
     /** 可消耗类型标签集合 */
     private final Set<ConsumableType> consumableTypes;
+    /** 功能标签集合（如 "chopping"、"cooking" 等，用于物品动作系统） */
+    private final Set<String> tags;
 
     // ── 营养值（仅对食物/饮品有意义） ──
     /** 热量（千卡 kcal） */
@@ -46,6 +49,9 @@ public class ItemType {
         this.consumableTypes = b.consumableTypes.isEmpty()
                 ? Collections.emptySet()
                 : Collections.unmodifiableSet(EnumSet.copyOf(b.consumableTypes));
+        this.tags = b.tags.isEmpty()
+                ? Collections.emptySet()
+                : Collections.unmodifiableSet(new HashSet<>(b.tags));
         this.calories = b.calories;
         this.satiety = b.satiety;
         this.waterContent = b.waterContent;
@@ -72,6 +78,14 @@ public class ItemType {
     public boolean hasConsumableType(ConsumableType type) {
         return consumableTypes.contains(type);
     }
+
+    /** 检查是否包含特定功能标签 */
+    public boolean hasTag(String tag) {
+        return tags.contains(tag);
+    }
+
+    /** 获取所有功能标签（不可变集合） */
+    public Set<String> getTags() { return tags; }
 
     // ── 显示（带单位转换） ──
     /** 获取格式化重量（按指定单位） */
@@ -113,6 +127,7 @@ public class ItemType {
         private int maxStackSize = 1;
         private boolean unique = false;
         private Set<ConsumableType> consumableTypes = EnumSet.noneOf(ConsumableType.class);
+        private Set<String> tags = new HashSet<>();
         private double calories = 0;
         private double satiety = 0;
         private double waterContent = 0;
@@ -139,6 +154,12 @@ public class ItemType {
 
         public Builder consumables(Set<ConsumableType> types) {
             this.consumableTypes = EnumSet.copyOf(types);
+            return this;
+        }
+
+        /** 添加功能标签（如 "chopping"、"cooking"） */
+        public Builder tag(String... tags) {
+            for (String t : tags) this.tags.add(t);
             return this;
         }
 

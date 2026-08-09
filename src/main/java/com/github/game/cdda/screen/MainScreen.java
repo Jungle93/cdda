@@ -1,6 +1,8 @@
 package com.github.game.cdda.screen;
 
 import com.github.game.cdda.config.ConfigManager;
+import com.github.game.cdda.input.InputStateMachine;
+import com.github.game.cdda.item.GroundItem;
 import com.github.game.cdda.screen.overlay.*;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
@@ -17,7 +19,7 @@ import com.github.game.cdda.screen.scene.WorldMapScene;
 import com.github.game.cdda.GameWorld;
 import com.github.game.cdda.Month;
 
-import java.awt.event.KeyEvent;
+import java.util.List;
 
 /**
  * 主游戏屏幕。使用 Scene 系统实现分屏布局：
@@ -29,25 +31,13 @@ import java.awt.event.KeyEvent;
  * <p>MainScreen 负责：
  * <ul>
  *   <li>创建和组合场景</li>
- *   <li>全局按键路由（ESC/V/I/E 等快捷键）</li>
+ *   <li>通过 {@link InputStateMachine} 管理输入模式和按键路由</li>
+ *   <li>实现 {@link InputStateMachine.OverlayCallback} 创建覆盖层 Screen</li>
  * </ul>
  *
- * <p>按键路由优先级（从高到低）：
- * <ol>
- *   <li>观察模式 → 直接转发给 GameScene</li>
- *   <li>ESC → 游戏内菜单</li>
- *   <li>` → 调试菜单</li>
- *   <li>V → 切换日志面板扩展/紧凑</li>
- *   <li>I → 物品栏</li>
- *   <li>E → 进食</li>
- *   <li>L → 观察模式</li>
- *   <li>D → 丢弃物品</li>
- *   <li>G → 拾取物品</li>
- *   <li>UP/DOWN（日志扩展时）→ 滚动日志</li>
- *   <li>其他 → 广播给所有场景（方向键移动等）</li>
- * </ol>
+ * @see InputStateMachine
  */
-public class MainScreen extends Screen {
+public class MainScreen extends Screen implements InputStateMachine.OverlayCallback {
 
     /** 游戏世界（逻辑层，持有所有子系统） */
     private GameWorld gameWorld;
@@ -69,6 +59,9 @@ public class MainScreen extends Screen {
 
     /** 是否已初始化（popScreen 恢复时不再重复初始化） */
     private boolean initialized = false;
+
+    /** 输入状态机（管理输入模式和按键分发） */
+    private InputStateMachine inputStateMachine;
 
     /** 世界设置 */
     private final WorldSettings worldSettings;
@@ -138,7 +131,11 @@ public class MainScreen extends Screen {
                 gameWorld.getCreatureManager()
         );
         worldMapScene.init();
-        gameScene.setWorldMapScene(worldMapScene);
+
+        // ── 输入状态机 ──
+        inputStateMachine = new InputStateMachine(gameScene, worldMapScene, gameLogPanel, this);
+        gameScene.setInputStateMachine(inputStateMachine);
+        worldMapScene.setInputStateMachine(inputStateMachine);
 
         // 注册场景（渲染顺序：游戏场景 → HUD 场景 → 世界地图）
         addScene(gameScene);
@@ -168,99 +165,56 @@ public class MainScreen extends Screen {
         super.render(renderer);
     }
 
-    // ── 全局按键路由 ──────────────────────────────────
+    // ── 按键路由（委托给输入状态机） ──────────────────────────────────
 
     @Override
     public void onKeyPressed(int keyCode) {
-        // 0. 世界地图模式：优先转发给 WorldMapScene
-        if (gameScene.isWorldMapOpen()) {
-            worldMapScene.onKeyPressed(keyCode);
-            return;
-        }
+        inputStateMachine.onKeyPressed(keyCode);
+    }
 
-        // 1. 观察模式：直接转发给 GameScene，不处理全局快捷键
-        if (gameScene.isInLookMode()) {
-            gameScene.onKeyPressed(keyCode);
-            return;
-        }
+    // ── OverlayCallback 实现（覆盖层 Screen 创建） ──────────────────────────────────
 
-        switch (keyCode) {
-            // 2. ESC → 游戏内菜单
-            case KeyEvent.VK_ESCAPE:
-                engine.getScreenManager().pushScreen(new InGameMenuScreen(engine));
-                return;
+    @Override
+    public void pushInGameMenu() {
+        engine.getScreenManager().pushScreen(new InGameMenuScreen(engine));
+    }
 
-            // 2.5. ` → 调试菜单
-            case KeyEvent.VK_BACK_QUOTE:
-                engine.getScreenManager().pushScreen(new DebugMenuScreen(engine, gameWorld));
-                return;
+    @Override
+    public void pushDebugMenu() {
+        engine.getScreenManager().pushScreen(new DebugMenuScreen(engine, gameWorld));
+    }
 
-            // 3. V → 切换日志面板扩展/紧凑模式
-            case KeyEvent.VK_V:
-                gameLogPanel.toggleExpanded();
-                return;
+    @Override
+    public void pushInventoryScreen() {
+        engine.getScreenManager().pushScreen(
+                new InventoryScreen(engine, gameWorld.getPlayer(),
+                        gameWorld.getGroundItemManager()));
+    }
 
-            // 4. I → 物品栏
-            case KeyEvent.VK_I:
-                engine.getScreenManager().pushScreen(
-                        new InventoryScreen(engine, gameWorld.getPlayer(),
-                                gameWorld.getGroundItemManager()));
-                return;
+    @Override
+    public void pushEatingScreen() {
+        engine.getScreenManager().pushScreen(
+                new EatingScreen(engine, gameWorld));
+    }
 
-            // 5. E → 进食
-            case KeyEvent.VK_E:
-                engine.getScreenManager().pushScreen(
-                        new EatingScreen(engine, gameWorld));
-                return;
+    @Override
+    public void pushDropScreen() {
+        engine.getScreenManager().pushScreen(
+                new DropScreen(engine, gameWorld.getPlayer(),
+                        gameWorld.getGroundItemManager()));
+    }
 
-            // 5.4. L → 进入观察模式
-            case KeyEvent.VK_L:
-                gameScene.enterLookMode();
-                return;
+    @Override
+    public void pushPickupScreen(List<GroundItem> items) {
+        engine.getScreenManager().pushScreen(
+                new PickupScreen(engine, gameWorld.getPlayer(),
+                        gameWorld.getGroundItemManager(), items));
+    }
 
-            // 5.45. M → 切换世界地图
-            case KeyEvent.VK_M:
-                gameScene.toggleWorldMap();
-                return;
-
-            // 5.5. D → 丢弃物品
-            case KeyEvent.VK_D:
-                engine.getScreenManager().pushScreen(
-                        new DropScreen(engine, gameWorld.getPlayer(),
-                                gameWorld.getGroundItemManager()));
-                return;
-
-            // 5.6. G → 拾取物品
-            case KeyEvent.VK_G:
-                java.util.List<com.github.game.cdda.item.GroundItem> pickupItems =
-                        gameScene.handlePickup();
-                if (pickupItems.size() > 1) {
-                    engine.getScreenManager().pushScreen(
-                            new PickupScreen(engine, gameWorld.getPlayer(),
-                                    gameWorld.getGroundItemManager(), pickupItems));
-                }
-                return;
-
-            // 6. UP/DOWN 在日志扩展模式下 → 滚动日志
-            case KeyEvent.VK_UP:
-                if (gameLogPanel.isExpanded()) {
-                    gameLogPanel.scrollUp();
-                    return;
-                }
-                break;
-            case KeyEvent.VK_DOWN:
-                if (gameLogPanel.isExpanded()) {
-                    gameLogPanel.scrollDown();
-                    return;
-                }
-                break;
-
-            default:
-                break;
-        }
-
-        // 7. 其他按键 → 广播给所有场景（WASD 移动等）
-        super.onKeyPressed(keyCode);
+    @Override
+    public void pushItemUseScreen() {
+        engine.getScreenManager().pushScreen(
+                new ItemUseScreen(engine, gameWorld.getPlayer(), gameWorld));
     }
 
     @Override

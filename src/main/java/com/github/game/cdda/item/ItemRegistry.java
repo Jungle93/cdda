@@ -108,6 +108,16 @@ public final class ItemRegistry {
                     .build()
     );
 
+    // ── 工具 ──
+    public static final ItemType STONE_AXE = registerBuiltin(
+            new ItemType.Builder(8, "stone_axe")
+                    .description("石斧 — 粗糙但实用的砍伐工具")
+                    .weight(800).volume(200)
+                    .unique()
+                    .tag("chopping")
+                    .build()
+    );
+
     // ── 注册 API ──────────────────────────────────────────
 
     /** 注册内置物品（静态初始化时调用） */

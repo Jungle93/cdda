@@ -7,6 +7,7 @@ import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.item.GroundItem;
 import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.input.InputStateMachine;
 import com.github.game.cdda.screen.overlay.PickupScreen;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
@@ -63,8 +64,8 @@ public class GameScene extends Scene {
 
     // ── 观察模式（Look） ──────────────────────────────────
 
-    /** 是否处于观察模式 */
-    private boolean inLookMode = false;
+    /** 输入状态机引用（由 MainScreen 注入，用于查询当前模式） */
+    private InputStateMachine inputStateMachine;
 
     /** 观察光标相对玩家瓦片的偏移 */
     private int lookCursorDx = 0, lookCursorDy = 0;
@@ -77,11 +78,6 @@ public class GameScene extends Scene {
 
     /** 瓦片尺寸是否已初始化 */
     private boolean initialized = false;
-
-    // ── 世界地图（大地图） ──────────────────────────────────
-
-    /** 世界地图场景 */
-    private WorldMapScene worldMapScene;
 
     // ── FPS 计算 ──────────────────────────────────
     private long fpsFrameCount = 0;
@@ -156,7 +152,7 @@ public class GameScene extends Scene {
         if (!initialized) return;
 
         // 世界地图打开时，暂停游戏逻辑更新（摄像机不跟随、区块不加载）
-        if (isWorldMapOpen()) return;
+        if (inputStateMachine != null && inputStateMachine.isWorldMapOpen()) return;
 
         // FPS 计算
         fpsFrameCount++;
@@ -294,41 +290,8 @@ public class GameScene extends Scene {
     public void onKeyPressed(int keyCode) {
         if (!initialized) return;
 
-        // 世界地图模式：输入由 WorldMapScene 处理，GameScene 跳过移动/攻击
-        if (isWorldMapOpen()) return;
-
-        // 观察模式：拦截所有按键，不传递给移动逻辑
-        if (inLookMode) {
-            handleLookInput(keyCode);
-            return;
-        }
-
         // ── 等待动作（时间流逝但不做其他事） ──
-        if (keyCode == KeyEvent.VK_5) {
-            turnManager.addAction(player, Constants.WAIT_BASE_TIME);
-            // 处理生物回合
-            processCreatureTurns();
-            turnManager.processRound();
-            metabolismManager.addActionCost(0);
-            metabolismManager.update();
-            hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
-            hydrationManager.update();
-            GameLog.getInstance().log("等待了一回合...");
-            return;
-        }
-        if (keyCode == KeyEvent.VK_MINUS || keyCode == KeyEvent.VK_SUBTRACT) {
-            for (int i = 0; i < 10; i++) {
-                turnManager.addAction(player, Constants.WAIT_BASE_TIME);
-                // 处理生物回合
-                processCreatureTurns();
-                metabolismManager.update();
-                hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
-                hydrationManager.update();
-            }
-            turnManager.processRound();
-            GameLog.getInstance().log("持续等待了10回合...");
-            return;
-        }
+        if (handleWait(keyCode)) return;
 
         // ── 网格式移动：每次按键移动恰好一个瓦片（仅方向键） ──
         // 移动即攻击：先检查目标位置是否有生物
@@ -382,11 +345,49 @@ public class GameScene extends Scene {
         // 网格式移动无需处理按键释放
     }
 
-    // ── 观察模式（Look） ──────────────────────────────────
+    /**
+     * 处理等待动作按键（5 = 等待一回合，- = 等待十回合）。
+     * 由输入状态机在 NORMAL 模式下调用。
+     *
+     * @param keyCode 按键码
+     * @return true 如果按键被消耗（是等待键），false 否则
+     */
+    public boolean handleWait(int keyCode) {
+        if (keyCode == KeyEvent.VK_5) {
+            turnManager.addAction(player, Constants.WAIT_BASE_TIME);
+            processCreatureTurns();
+            turnManager.processRound();
+            metabolismManager.addActionCost(0);
+            metabolismManager.update();
+            hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
+            hydrationManager.update();
+            GameLog.getInstance().log("等待了一回合...");
+            return true;
+        }
+        if (keyCode == KeyEvent.VK_MINUS || keyCode == KeyEvent.VK_SUBTRACT) {
+            for (int i = 0; i < 10; i++) {
+                turnManager.addAction(player, Constants.WAIT_BASE_TIME);
+                processCreatureTurns();
+                metabolismManager.update();
+                hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
+                hydrationManager.update();
+            }
+            turnManager.processRound();
+            GameLog.getInstance().log("持续等待了10回合...");
+            return true;
+        }
+        return false;
+    }
 
-    /** 进入观察模式 */
-    public void enterLookMode() {
-        inLookMode = true;
+    // ── 观察模式（Look）生命周期回调 ──────────────────────────────────
+
+    /** 设置输入状态机引用（由 MainScreen 在创建后调用） */
+    public void setInputStateMachine(InputStateMachine inputStateMachine) {
+        this.inputStateMachine = inputStateMachine;
+    }
+
+    /** 进入观察模式（由输入状态机调用） */
+    public void onEnterLookMode() {
         lookCursorDx = 0;
         lookCursorDy = 0;
         creatureCycleIndex = -1;
@@ -394,52 +395,12 @@ public class GameScene extends Scene {
         GameLog.getInstance().log("观察模式：方向键/WASD 移动光标，Tab 切换生物，ESC 退出");
     }
 
-    /** 退出观察模式 */
-    private void exitLookMode() {
-        inLookMode = false;
+    /** 退出观察模式（由输入状态机调用） */
+    public void onExitLookMode() {
         visibleCreatureList.clear();
         creatureCycleIndex = -1;
         GameLog.getInstance().log("退出观察模式");
     }
-
-    // ── 世界地图（大地图） ──────────────────────────────────
-
-    /** 设置世界地图场景引用（由 MainScreen 在创建后调用） */
-    public void setWorldMapScene(WorldMapScene scene) {
-        this.worldMapScene = scene;
-    }
-
-    /** 世界地图是否打开 */
-    public boolean isWorldMapOpen() {
-        return worldMapScene != null && worldMapScene.isOpen();
-    }
-
-    /** 打开世界地图 */
-    public void openWorldMap() {
-        if (worldMapScene != null) {
-            worldMapScene.getViewport().setSize(viewport.getWidth(), viewport.getHeight());
-            worldMapScene.openMap();
-        }
-    }
-
-    /** 关闭世界地图 */
-    public void closeWorldMap() {
-        if (worldMapScene != null) {
-            worldMapScene.closeMap();
-        }
-    }
-
-    /** 切换世界地图 */
-    public void toggleWorldMap() {
-        if (isWorldMapOpen()) {
-            closeWorldMap();
-        } else {
-            openWorldMap();
-        }
-    }
-
-    /** 获取世界地图场景（用于 MainScreen 转发输入） */
-    public WorldMapScene getWorldMapScene() { return worldMapScene; }
 
     /** 刷新可见生物列表（以玩家感知范围为半径） */
     private void refreshVisibleCreatures() {
@@ -448,11 +409,11 @@ public class GameScene extends Scene {
                 player.getTileX(), player.getTileY(), maxRange);
     }
 
-    /** 观察模式下的按键处理 */
-    private void handleLookInput(int keyCode) {
+    /** 观察模式下的按键处理（由输入状态机在 LOOK 模式下调用） */
+    public void handleLookInput(int keyCode) {
         switch (keyCode) {
             case KeyEvent.VK_ESCAPE:
-                exitLookMode();
+                inputStateMachine.exitLookMode();
                 return;
             case KeyEvent.VK_TAB:
                 cycleCreatures();
@@ -521,7 +482,7 @@ public class GameScene extends Scene {
      * 在目标瓦片上绘制青色边框 + 半透明叠加，重绘目标字符为高亮色。
      */
     private void renderLookCursorHighlight(Renderer renderer, int tileW, int tileH) {
-        if (!inLookMode) return;
+        if (inputStateMachine == null || !inputStateMachine.isInLookMode()) return;
 
         int targetTileX = player.getTileX() + lookCursorDx;
         int targetTileY = player.getTileY() + lookCursorDy;
@@ -567,7 +528,7 @@ public class GameScene extends Scene {
      * 显示光标指向的瓦片信息和生物信息。
      */
     private void renderLookStatusBar(Renderer renderer, int tileW, int tileH) {
-        if (!inLookMode) return;
+        if (inputStateMachine == null || !inputStateMachine.isInLookMode()) return;
 
         int vpW = viewport.getWidth();
         int vpH = viewport.getHeight();
@@ -748,7 +709,6 @@ public class GameScene extends Scene {
     public GameWorld getWorld() { return world; }
     public Camera getGameCamera() { return camera; }
     public boolean isInitialized() { return initialized; }
-    public boolean isInLookMode() { return inLookMode; }
 
     // ── 生物回合处理 ──────────────────────────────────
 

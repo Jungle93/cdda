@@ -39,6 +39,7 @@ public class DebugMenuScreen extends MenuScreen {
             "补充水分 (+30%)",
             "生成面包到背包",
             "生成水瓶到背包",
+            "生成石斧到背包",
             "传送到原点 (0,0)",
             "前进 1 小时",
             "切换 FPS 显示",
@@ -158,7 +159,7 @@ public class DebugMenuScreen extends MenuScreen {
             // 某些选项显示当前状态
             String suffix = "";
             if (i == 0) suffix = Constants.SHOW_DEBUG_INFO ? " [开]" : " [关]";
-            if (i == 8) suffix = Constants.DEBUG_SHOW_FPS ? " [开]" : " [关]";
+            if (i == 9) suffix = Constants.DEBUG_SHOW_FPS ? " [开]" : " [关]";
 
             renderer.setColor(sel ? Color.YELLOW : new Color(180, 220, 180));
             renderer.drawText(line + suffix, 10, y + visibleIndex * lineHeight);
@@ -206,18 +207,22 @@ public class DebugMenuScreen extends MenuScreen {
                 addItemToInventory(0, 2);  // water_bottle id=0
                 break;
 
-            case 6: // 传送到原点
+            case 6: // 生成石斧
+                addItemToInventory(8, 1);  // stone_axe id=8
+                break;
+
+            case 7: // 传送到原点
                 // 移动玩家到 (0,0) 瓦片
                 player.move(-player.getTileX(), -player.getTileY());
                 log("已传送到原点 (0,0)");
                 break;
 
-            case 7: // 前进 1 小时
+            case 8: // 前进 1 小时
                 world.getGameTime().advance(3600);  // 3600 游戏秒 = 1 小时
                 log("时间前进 1 小时");
                 break;
 
-            case 8: // 切换 FPS 显示
+            case 9: // 切换 FPS 显示
                 Constants.DEBUG_SHOW_FPS = !Constants.DEBUG_SHOW_FPS;
                 log("FPS 显示: " + (Constants.DEBUG_SHOW_FPS ? "开" : "关"));
                 break;

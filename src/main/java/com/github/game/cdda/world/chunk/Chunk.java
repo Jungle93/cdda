@@ -58,6 +58,8 @@ public class Chunk {
     private static final double BASE_BEACH_LEVEL = -0.05;
     /** 基础岩石阈值 */
     private static final double BASE_ROCK_LEVEL = 0.50;
+    /** waterLevel=0 时，将水域/沙滩阈值额外下移的量（使内陆几乎不生成水域） */
+    private static final double DRY_THRESHOLD_OFFSET = -0.40;
 
     /** 区块坐标 */
     private final int chunkX;
@@ -100,12 +102,14 @@ public class Chunk {
         // 根据群落计算实际阈值
         // waterLevel > 0 → 有内陆水域（阈值上移，水域面积更大）
         // waterLevel = 0 → 无内陆水域（阈值压到最低，只有极低洼处可能有小水坑）
-        double waterThreshold = biome.getWaterLevel() > 0
-                ? BASE_WATER_LEVEL + biome.getWaterLevel() * 0.35   // 有水域群落
-                : -0.55;                                              // 无水域群落（几乎不可能触发）
-        double beachThreshold = biome.getWaterLevel() > 0
-                ? BASE_BEACH_LEVEL + biome.getWaterLevel() * 0.10
-                : -0.45;
+        float wl = biome.getWaterLevel();
+        boolean hasWater = wl > 0;
+        double waterThreshold = hasWater
+                ? BASE_WATER_LEVEL + wl * 0.35
+                : BASE_WATER_LEVEL + DRY_THRESHOLD_OFFSET;
+        double beachThreshold = hasWater
+                ? BASE_BEACH_LEVEL + wl * 0.10
+                : BASE_BEACH_LEVEL + DRY_THRESHOLD_OFFSET;
         // rockiness 越高 → 石头越多（阈值下移）
         double rockThreshold = BASE_ROCK_LEVEL - biome.getRockiness() * 0.30;
 
@@ -240,6 +244,20 @@ public class Chunk {
             return null;
         }
         return tiles[localRow][localCol];
+    }
+
+    /**
+     * 设置局部瓦片地形类型。
+     *
+     * @param localCol 局部列坐标（0 ~ SIZE-1）
+     * @param localRow 局部行坐标（0 ~ SIZE-1）
+     * @param type     新的地形类型
+     */
+    public void setTile(int localCol, int localRow, TileType type) {
+        if (localCol < 0 || localCol >= SIZE || localRow < 0 || localRow >= SIZE) {
+            return;
+        }
+        tiles[localRow][localCol] = type;
     }
 
     public int getChunkX() { return chunkX; }

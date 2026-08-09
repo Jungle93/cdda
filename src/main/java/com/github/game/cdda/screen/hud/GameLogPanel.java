@@ -15,7 +15,7 @@ import java.util.List;
  *   <li>紧凑模式：固定显示最新 {@value #COMPACT_LINES} 条，高度小</li>
  *   <li>扩展模式：显示 {@value #EXPANDED_LINES} 条，支持 UP/DOWN 滚动浏览全部历史</li>
  * </ul>
- * 通过 {@link #toggleExpanded()} 切换模式，V 键触发。
+ * 通过 {@link #setExpanded(boolean)} 切换模式，由输入状态机通过 V 键触发。
  */
 public class GameLogPanel implements StatusPanel {
 
@@ -49,13 +49,16 @@ public class GameLogPanel implements StatusPanel {
     }
 
     /**
-     * 切换紧凑/扩展模式。
+     * 设置扩展/紧凑模式（由输入状态机调用）。
      * 进入扩展模式时重置滚动到最新。
+     *
+     * @param expanded true 展开，false 折叠
      */
-    public void toggleExpanded() {
-        expanded = !expanded;
+    public void setExpanded(boolean expanded) {
+        this.expanded = expanded;
         if (expanded) {
             scrollOffset = 0;
+            GameLog.getInstance().log("日志面板已展开（↑↓滚动）");
         }
     }
 
@@ -77,11 +80,6 @@ public class GameLogPanel implements StatusPanel {
     public void scrollDown() {
         if (!expanded) return;
         scrollOffset = Math.max(scrollOffset - 1, 0);
-    }
-
-    /** 是否处于扩展模式 */
-    public boolean isExpanded() {
-        return expanded;
     }
 
     @Override

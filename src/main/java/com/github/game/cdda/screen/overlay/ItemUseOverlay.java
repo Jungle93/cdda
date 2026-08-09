@@ -250,11 +250,8 @@ public class ItemUseOverlay extends GameOverlay {
             renderer.setFont(new Font("Monospaced", Font.PLAIN, fontSize));
             String prefix = sel ? "▶ " : "  ";
 
-            // 物品名
-            String name = stack.getType().getDescription() != null
-                    && !stack.getType().getDescription().isBlank()
-                    ? stack.getType().getDescription()
-                    : stack.getType().getName();
+            // 物品名（用短名称）
+            String name = stack.getType().getName();
             String nameStr = stack.getCount() > 1
                     ? String.format("%s%s ×%d", prefix, name, stack.getCount())
                     : String.format("%s%s", prefix, name);
@@ -289,14 +286,17 @@ public class ItemUseOverlay extends GameOverlay {
         int panelY = (vpH - panelH) / 2;
         renderPanel(renderer, panelX, panelY, panelW, panelH);
 
-        // 标题：物品名
-        String toolName = selectedTool.getType().getDescription() != null
-                && !selectedTool.getType().getDescription().isBlank()
-                ? selectedTool.getType().getDescription()
-                : selectedTool.getType().getName();
+        // 标题：物品名（用短名称，避免溢出）
+        String toolName = selectedTool.getType().getName();
         renderer.setFont(new Font("Monospaced", Font.BOLD, 16));
         renderer.setColor(Color.WHITE);
-        drawCentered(renderer, "使用: " + toolName, panelX + panelW / 2, panelY + 24);
+        String title = "使用: " + toolName;
+        // 截断过长标题
+        int maxTitleWidth = panelW - 20;
+        while (renderer.getTextWidth(title) > maxTitleWidth && title.length() > 6) {
+            title = title.substring(0, title.length() - 2) + "…";
+        }
+        drawCentered(renderer, title, panelX + panelW / 2, panelY + 24);
 
         if (currentActions.isEmpty()) {
             renderer.setFont(new Font("Monospaced", Font.PLAIN, 13));

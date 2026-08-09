@@ -31,13 +31,13 @@ public abstract class GameOverlay extends Scene {
     private Runnable onDismiss;
 
     /** 覆盖层全局半透明背景色（40% 不透明度） */
-    private static final Color OVERLAY_BG = new Color(0, 0, 0, 100);
+    private static final Color OVERLAY_BG = new Color(0, 0, 0, 0);
 
     /** 面板背景色（80% 不透明度） */
-    private static final Color PANEL_BG = new Color(10, 10, 20, 200);
+    private static final Color PANEL_BG = new Color(10, 10, 20);
 
     /** 面板边框色 */
-    private static final Color PANEL_BORDER = new Color(80, 80, 100);
+    private static final Color PANEL_BORDER = new Color(80, 80, 100,100);
 
     public GameOverlay(Viewport viewport) {
         super(viewport);

@@ -6,6 +6,7 @@ import com.github.game.cdda.item.GroundItem;
 import com.github.game.cdda.screen.overlay.*;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
+import com.github.game.engine.core.scene.GameOverlay;
 import com.github.game.engine.core.scene.Viewport;
 import com.github.game.engine.core.screen.Screen;
 import com.github.game.cdda.game.CharacterSettings;
@@ -62,6 +63,9 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
 
     /** 输入状态机（管理输入模式和按键分发） */
     private InputStateMachine inputStateMachine;
+
+    /** 当前激活的游戏覆盖层（null 表示无覆盖层） */
+    private GameOverlay activeOverlay;
 
     /** 世界设置 */
     private final WorldSettings worldSettings;
@@ -165,11 +169,45 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         super.render(renderer);
     }
 
-    // ── 按键路由（委托给输入状态机） ──────────────────────────────────
+    // ── 按键路由 ──────────────────────────────────
 
     @Override
     public void onKeyPressed(int keyCode) {
+        // 覆盖层激活时，按键 exclusively 交给覆盖层处理
+        if (activeOverlay != null) {
+            activeOverlay.onKeyPressed(keyCode);
+            return;
+        }
         inputStateMachine.onKeyPressed(keyCode);
+    }
+
+    // ── 覆盖层管理 ──────────────────────────────────
+
+    /**
+     * 显示游戏覆盖层。
+     * 覆盖层以 Scene 方式添加到场景列表顶部，半透明覆盖游戏画面。
+     * 按键输入将 exclusively 路由到覆盖层，直到底层调用 {@link #hideOverlay()}。
+     *
+     * @param overlay 要显示的覆盖层
+     */
+    public void showOverlay(GameOverlay overlay) {
+        if (activeOverlay != null) {
+            hideOverlay(); // 先关闭已有覆盖层
+        }
+        activeOverlay = overlay;
+        overlay.setOnDismiss(this::hideOverlay);
+        addScene(overlay);
+    }
+
+    /**
+     * 关闭当前覆盖层。
+     * 从场景列表移除并清空引用。
+     */
+    public void hideOverlay() {
+        if (activeOverlay != null) {
+            removeScene(activeOverlay);
+            activeOverlay = null;
+        }
     }
 
     // ── OverlayCallback 实现（覆盖层 Screen 创建） ──────────────────────────────────
@@ -212,9 +250,12 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     }
 
     @Override
-    public void pushItemUseScreen() {
-        engine.getScreenManager().pushScreen(
-                new ItemUseScreen(engine, gameWorld.getPlayer(), gameWorld, inputStateMachine));
+    public void showItemUseOverlay() {
+        int infoPanelWidth = ConfigManager.getInstance().getInfoPanelWidth();
+        Viewport gameViewport = new Viewport(0, 0, getWidth() - infoPanelWidth, getHeight());
+        ItemUseOverlay overlay = new ItemUseOverlay(
+                gameViewport, gameWorld.getPlayer(), gameWorld, inputStateMachine);
+        showOverlay(overlay);
     }
 
     @Override

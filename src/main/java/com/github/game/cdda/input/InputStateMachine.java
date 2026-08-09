@@ -52,8 +52,8 @@ public class InputStateMachine {
         void pushDropScreen();
         /** 推入拾取选择界面（G 触发，多个地面物品时） */
         void pushPickupScreen(List<GroundItem> items);
-        /** 推入物品使用菜单（A 触发） */
-        void pushItemUseScreen();
+        /** 显示物品使用覆盖层（A 触发，半透明覆盖在游戏画面上） */
+        void showItemUseOverlay();
     }
 
     // ── 状态 ──
@@ -272,7 +272,7 @@ public class InputStateMachine {
                 overlayCallback.pushDropScreen();
                 return;
             case KeyEvent.VK_A:
-                overlayCallback.pushItemUseScreen();
+                overlayCallback.showItemUseOverlay();
                 return;
 
             // ── 模式切换 ──

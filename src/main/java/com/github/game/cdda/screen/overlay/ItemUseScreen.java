@@ -2,6 +2,7 @@ package com.github.game.cdda.screen.overlay;
 
 import com.github.game.cdda.GameWorld;
 import com.github.game.cdda.Player;
+import com.github.game.cdda.input.InputStateMachine;
 import com.github.game.cdda.item.ItemAction;
 import com.github.game.cdda.item.ItemActionRegistry;
 import com.github.game.cdda.item.ItemStack;
@@ -32,15 +33,18 @@ public class ItemUseScreen extends MenuScreen {
     private final Player player;
     private final PlayerInventory inventory;
     private final GameWorld world;
+    private final InputStateMachine inputStateMachine;
 
     /** 背包中有可用动作的物品索引映射（列表索引 → 背包索引） */
     private int[] actionableIndices;
 
-    public ItemUseScreen(GameEngine engine, Player player, GameWorld world) {
+    public ItemUseScreen(GameEngine engine, Player player, GameWorld world,
+                         InputStateMachine inputStateMachine) {
         super(engine);
         this.player = player;
         this.world = world;
         this.inventory = player.getInventory();
+        this.inputStateMachine = inputStateMachine;
         refreshActionableItems();
     }
 
@@ -80,7 +84,7 @@ public class ItemUseScreen extends MenuScreen {
         if (stack == null) return;
         // 推入第二级：动作菜单
         engine.getScreenManager().pushScreen(
-                new ItemActionMenuScreen(engine, player, world, stack));
+                new ItemActionMenuScreen(engine, player, world, stack, inputStateMachine));
     }
 
     @Override

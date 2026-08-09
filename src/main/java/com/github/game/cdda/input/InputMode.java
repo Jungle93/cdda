@@ -20,5 +20,8 @@ public enum InputMode {
     LOOK,
 
     /** 世界地图——方向键平移，+/- 缩放，ESC/M/Enter 关闭。 */
-    WORLD_MAP
+    WORLD_MAP,
+
+    /** 方向选择——等待方向键输入（如砍树选择方向），ESC 取消。 */
+    DIRECTION_SELECT
 }

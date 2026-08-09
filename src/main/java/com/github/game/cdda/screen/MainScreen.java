@@ -214,7 +214,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     @Override
     public void pushItemUseScreen() {
         engine.getScreenManager().pushScreen(
-                new ItemUseScreen(engine, gameWorld.getPlayer(), gameWorld));
+                new ItemUseScreen(engine, gameWorld.getPlayer(), gameWorld, inputStateMachine));
     }
 
     @Override

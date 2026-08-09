@@ -204,6 +204,9 @@ public class GameScene extends Scene {
 
         // 渲染观察模式状态栏（场景局部坐标，底部）
         renderLookStatusBar(renderer, tileW, tileH);
+
+        // 渲染方向选择提示
+        renderDirectionSelectHint(renderer);
     }
 
     /**
@@ -622,6 +625,30 @@ public class GameScene extends Scene {
         int hintY = barY + barHeight - 4;
         int hintX = vpW - renderer.getTextWidth(hint) - 4;
         renderer.drawText(hint, hintX, hintY);
+    }
+
+    /**
+     * 渲染方向选择提示（底部状态栏）。
+     * 当输入状态机处于方向选择模式时，显示动作名称和方向键提示。
+     */
+    private void renderDirectionSelectHint(Renderer renderer) {
+        if (inputStateMachine == null || !inputStateMachine.isDirectionSelecting()) return;
+
+        int vpW = viewport.getWidth();
+        int vpH = viewport.getHeight();
+        int barHeight = 28;
+        int barY = vpH - barHeight;
+
+        // 背景
+        renderer.setColor(new Color(60, 40, 0, 200));
+        renderer.fillRect(0, barY, vpW, barHeight);
+
+        // 提示文字
+        renderer.setFont(new Font("Monospaced", Font.BOLD, 13));
+        renderer.setColor(Color.YELLOW);
+        String hint = String.format("选择方向: ↑↓←→ 执行 %s | Esc 取消",
+                inputStateMachine.getDirectionActionName());
+        renderer.drawText(hint, 4, barY + 18);
     }
 
     // ── 地面物品渲染 ──────────────────────────────────

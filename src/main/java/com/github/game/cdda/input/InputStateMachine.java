@@ -1,6 +1,8 @@
 package com.github.game.cdda.input;
 
 import com.github.game.cdda.item.GroundItem;
+import com.github.game.cdda.item.ItemAction;
+import com.github.game.cdda.item.ItemStack;
 import com.github.game.cdda.screen.hud.GameLogPanel;
 import com.github.game.cdda.screen.scene.GameScene;
 import com.github.game.cdda.screen.scene.WorldMapScene;
@@ -61,6 +63,11 @@ public class InputStateMachine {
 
     /** 日志面板是否展开（仅 NORMAL 模式下有意义） */
     private boolean logExpanded = false;
+
+    /** 方向选择模式下的待执行动作 */
+    private ItemAction pendingDirectionAction;
+    /** 方向选择模式下的工具物品 */
+    private ItemStack pendingDirectionTool;
 
     // ── 依赖 ──
 
@@ -144,6 +151,28 @@ public class InputStateMachine {
         }
     }
 
+    /**
+     * 进入方向选择模式。
+     * 关闭覆盖层后在主游戏界面等待方向键输入，按方向键执行动作，ESC 取消。
+     *
+     * @param action 待执行的方向动作
+     * @param tool   使用的工具物品
+     */
+    public void startDirectionSelection(ItemAction action, ItemStack tool) {
+        if (currentMode != InputMode.NORMAL) return;
+        currentMode = InputMode.DIRECTION_SELECT;
+        pendingDirectionAction = action;
+        pendingDirectionTool = tool;
+    }
+
+    /** @return 是否处于方向选择模式 */
+    public boolean isDirectionSelecting() { return currentMode == InputMode.DIRECTION_SELECT; }
+
+    /** @return 方向选择模式下的动作名称（用于 HUD 提示） */
+    public String getDirectionActionName() {
+        return pendingDirectionAction != null ? pendingDirectionAction.getName() : "";
+    }
+
     // ========================================
     // 按键分发
     // ========================================
@@ -164,7 +193,39 @@ public class InputStateMachine {
             case WORLD_MAP:
                 worldMapScene.onKeyPressed(keyCode);
                 break;
+            case DIRECTION_SELECT:
+                handleDirectionSelectKey(keyCode);
+                break;
         }
+    }
+
+    /** 方向选择模式：方向键执行动作，ESC 取消 */
+    private void handleDirectionSelectKey(int keyCode) {
+        int dx = 0, dy = 0;
+        switch (keyCode) {
+            case KeyEvent.VK_UP:    dy = -1; break;
+            case KeyEvent.VK_DOWN:  dy =  1; break;
+            case KeyEvent.VK_LEFT:  dx = -1; break;
+            case KeyEvent.VK_RIGHT: dx =  1; break;
+            case KeyEvent.VK_ESCAPE:
+                // 取消方向选择，回到正常模式
+                currentMode = InputMode.NORMAL;
+                pendingDirectionAction = null;
+                pendingDirectionTool = null;
+                return;
+            default:
+                return;
+        }
+
+        // 执行带方向的动作
+        var player = gameScene.getWorld().getPlayer();
+        var world = gameScene.getWorld();
+        pendingDirectionAction.executeDirection(player, world, pendingDirectionTool, dx, dy);
+
+        // 执行完毕，回到正常模式
+        currentMode = InputMode.NORMAL;
+        pendingDirectionAction = null;
+        pendingDirectionTool = null;
     }
 
     // ── 各模式私有处理器 ──

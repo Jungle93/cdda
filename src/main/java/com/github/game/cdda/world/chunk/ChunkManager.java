@@ -3,7 +3,9 @@ package com.github.game.cdda.world.chunk;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.BiomeType;
 import com.github.game.cdda.world.biome.WorldMap;
-import com.github.game.cdda.world.noise.PerlinNoise;
+import com.github.game.cdda.world.drainage.DrainageCalculator;
+import com.github.game.cdda.world.drainage.DrainageMap;
+import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,8 +138,11 @@ public class ChunkManager {
         lastPlayerChunkX = playerChunkX;
         lastPlayerChunkY = playerChunkY;
 
-        // 加载预加载范围内的所有区块
+        // 加载预加载范围内的所有区块（不生成瓦片）
         preloadAround(playerChunkX, playerChunkY);
+
+        // 计算排水并生成瓦片
+        computeDrainageAndGenerate(playerChunkX, playerChunkY);
 
         // 卸载远离玩家的区块
         unloadDistant(playerChunkX, playerChunkY);
@@ -189,8 +194,8 @@ public class ChunkManager {
     }
 
     /**
-     * 加载指定区块。
-     * 从世界地图获取该位置的生物群落，驱动地形生成。
+     * 加载指定区块（仅创建对象，不生成瓦片）。
+     * 从世界地图获取该位置的生物群落。
      */
     private Chunk loadChunk(int cx, int cy) {
         // 从世界地图获取此区块的生物群落
@@ -198,6 +203,46 @@ public class ChunkManager {
         Chunk chunk = new Chunk(cx, cy, noise, biome);
         chunks.put(chunkKey(cx, cy), chunk);
         return chunk;
+    }
+
+    /**
+     * 计算排水并生成预加载区域内的所有区块瓦片。
+     *
+     * <p>流程：
+     * <ol>
+     *   <li>确定预加载区域的瓦片范围</li>
+     *   <li>使用 DrainageCalculator 计算排水图</li>
+     *   <li>对区域内每个区块调用 generate()</li>
+     * </ol>
+     */
+    private void computeDrainageAndGenerate(int playerChunkX, int playerChunkY) {
+        // 确定区域范围（预加载区域向外扩展 1 区块，保证排水计算边界正确）
+        int margin = 1;
+        int minChunkX = playerChunkX - preloadRadius - margin;
+        int minChunkY = playerChunkY - preloadRadius - margin;
+        int maxChunkX = playerChunkX + preloadRadius + margin;
+        int maxChunkY = playerChunkY + preloadRadius + margin;
+
+        int minWorldX = minChunkX * Chunk.SIZE;
+        int minWorldY = minChunkY * Chunk.SIZE;
+        int maxWorldX = (maxChunkX + 1) * Chunk.SIZE - 1;
+        int maxWorldY = (maxChunkY + 1) * Chunk.SIZE - 1;
+
+        // 计算排水图
+        DrainageCalculator calculator = new DrainageCalculator(worldMap);
+        DrainageMap drainageMap = calculator.compute(minWorldX, minWorldY, maxWorldX, maxWorldY);
+
+        // 生成预加载区域内的所有区块
+        for (int dy = -preloadRadius; dy <= preloadRadius; dy++) {
+            for (int dx = -preloadRadius; dx <= preloadRadius; dx++) {
+                int cx = playerChunkX + dx;
+                int cy = playerChunkY + dy;
+                Chunk chunk = chunks.get(chunkKey(cx, cy));
+                if (chunk != null) {
+                    chunk.generate(noise, worldMap, drainageMap);
+                }
+            }
+        }
     }
 
     /**
@@ -233,6 +278,17 @@ public class ChunkManager {
 
     /** 获取当前已加载区块数 */
     public int getLoadedChunkCount() { return chunks.size(); }
+
+    /**
+     * 获取指定区块（如果已加载）。
+     *
+     * @param chunkX 区块 X 坐标
+     * @param chunkY 区块 Y 坐标
+     * @return 区块对象，未加载时返回 null
+     */
+    public Chunk getChunk(int chunkX, int chunkY) {
+        return chunks.get(chunkKey(chunkX, chunkY));
+    }
 
     // ── 整数除法工具（正确处理负数） ──────────────
 

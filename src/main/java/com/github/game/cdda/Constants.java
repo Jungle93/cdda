@@ -29,7 +29,7 @@ public final class Constants {
 
     // ── 区块 ──────────────────────────────────────
     /** 区块大小（瓦片数） */
-    public static final int CHUNK_SIZE = 64;
+    public static final int CHUNK_SIZE = 32;
     /** 默认预加载半径（以区块为单位） */
     public static final int DEFAULT_PRELOAD_RADIUS = 1;
 

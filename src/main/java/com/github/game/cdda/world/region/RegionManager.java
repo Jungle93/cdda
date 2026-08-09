@@ -1,6 +1,6 @@
 package com.github.game.cdda.world.region;
 
-import com.github.game.cdda.world.noise.PerlinNoise;
+import com.github.game.engine.core.noise.PerlinNoise;
 
 import java.util.ArrayList;
 import java.util.List;

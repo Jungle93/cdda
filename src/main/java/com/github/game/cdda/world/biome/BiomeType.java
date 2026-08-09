@@ -15,6 +15,7 @@ import java.util.Map;
  *   <li>{@code grassDensity} — 植被密度（0~1），越高高草/花越多</li>
  *   <li>{@code rockiness} — 岩石率（0~1），越高石头越多</li>
  *   <li>{@code waterLevel} — 水域倾向（0~1），越高越可能有水</li>
+ *   <li>{@code baseElevation} — 基础海拔偏移（排水算法用），越高水越易流走</li>
  * </ul>
  *
  * <p>世界地图（{@link WorldMap}）为每个区块位置分配一个生物群落，
@@ -34,35 +35,35 @@ public class BiomeType {
 
     /** 海洋 — 大面积水域，无法通行 */
     public static final BiomeType OCEAN = register(0, "ocean", '~',
-            new Color(40, 100, 200), 0.0f, 0.0f, 0.0f, 1.0f);
+            new Color(40, 100, 200), 0.0f, 0.0f, 0.0f, 1.0f, -0.5f);
 
-    /** 平原 — 开阔草地，稀疏植被 */
+    /** 平原 — 开阔草地，稀疏植被（中等海拔，水易流走） */
     public static final BiomeType PLAINS = register(1, "plains", '.',
-            new Color(100, 190, 40), 0.0f, 0.20f, 0.0f, 0.0f);
+            new Color(100, 190, 40), 0.0f, 0.20f, 0.0f, 0.0f, 0.15f);
 
     /** 森林 — 密集树木 */
     public static final BiomeType FOREST = register(2, "forest", '&',
-            new Color(0, 110, 0), 0.35f, 0.12f, 0.0f, 0.0f);
+            new Color(0, 110, 0), 0.35f, 0.12f, 0.0f, 0.0f, 0.05f);
 
     /** 密林 — 非常密集的树林 */
     public static final BiomeType DENSE_FOREST = register(3, "dense_forest", '♣',
-            new Color(0, 80, 0), 0.55f, 0.08f, 0.0f, 0.0f);
+            new Color(0, 80, 0), 0.55f, 0.08f, 0.0f, 0.0f, 0.00f);
 
-    /** 沼泽 — 水与植被混合 */
+    /** 沼泽 — 水与植被混合（低海拔，易积水） */
     public static final BiomeType SWAMP = register(4, "swamp", '≈',
-            new Color(80, 130, 60), 0.08f, 0.25f, 0.0f, 0.25f);
+            new Color(80, 130, 60), 0.08f, 0.25f, 0.0f, 0.25f, -0.20f);
 
-    /** 丘陵 — 略有起伏，稀疏树木 */
+    /** 丘陵 — 略有起伏，稀疏树木（较高海拔） */
     public static final BiomeType HILLS = register(5, "hills", '∩',
-            new Color(120, 160, 80), 0.06f, 0.10f, 0.15f, 0.0f);
+            new Color(120, 160, 80), 0.06f, 0.10f, 0.15f, 0.0f, 0.25f);
 
-    /** 山地 — 多岩石，高海拔 */
+    /** 山地 — 多岩石，高海拔（河流源头） */
     public static final BiomeType MOUNTAIN = register(6, "mountain", '▲',
-            new Color(140, 140, 140), 0.01f, 0.02f, 0.50f, 0.0f);
+            new Color(140, 140, 140), 0.01f, 0.02f, 0.50f, 0.0f, 0.40f);
 
-    /** 沙漠 — 干旱，几乎无植被 */
+    /** 沙漠 — 干旱，几乎无植被（中等偏高海拔） */
     public static final BiomeType DESERT = register(7, "desert", '∴',
-            new Color(220, 200, 140), 0.0f, 0.02f, 0.05f, 0.0f);
+            new Color(220, 200, 140), 0.0f, 0.02f, 0.05f, 0.0f, 0.20f);
 
     // ── 实例字段 ────────────────────────────
 
@@ -79,10 +80,12 @@ public class BiomeType {
     private final float rockiness;
     /** 水域倾向（0~1）。值越高，低洼处越容易积水 */
     private final float waterLevel;
+    /** 基础海拔偏移（排水算法用）。越高水越易流走，越低越易积水 */
+    private final float baseElevation;
 
     private BiomeType(int id, String name, char mapChar, Color color,
                       float treeDensity, float grassDensity,
-                      float rockiness, float waterLevel) {
+                      float rockiness, float waterLevel, float baseElevation) {
         this.id = id;
         this.name = name;
         this.mapChar = mapChar;
@@ -91,6 +94,7 @@ public class BiomeType {
         this.grassDensity = grassDensity;
         this.rockiness = rockiness;
         this.waterLevel = waterLevel;
+        this.baseElevation = baseElevation;
     }
 
     // ── 注册 ────────────────────────────
@@ -106,12 +110,13 @@ public class BiomeType {
      * @param grassDensity 植被密度（0~1）
      * @param rockiness   岩石率（0~1）
      * @param waterLevel  水域倾向（0~1）
+     * @param baseElevation 基础海拔偏移（-1~1，排水算法用）
      */
     public static BiomeType register(int id, String name, char mapChar, Color color,
                                       float treeDensity, float grassDensity,
-                                      float rockiness, float waterLevel) {
+                                      float rockiness, float waterLevel, float baseElevation) {
         BiomeType type = new BiomeType(id, name, mapChar, color,
-                treeDensity, grassDensity, rockiness, waterLevel);
+                treeDensity, grassDensity, rockiness, waterLevel, baseElevation);
         REGISTRY.put(id, type);
         NAME_REGISTRY.put(name, type);
         return type;
@@ -138,6 +143,7 @@ public class BiomeType {
     public float getGrassDensity() { return grassDensity; }
     public float getRockiness() { return rockiness; }
     public float getWaterLevel() { return waterLevel; }
+    public float getBaseElevation() { return baseElevation; }
 
     /** 该群落是否以水域为主（waterLevel > 0.5） */
     public boolean isAquatic() { return waterLevel > 0.5f; }

@@ -1,7 +1,7 @@
 package com.github.game.cdda.world.biome;
 
 import com.github.game.cdda.world.chunk.Chunk;
-import com.github.game.cdda.world.noise.PerlinNoise;
+import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +48,23 @@ public class WorldMap {
     private static final double PERSISTENCE = 0.5;
     private static final double LACUNARITY = 2.0;
 
+    // ── 水域特征参数（湖泊 + 河流，由大地图统一决定） ──────────────
+
+    /** 湖泊高程阈值（低于此值 + 高湿度 → 湖泊） */
+    private static final double LAKE_ELEVATION = -0.15;
+    /** 湖泊湿度阈值（高于此值 → 可能形成湖泊） */
+    private static final double LAKE_MOISTURE = 0.20;
+    /** 河流高程阈值（低于此值 + 中等湿度 → 可能形成河流） */
+    private static final double RIVER_ELEVATION = 0.00;
+    /** 河流最低湿度（低于此值不生成河流） */
+    private static final double RIVER_MIN_MOISTURE = 0.00;
+    /** 河流噪声频率（极低频 → 长距离连续河道） */
+    private static final double RIVER_FREQ = 0.004;
+    /** 河流噪声 fBm 层数 */
+    private static final int RIVER_OCTAVES = 2;
+    /** 河道半宽阈值（|noise| < 此值视为河道内） */
+    private static final double RIVER_HALF_WIDTH = 0.035;
+
     // ── 生物群落分类阈值 ──────────────────
 
     /** 海洋高程阈值（低于此值 = 海洋） */
@@ -72,6 +89,8 @@ public class WorldMap {
     private final PerlinNoise moistureNoise;
     /** 温度噪声生成器 */
     private final PerlinNoise temperatureNoise;
+    /** 河流噪声生成器（全局河道层，跨区块连续） */
+    private final PerlinNoise riverNoise;
 
     /** 生物群落缓存（chunkKey → BiomeType），避免重复计算 */
     private final java.util.Map<Long, BiomeType> biomeCache = new java.util.HashMap<>();
@@ -87,6 +106,7 @@ public class WorldMap {
         this.elevationNoise = new PerlinNoise(worldSeed);
         this.moistureNoise = new PerlinNoise(worldSeed + 0x9E3779B97F4A7C15L);
         this.temperatureNoise = new PerlinNoise(worldSeed + 0x517CC1B727220A95L);
+        this.riverNoise = new PerlinNoise(worldSeed + 0x3C6EF372FE94F82BL);
         logger.info("世界地图初始化 — 种子: {}", worldSeed);
     }
 
@@ -204,10 +224,122 @@ public class WorldMap {
         return ((long) cx << 32) | (cy & 0xFFFFFFFFL);
     }
 
-    // ── 访问器 ────────────────────────────
+    // ── 访问器 ───────────────────────────
 
     public long getWorldSeed() { return worldSeed; }
 
+    /** 获取河流噪声生成器（供 Chunk 河道 carve 使用） */
+    public PerlinNoise getRiverNoise() { return riverNoise; }
+
     /** 获取已缓存的生物群落数量 */
     public int getCachedBiomeCount() { return biomeCache.size(); }
+
+    // ── 水域特征查询（湖泊 + 河流，由大地图统一决定） ────────────────────
+
+    /**
+     * 查询指定世界瓦片坐标处的水域特征。
+     *
+     * <p>水域由大地图的高程 + 湿度噪声统一决定，保证河流/湖泊出现在合理地形的低洼湿润区域，
+     * 而非随机位置。Chunk 根据返回值决定瓦片是否为水域及边缘过渡。
+     *
+     * <p>返回 {@code double} 表示水域强度：
+     * <ul>
+     *   <li>{@code 0.0} — 无水域</li>
+     *   <li>{@code 0.0 ~ 0.5} — 河流边缘过渡区</li>
+     *   <li>{@code 0.5 ~ 1.0} — 河流中心 / 湖泊</li>
+     *   <li>{@code > 1.0} — 深水区（湖泊中心）</li>
+     * </ul>
+     *
+     * <p>判定逻辑：
+     * <ol>
+     *   <li><b>湖泊</b>：高程 &lt; LAKE_ELEVATION 且湿度 &gt; LAKE_MOISTURE → 直接返回 1.0+</li>
+     *   <li><b>河流</b>：高程 &lt; RIVER_ELEVATION 且湿度 &gt; RIVER_MIN_MOISTURE，
+     *       再用河流噪声 carve 窄带河道</li>
+     * </ol>
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 水域强度值（0 = 无水，越大水越深）
+     */
+    public double getWaterFeature(int worldTileX, int worldTileY) {
+        double wx = worldTileX * ELEVATION_FREQ;
+        double wy = worldTileY * ELEVATION_FREQ;
+
+        // ── 湖泊：低洼 + 高湿 ──
+        double elevation = elevationNoise.fbm(wx, wy, OCTAVES, PERSISTENCE, LACUNARITY);
+        double moisture = moistureNoise.fbm(
+                worldTileX * MOISTURE_FREQ + 500.0,
+                worldTileY * MOISTURE_FREQ + 500.0,
+                OCTAVES, PERSISTENCE, LACUNARITY);
+
+        if (elevation < LAKE_ELEVATION && moisture > LAKE_MOISTURE) {
+            // 湖泊：中心更深，边缘渐浅
+            double lakeDepth = 1.0 + (LAKE_ELEVATION - elevation) * 3.0;
+            return Math.min(lakeDepth, 2.5);
+        }
+
+        // ── 河流：低地 + 湿润 + 噪声河道 ─
+        if (elevation < RIVER_ELEVATION && moisture > RIVER_MIN_MOISTURE) {
+            double nx = worldTileX * RIVER_FREQ;
+            double ny = worldTileY * RIVER_FREQ;
+            double riverVal = riverNoise.fbm(nx, ny, RIVER_OCTAVES, PERSISTENCE, LACUNARITY);
+            double absNoise = Math.abs(riverVal);
+            if (absNoise < RIVER_HALF_WIDTH) {
+                // 河道宽度：中心 ~1.0，边缘渐收至 0.3
+                return 0.3 + (1.0 - absNoise / RIVER_HALF_WIDTH) * 0.7;
+            }
+        }
+
+        return 0.0;
+    }
+
+    // ── 噪声采样（供 Chunk 逐瓦片查询，实现群落边界平滑过渡） ──────────────
+
+    /**
+     * 获取指定世界瓦片坐标的高程噪声值。
+     * 使用与 {@link #classifyBiome} 相同的频率和偏移，保证大地图和小地图一致。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 高程噪声值（约 -1 ~ 1）
+     */
+    public double getElevationAt(int worldTileX, int worldTileY) {
+        double wx = worldTileX * ELEVATION_FREQ;
+        double wy = worldTileY * ELEVATION_FREQ;
+        return elevationNoise.fbm(wx, wy, OCTAVES, PERSISTENCE, LACUNARITY);
+    }
+
+    /**
+     * 获取指定世界瓦片坐标的湿度噪声值。
+     * 使用与 {@link #classifyBiome} 相同的频率和偏移，保证大地图和小地图一致。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 湿度噪声值（约 -1 ~ 1）
+     */
+    public double getMoistureAt(int worldTileX, int worldTileY) {
+        return moistureNoise.fbm(
+                worldTileX * MOISTURE_FREQ + 500.0,
+                worldTileY * MOISTURE_FREQ + 500.0,
+                OCTAVES, PERSISTENCE, LACUNARITY);
+    }
+
+    /**
+     * 使用自定义参数采样高程噪声（供排水算法等需要不同分辨率的场景）。
+     *
+     * @param worldTileX  世界瓦片 X 坐标
+     * @param worldTileY  世界瓦片 Y 坐标
+     * @param frequency   噪声频率
+     * @param octaves     fBm 层数
+     * @param persistence 振幅衰减
+     * @param lacunarity  频率倍增
+     * @return 噪声值（约 -1 ~ 1）
+     */
+    public double sampleElevationNoise(int worldTileX, int worldTileY,
+                                       double frequency, int octaves,
+                                       double persistence, double lacunarity) {
+        return elevationNoise.fbm(
+                worldTileX * frequency, worldTileY * frequency,
+                octaves, persistence, lacunarity);
+    }
 }

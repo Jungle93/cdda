@@ -2,7 +2,9 @@ package com.github.game.cdda.world.chunk;
 
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.BiomeType;
-import com.github.game.cdda.world.noise.PerlinNoise;
+import com.github.game.cdda.world.biome.WorldMap;
+import com.github.game.cdda.world.drainage.DrainageMap;
+import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +38,7 @@ public class Chunk {
     private static final Logger logger = LoggerFactory.getLogger(Chunk.class);
 
     /** 区块边长（瓦片数） */
-    public static final int SIZE = 64;
+    public static final int SIZE = 32;
 
     // ── 噪声参数（局部地形细节） ──────────────────
 
@@ -68,23 +70,28 @@ public class Chunk {
     /** 此区块的生物群落 */
     private final BiomeType biome;
 
-    /** 瓦片数据 [row][col] */
-    private final TileType[][] tiles;
+    /** 瓦片数据 [row][col]（generate() 调用后初始化） */
+    private TileType[][] tiles;
+
+    /** 排水图（generate() 时使用，可为 null 表示使用 WorldMap 水域特征） */
+    private DrainageMap drainageMap;
+
+    /** 是否已生成 */
+    private boolean generated = false;
 
     /**
-     * 创建区块并使用生物群落参数生成地形。
+     * 创建区块（不立即生成，等待排水计算完成后调用 generate()）。
      *
      * @param chunkX 区块 X 坐标（以区块为单位）
      * @param chunkY 区块 Y 坐标（以区块为单位）
-     * @param noise  世界 Perlin 噪声生成器
+     * @param noise  世界 Perlin 噪声生成器（地形 + 植被）
      * @param biome  此区块的生物群落（由 WorldMap 决定）
      */
     public Chunk(int chunkX, int chunkY, PerlinNoise noise, BiomeType biome) {
         this.chunkX = chunkX;
         this.chunkY = chunkY;
         this.biome = biome;
-        this.tiles = new TileType[SIZE][SIZE];
-        generate(noise);
+        this.tiles = null;
     }
 
     // ── 地形生成 ────────────────────────────
@@ -92,32 +99,69 @@ public class Chunk {
     /**
      * 根据生物群落参数生成区块地形。
      *
-     * <p>第一遍：局部高程噪声 → 基底地形。
-     * 群落的 {@code waterLevel} 提高水域阈值，{@code rockiness} 降低岩石阈值。
-     *
-     * <p>第二遍：植被密度噪声 + 群落参数 → 地表物体。
-     * 群落的 {@code treeDensity} 和 {@code grassDensity} 控制植被放置阈值。
+     * <p>三遍生成：
+     * <ol>
+     *   <li><b>高程 → 基底地形</b>
+     *       局部噪声生成地形起伏，阈值由群落的 {@code waterLevel} 和 {@code rockiness} 偏移。</li>
+     *   <li><b>噪声 → 植被放置</b>
+     *       植被密度噪声 + 群落参数（{@code treeDensity}, {@code grassDensity}）
+     *       控制树木/草/花的密度和分布，形成聚簇效果。</li>
+     *   <li><b>大地图水域特征 → 湖泊/河流</b>
+     *       查询 {@link WorldMap#getWaterFeature(int, int)} 决定湖泊和河流位置，
+     *       水域出现在低洼湿润区域，跨区块连续自然。</li>
+     * </ol>
      */
-    private void generate(PerlinNoise noise) {
-        // 根据群落计算实际阈值
-        // waterLevel > 0 → 有内陆水域（阈值上移，水域面积更大）
-        // waterLevel = 0 → 无内陆水域（阈值压到最低，只有极低洼处可能有小水坑）
+    public void generate(PerlinNoise noise, WorldMap worldMap, DrainageMap drainageMap) {
+        if (generated) return;
+        this.drainageMap = drainageMap;
+        this.tiles = new TileType[SIZE][SIZE];
+        generated = true;
+
+        // 群落基数参数（rockiness 全区块统一）
         float wl = biome.getWaterLevel();
-        boolean hasWater = wl > 0;
-        double waterThreshold = hasWater
-                ? BASE_WATER_LEVEL + wl * 0.35
-                : BASE_WATER_LEVEL + DRY_THRESHOLD_OFFSET;
-        double beachThreshold = hasWater
-                ? BASE_BEACH_LEVEL + wl * 0.10
-                : BASE_BEACH_LEVEL + DRY_THRESHOLD_OFFSET;
-        // rockiness 越高 → 石头越多（阈值下移）
         double rockThreshold = BASE_ROCK_LEVEL - biome.getRockiness() * 0.30;
 
-        // ── 第一遍：高程 → 基底地形 ──
+        // ── 特殊处理：海洋群落 → 全区块水域 ──
+        if (biome == BiomeType.OCEAN) {
+            this.tiles = new TileType[SIZE][SIZE];
+            for (int row = 0; row < SIZE; row++) {
+                for (int col = 0; col < SIZE; col++) {
+                    tiles[row][col] = TileType.WATER;
+                }
+            }
+            placeVegetation(noise);
+            logger.debug("区块 ({}, {}) 生成完成 — 群落: {}", chunkX, chunkY, biome.getName());
+            return;
+        }
+
+        // ── 第一遍：高程 + WorldMap 湿度采样 → 基底地形（不生成水域） ──
+        // 每瓦片采样 WorldMap 湿度，调制水域/沙滩阈值，实现群落边界自然过渡。
+        // 噪声是全局连续的 → 相邻区块在边界处阈值渐变，而非硬切。
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 int globalX = chunkX * SIZE + col;
                 int globalY = chunkY * SIZE + row;
+
+                // 采样 WorldMap 湿度（tile 级，跨区块连续）
+                double tileMoisture = worldMap.getMoistureAt(globalX, globalY);
+
+                // 水域阈值 = 群落基数 + 局部湿度调制（湿度越高 → 水域越多）
+                // 干燥群落（waterLevel==0）强制压低阈值，防止生成水域
+                double waterThreshold;
+                if (wl <= 0.0f) {
+                    // 干燥群落：阈值压到极低，几乎不生成水域
+                    waterThreshold = BASE_WATER_LEVEL + DRY_THRESHOLD_OFFSET;
+                } else {
+                    waterThreshold = BASE_WATER_LEVEL + wl * 0.35 + tileMoisture * 0.08;
+                }
+
+                // 沙滩阈值：只有有水群落才生成沙滩
+                double beachThreshold;
+                if (wl > 0.05f) {
+                    beachThreshold = BASE_BEACH_LEVEL + wl * 0.10 + tileMoisture * 0.04;
+                } else {
+                    beachThreshold = BASE_WATER_LEVEL + DRY_THRESHOLD_OFFSET;
+                }
 
                 double elevation = noise.fbm(
                         globalX * TERRAIN_FREQ,
@@ -125,13 +169,16 @@ public class Chunk {
                         TERRAIN_OCTAVES, PERSISTENCE, LACUNARITY
                 );
 
-                tiles[row][col] = classifyTerrain(elevation,
-                        waterThreshold, beachThreshold, rockThreshold);
+                tiles[row][col] = classifyTerrainWithoutWater(elevation,
+                        beachThreshold, rockThreshold);
             }
         }
 
         // ── 第二遍：噪声 + 群落参数 → 植被 ──
         placeVegetation(noise);
+
+        // ─ 第三遍：排水算法 → 湖泊/河流/海洋 ──
+        carveWaterFeatures(worldMap);
 
         logger.debug("区块 ({}, {}) 生成完成 — 群落: {}", chunkX, chunkY, biome.getName());
     }
@@ -148,6 +195,20 @@ public class Chunk {
         } else if (elevation < beachThreshold) {
             return TileType.SAND;
         } else if (elevation > rockThreshold) {
+            return TileType.STONE;
+        } else {
+            return TileType.GRASS;
+        }
+    }
+
+    /**
+     * 根据高程和阈值分类基底地形（不生成水域和沙滩，由第三遍统一处理）。
+     */
+    private TileType classifyTerrainWithoutWater(double elevation,
+                                                  double beachThreshold,
+                                                  double rockThreshold) {
+        // 第一遍只生成陆地地形（GRASS/STONE），水域和沙滩由第三遍根据排水梯度决定
+        if (elevation > rockThreshold) {
             return TileType.STONE;
         } else {
             return TileType.GRASS;
@@ -207,13 +268,71 @@ public class Chunk {
                 if (hash < treeProb + grassProb) {
                     // 花比高草更稀疏
                     double flowerHash = tileHash(globalX + 131, globalY + 523);
-                    tiles[row][col] = (flowerHash < 0.35) ? TileType.FLOWER : TileType.TALL_GRASS;
+                    tiles[row][col] = (flowerHash < 0.12) ? TileType.FLOWER : TileType.TALL_GRASS;
                     continue;
                 }
 
                 // 其余保持 GRASS
             }
         }
+    }
+
+    /**
+     * 第三遍：放置水域（湖泊/河流/海洋）及过渡带。
+     *
+     * <p>使用排水算法的梯度值（考虑过渡带衰减）：
+     * <ul>
+     *   <li><b>深水区</b>：梯度 ≥ 0.5 → WATER</li>
+     *   <li><b>浅水/沙滩过渡</b>：梯度 0.2~0.5 → SAND（海滩）</li>
+     *   <li><b>陆地</b>：梯度 &lt; 0.2 → 保留原地形（草地/森林等）</li>
+     * </ul>
+     *
+     * <p>这样水域边缘会有自然的沙滩过渡带，而不是硬切。
+     */
+    private void carveWaterFeatures(WorldMap worldMap) {
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                TileType base = tiles[row][col];
+                // 只在草地/沙地上放置水域（不覆盖已有水域、岩石、植被）
+                if (base != TileType.GRASS && base != TileType.SAND) {
+                    continue;
+                }
+                int globalX = chunkX * SIZE + col;
+                int globalY = chunkY * SIZE + row;
+
+                double waterGradient;
+                if (drainageMap != null) {
+                    // 使用排水算法的梯度值（带群落检查）
+                    waterGradient = getWaterGradientWithBiomeCheck(globalX, globalY, worldMap);
+                } else {
+                    // 回退到 WorldMap 水域特征
+                    waterGradient = worldMap.getWaterFeature(globalX, globalY);
+                }
+
+                // 根据梯度值决定地形
+                if (waterGradient >= 0.6) {
+                    // 深水区
+                    tiles[row][col] = TileType.WATER;
+                } else if (waterGradient >= 0.3) {
+                    // 浅水/沙滩过渡带
+                    tiles[row][col] = TileType.SAND;
+                }
+                // 梯度 < 0.3 → 保留原地形（草地）
+            }
+        }
+    }
+
+    /**
+     * 获取水域梯度值（带群落检查）。
+     * 干燥群落强制返回 0，确保大地图与小地图一致。
+     */
+    private double getWaterGradientWithBiomeCheck(int worldX, int worldY, WorldMap worldMap) {
+        // 检查群落类型
+        var biome = worldMap.getBiomeAt(worldX, worldY);
+        if (biome.getWaterLevel() <= 0.0f) {
+            return 0.0; // 干燥群落强制无水
+        }
+        return drainageMap.getWaterGradient(worldX, worldY);
     }
 
     /**
@@ -243,6 +362,7 @@ public class Chunk {
         if (localCol < 0 || localCol >= SIZE || localRow < 0 || localRow >= SIZE) {
             return null;
         }
+        if (tiles == null) return null;
         return tiles[localRow][localCol];
     }
 

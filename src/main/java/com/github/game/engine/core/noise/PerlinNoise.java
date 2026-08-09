@@ -1,4 +1,4 @@
-package com.github.game.cdda.world.noise;
+package com.github.game.engine.core.noise;
 
 import java.util.Random;
 
@@ -6,12 +6,16 @@ import java.util.Random;
  * 经典 Perlin 噪声实现（2D）。
  * 使用 Ken Perlin 改进版梯度噪声算法，种子化置换表保证确定性。
  *
- * 算法核心：
- * 1. 将输入坐标映射到网格单元
- * 2. 计算单元四个顶点到输入点的梯度贡献
- * 3. 使用 fade 函数平滑插值
+ * <p>算法核心：
+ * <ol>
+ *   <li>将输入坐标映射到网格单元</li>
+ *   <li>计算单元四个顶点到输入点的梯度贡献</li>
+ *   <li>使用 fade 函数平滑插值</li>
+ * </ol>
  *
- * 输出范围约 [-1, 1]。
+ * <p>输出范围约 [-1, 1]。
+ *
+ * <p>作为引擎层通用工具，任何游戏模块均可使用。
  */
 public class PerlinNoise {
 
@@ -21,6 +25,8 @@ public class PerlinNoise {
     /**
      * 使用指定种子创建 Perlin 噪声生成器。
      * 相同种子产生相同的噪声图案。
+     *
+     * @param seed 随机种子
      */
     public PerlinNoise(long seed) {
         perm = new int[512];

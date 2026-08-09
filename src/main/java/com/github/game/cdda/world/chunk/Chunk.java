@@ -290,6 +290,7 @@ public class Chunk {
      * <p>这样水域边缘会有自然的沙滩过渡带，而不是硬切。
      */
     private void carveWaterFeatures(WorldMap worldMap) {
+        int waterCount = 0, sandCount = 0, grassCount = 0;
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 TileType base = tiles[row][col];
@@ -311,14 +312,21 @@ public class Chunk {
 
                 // 根据梯度值决定地形
                 if (waterGradient >= 0.6) {
-                    // 深水区
                     tiles[row][col] = TileType.WATER;
+                    waterCount++;
                 } else if (waterGradient >= 0.3) {
-                    // 浅水/沙滩过渡带
                     tiles[row][col] = TileType.SAND;
+                    sandCount++;
+                } else {
+                    grassCount++;
                 }
-                // 梯度 < 0.3 → 保留原地形（草地）
             }
+        }
+        // 调试输出
+        if (waterCount > 0 || sandCount > 0) {
+            System.out.printf("Chunk (%d,%d) %s: WATER=%d SAND=%d GRASS=%d drainageMap=%s%n",
+                    chunkX, chunkY, biome.getName(), waterCount, sandCount, grassCount,
+                    drainageMap != null ? "yes" : "no");
         }
     }
 

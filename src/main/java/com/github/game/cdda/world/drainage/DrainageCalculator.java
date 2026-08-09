@@ -81,8 +81,9 @@ public class DrainageCalculator {
     }
 
     /**
-     * 清除干燥群落（waterLevel==0）的洼地积水。
-     * 洼地填充可能为干燥群落制造湖泊，将 fillElevation 重置为 elevation。
+     * 减少干燥群落（waterLevel==0）的洼地积水。
+     * 洼地填充可能为干燥群落制造湖泊，减少填充量而非完全清除，
+     * 保留少量小水洼，但消除大面积湖泊。
      */
     private void suppressWaterForDryBiomes(DrainageMap map) {
         for (int row = 0; row < map.height; row++) {
@@ -91,16 +92,23 @@ public class DrainageCalculator {
                 int worldY = map.minY + row;
                 var biome = worldMap.getBiomeAt(worldX, worldY);
                 if (biome.getWaterLevel() <= 0.0f) {
-                    // 重置 fillElevation = elevation，消除洼地积水
-                    map.setFillElevation(worldX, worldY, map.getElevation(worldX, worldY));
+                    // 减少填充量至原来的 20%（保留少量小水洼）
+                    double elev = map.getElevation(worldX, worldY);
+                    double fill = map.getFillElevation(worldX, worldY);
+                    double lakeDepth = fill - elev;
+                    if (lakeDepth > 0.01) {
+                        double reducedDepth = lakeDepth * 0.2;
+                        map.setFillElevation(worldX, worldY, elev + reducedDepth);
+                    }
                 }
             }
         }
     }
 
     /**
-     * 清除干燥群落（waterLevel==0）的流量累加。
-     * 流量累加可能为干燥群落分配流量，将 flowAccum 重置为 0。
+     * 减少干燥群落（waterLevel==0）的流量累加。
+     * 流量累加可能为干燥群落分配过多流量，大幅减少而非完全清零，
+     * 保留少量小河流/水洼，但消除大面积水域。
      */
     private void suppressFlowForDryBiomes(DrainageMap map) {
         for (int row = 0; row < map.height; row++) {
@@ -109,12 +117,11 @@ public class DrainageCalculator {
                 int worldY = map.minY + row;
                 var biome = worldMap.getBiomeAt(worldX, worldY);
                 if (biome.getWaterLevel() <= 0.0f) {
-                    // 重置流量为 0，消除河流
-                    // DrainageMap 没有 setFlowAccum，需要直接操作
-                    // 通过 addFlowAccum 减去当前值来实现
+                    // 减少流量至原来的 10%（保留少量小河流）
                     int current = map.getFlowAccum(worldX, worldY);
-                    if (current > 0) {
-                        map.addFlowAccum(worldX, worldY, -current);
+                    if (current > 1) {
+                        int reduced = current / 10;
+                        map.addFlowAccum(worldX, worldY, -(current - reduced));
                     }
                 }
             }

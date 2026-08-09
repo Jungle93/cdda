@@ -42,4 +42,23 @@ public interface ItemAction {
      * @param tool   执行动作使用的物品
      */
     void execute(Player player, GameWorld world, ItemStack tool);
+
+    /**
+     * 是否需要方向选择。
+     * 返回 true 时，玩家选择此动作后需按方向键指定目标方向，
+     * 然后调用 {@link #executeDirection}。
+     */
+    default boolean needsDirection() { return false; }
+
+    /**
+     * 带方向执行动作（仅当 {@link #needsDirection()} 返回 true 时调用）。
+     *
+     * @param player 执行动作的玩家
+     * @param world  游戏世界
+     * @param tool   执行动作使用的物品
+     * @param dx     方向 X（-1/0/1）
+     * @param dy     方向 Y（-1/0/1）
+     */
+    default void executeDirection(Player player, GameWorld world,
+                                  ItemStack tool, int dx, int dy) {}
 }

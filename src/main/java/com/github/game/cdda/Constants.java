@@ -77,6 +77,8 @@ public final class Constants {
     public static final int ATTACK_BASE_TIME = 80;
     /** 砍树动作的基础时间（游戏秒） */
     public static final int CHOP_BASE_TIME = 150;
+    /** 加工/制造动作的基础时间（游戏秒） */
+    public static final int CRAFT_BASE_TIME = 100;
 
     // ── 代谢系统 ──────────────────────────────────────
     /** 最大能量储备（cal）。≈ 2500 kcal × 1000倍率，约2.5天基础消耗 */
@@ -140,7 +142,7 @@ public final class Constants {
 
     // ── 调试信息 ──────────────────────────────────────
     /** 是否显示调试信息叠加层（总开关） */
-    public static boolean SHOW_DEBUG_INFO = true;
+    public static boolean SHOW_DEBUG_INFO = false;
     /** 显示玩家所在瓦片坐标 */
     public static boolean DEBUG_SHOW_TILE_POS = true;
     /** 显示摄像机世界坐标 */

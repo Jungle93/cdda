@@ -3,9 +3,6 @@ package com.github.game.cdda.screen.overlay;
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.GameWorld;
 import com.github.game.cdda.Player;
-import com.github.game.cdda.creature.CreatureManager;
-import com.github.game.cdda.item.ItemRegistry;
-import com.github.game.cdda.item.ItemStack;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.screen.menu.MenuScreen;
 import com.github.game.engine.core.GameEngine;
@@ -37,9 +34,7 @@ public class DebugMenuScreen extends MenuScreen {
             "回复生命值 (+50)",
             "补充能量 (+30%)",
             "补充水分 (+30%)",
-            "生成面包到背包",
-            "生成水瓶到背包",
-            "生成石斧到背包",
+            "生成物品...",
             "传送到原点 (0,0)",
             "前进 1 小时",
             "切换 FPS 显示",
@@ -84,7 +79,6 @@ public class DebugMenuScreen extends MenuScreen {
 
         // 位置
         renderer.setColor(Color.CYAN);
-        int tileW = 14, tileH = 20;  // 默认值，仅用于显示
         renderer.drawText(String.format("玩家位置: 瓦片(%d, %d)  像素(%d, %d)",
                 player.getTileX(), player.getTileY(),
                 player.getWorldX(), player.getWorldY()), 10, y);
@@ -159,7 +153,7 @@ public class DebugMenuScreen extends MenuScreen {
             // 某些选项显示当前状态
             String suffix = "";
             if (i == 0) suffix = Constants.SHOW_DEBUG_INFO ? " [开]" : " [关]";
-            if (i == 9) suffix = Constants.DEBUG_SHOW_FPS ? " [开]" : " [关]";
+            if (i == 7) suffix = Constants.DEBUG_SHOW_FPS ? " [开]" : " [关]";
 
             renderer.setColor(sel ? Color.YELLOW : new Color(180, 220, 180));
             renderer.drawText(line + suffix, 10, y + visibleIndex * lineHeight);
@@ -186,8 +180,6 @@ public class DebugMenuScreen extends MenuScreen {
                 break;
 
             case 2: // 补充能量
-                double energyAdd = player.getInventory().getCarryCapacity() * 0.3;
-                // 使用 MetabolismManager 补充能量
                 world.getMetabolismManager().addCalories(
                         Constants.CALORIE_MAX_POOL * 0.3);
                 log("补充了 30% 能量");
@@ -199,30 +191,22 @@ public class DebugMenuScreen extends MenuScreen {
                 log("补充了 30% 水分");
                 break;
 
-            case 4: // 生成面包
-                addItemToInventory(2, 3);  // bread id=2
+            case 4: // 生成物品（打开物品生成菜单）
+                engine.getScreenManager().pushScreen(
+                        new ItemSpawnScreen(engine, world));
                 break;
 
-            case 5: // 生成水瓶
-                addItemToInventory(0, 2);  // water_bottle id=0
-                break;
-
-            case 6: // 生成石斧
-                addItemToInventory(8, 1);  // stone_axe id=8
-                break;
-
-            case 7: // 传送到原点
-                // 移动玩家到 (0,0) 瓦片
+            case 5: // 传送到原点
                 player.move(-player.getTileX(), -player.getTileY());
                 log("已传送到原点 (0,0)");
                 break;
 
-            case 8: // 前进 1 小时
+            case 6: // 前进 1 小时
                 world.getGameTime().advance(3600);  // 3600 游戏秒 = 1 小时
                 log("时间前进 1 小时");
                 break;
 
-            case 9: // 切换 FPS 显示
+            case 7: // 切换 FPS 显示
                 Constants.DEBUG_SHOW_FPS = !Constants.DEBUG_SHOW_FPS;
                 log("FPS 显示: " + (Constants.DEBUG_SHOW_FPS ? "开" : "关"));
                 break;
@@ -235,21 +219,6 @@ public class DebugMenuScreen extends MenuScreen {
     @Override
     protected void onCancel() {
         engine.getScreenManager().popScreen();
-    }
-
-    /** 添加物品到玩家背包 */
-    private void addItemToInventory(int itemId, int count) {
-        var type = ItemRegistry.getById(itemId);
-        if (type == null) {
-            log("物品 ID " + itemId + " 不存在");
-            return;
-        }
-        ItemStack stack = new ItemStack(type, count);
-        if (player.getInventory().addItem(stack)) {
-            log("生成了 " + type.getName() + " x" + count);
-        } else {
-            log("背包超重，无法添加 " + type.getName());
-        }
     }
 
     /** 记录日志 */

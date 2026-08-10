@@ -1,0 +1,9 @@
+{
+  "id": 1014,
+  "name": "wolf_pelt",
+  "description": "狼皮，厚实保暖",
+  "weightGrams": 1200,
+  "volumeMl": 800,
+  "maxStackSize": 2,
+  "tags": ["crafting", "leather"]
+}

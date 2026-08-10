@@ -1,0 +1,12 @@
+{
+  "id": 2,
+  "name": "bread",
+  "description": "一块基本的面包，能填饱肚子",
+  "weightGrams": 300,
+  "volumeMl": 400,
+  "maxStackSize": 5,
+  "consumableTypes": 1,
+  "calories": 350,
+  "satiety": 60,
+  "waterContent": 30
+}

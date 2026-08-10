@@ -1,0 +1,9 @@
+{
+  "id": 1017,
+  "name": "mouflon_hide",
+  "description": "盘羊皮，粗犷耐用",
+  "weightGrams": 900,
+  "volumeMl": 600,
+  "maxStackSize": 3,
+  "tags": ["crafting", "leather"]
+}

@@ -1,0 +1,9 @@
+{
+  "id": 1013,
+  "name": "boar_hide",
+  "description": "野猪皮，厚实粗糙",
+  "weightGrams": 1000,
+  "volumeMl": 700,
+  "maxStackSize": 3,
+  "tags": ["crafting", "leather"]
+}

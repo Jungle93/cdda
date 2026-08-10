@@ -1,0 +1,9 @@
+{
+  "id": 1011,
+  "name": "rabbit_pelt",
+  "description": "兔皮，柔软保暖",
+  "weightGrams": 100,
+  "volumeMl": 80,
+  "maxStackSize": 10,
+  "tags": ["crafting", "leather"]
+}

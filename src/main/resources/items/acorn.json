@@ -1,0 +1,12 @@
+{
+  "id": 1042,
+  "name": "acorn",
+  "description": "橡子，研磨后可食用",
+  "weightGrams": 20,
+  "volumeMl": 15,
+  "maxStackSize": 20,
+  "consumableTypes": 1,
+  "calories": 80,
+  "satiety": 20,
+  "waterContent": 5
+}

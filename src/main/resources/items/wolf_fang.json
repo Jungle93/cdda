@@ -1,0 +1,9 @@
+{
+  "id": 1023,
+  "name": "wolf_fang",
+  "description": "狼牙，锐利",
+  "weightGrams": 30,
+  "volumeMl": 15,
+  "maxStackSize": 8,
+  "tags": ["crafting", "material"]
+}

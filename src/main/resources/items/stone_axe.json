@@ -1,0 +1,9 @@
+{
+  "id": 8,
+  "name": "stone_axe",
+  "description": "石斧 — 粗糙但实用的砍伐工具",
+  "weightGrams": 800,
+  "volumeMl": 200,
+  "unique": true,
+  "tags": ["chopping"]
+}

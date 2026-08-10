@@ -1,0 +1,9 @@
+{
+  "id": 1032,
+  "name": "pine_log",
+  "description": "松木原木，富含树脂",
+  "weightGrams": 1800,
+  "volumeMl": 2300,
+  "maxStackSize": 5,
+  "tags": ["crafting", "wood"]
+}

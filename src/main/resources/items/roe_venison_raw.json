@@ -1,0 +1,12 @@
+{
+  "id": 1005,
+  "name": "roe_venison_raw",
+  "description": "狍子肉，鲜嫩",
+  "weightGrams": 400,
+  "volumeMl": 350,
+  "maxStackSize": 5,
+  "consumableTypes": 1,
+  "calories": 750,
+  "satiety": 65,
+  "waterContent": 45
+}

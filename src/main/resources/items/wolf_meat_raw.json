@@ -1,0 +1,12 @@
+{
+  "id": 1003,
+  "name": "wolf_meat_raw",
+  "description": "狼肉，口感粗糙",
+  "weightGrams": 400,
+  "volumeMl": 350,
+  "maxStackSize": 5,
+  "consumableTypes": 1,
+  "calories": 700,
+  "satiety": 50,
+  "waterContent": 30
+}

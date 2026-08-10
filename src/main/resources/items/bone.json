@@ -1,0 +1,9 @@
+{
+  "id": 1021,
+  "name": "bone",
+  "description": "骨头，可磨制工具或熬汤",
+  "weightGrams": 100,
+  "volumeMl": 80,
+  "maxStackSize": 16,
+  "tags": ["crafting", "material"]
+}

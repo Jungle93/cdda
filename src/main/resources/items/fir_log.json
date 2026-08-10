@@ -1,0 +1,9 @@
+{
+  "id": 1033,
+  "name": "fir_log",
+  "description": "冷杉原木，纹理细腻",
+  "weightGrams": 1700,
+  "volumeMl": 2200,
+  "maxStackSize": 5,
+  "tags": ["crafting", "wood"]
+}

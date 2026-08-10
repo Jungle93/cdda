@@ -1,0 +1,9 @@
+{
+  "id": 1045,
+  "name": "reed_bundle",
+  "description": "芦苇束，可编织",
+  "weightGrams": 150,
+  "volumeMl": 400,
+  "maxStackSize": 5,
+  "tags": ["crafting", "material"]
+}

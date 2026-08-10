@@ -1,0 +1,9 @@
+{
+  "id": 1047,
+  "name": "sphagnum_moss",
+  "description": "泥炭藓，可作绷带填充",
+  "weightGrams": 80,
+  "volumeMl": 250,
+  "maxStackSize": 8,
+  "tags": ["crafting", "material"]
+}

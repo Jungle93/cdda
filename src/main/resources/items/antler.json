@@ -1,0 +1,9 @@
+{
+  "id": 1020,
+  "name": "antler",
+  "description": "鹿角，可用于制作工具和装饰",
+  "weightGrams": 300,
+  "volumeMl": 200,
+  "maxStackSize": 4,
+  "tags": ["crafting", "material"]
+}

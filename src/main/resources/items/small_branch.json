@@ -1,0 +1,9 @@
+{
+  "id": 1035,
+  "name": "small_branch",
+  "description": "小树枝，可引火或制作简易工具",
+  "weightGrams": 200,
+  "volumeMl": 300,
+  "maxStackSize": 10,
+  "tags": ["crafting", "material"]
+}

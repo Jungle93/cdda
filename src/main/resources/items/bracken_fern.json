@@ -1,0 +1,9 @@
+{
+  "id": 1038,
+  "name": "bracken_fern",
+  "description": "蕨叶，可作临时 bedding",
+  "weightGrams": 100,
+  "volumeMl": 400,
+  "maxStackSize": 8,
+  "tags": ["crafting", "material"]
+}

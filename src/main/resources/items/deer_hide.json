@@ -1,0 +1,9 @@
+{
+  "id": 1010,
+  "name": "deer_hide",
+  "description": "鹿皮，可用于制作皮革制品",
+  "weightGrams": 800,
+  "volumeMl": 600,
+  "maxStackSize": 3,
+  "tags": ["crafting", "leather"]
+}

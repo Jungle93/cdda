@@ -1,5 +1,12 @@
 package com.github.game.cdda.item;
 
+import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -8,123 +15,140 @@ import java.util.Map;
 /**
  * 物品类型注册表（遵循 TileType 注册模式）。
  * <p>
- * 内置物品在静态初始化时注册。Mod 可通过 {@link #registerMod} 在运行时注册新类型。
+ * 所有物品从 {@code resources/items/} 目录下的 JSON 文件加载。
+ * Mod 可通过 {@link #registerMod} 在运行时注册新类型。
  * <p>
  * ID 分配约定：
  * <ul>
- *   <li>0–999：内置物品（Base game）</li>
+ *   <li>0–999：内置物品（Base game，通过 JSON 配置）</li>
  *   <li>1000+：Mod 物品</li>
  * </ul>
  */
 public final class ItemRegistry {
+
+    private static final Logger logger = LoggerFactory.getLogger(ItemRegistry.class);
 
     /** 数字 ID → ItemType 注册表（有序） */
     private static final Map<Integer, ItemType> REGISTRY = new LinkedHashMap<>();
     /** 字符串 name → ItemType 注册表（有序） */
     private static final Map<String, ItemType> NAME_REGISTRY = new LinkedHashMap<>();
 
+    /** Gson 实例 */
+    private static final Gson GSON = new Gson();
+
+    /** 是否已加载 */
+    private static boolean loaded = false;
+
     private ItemRegistry() {} // 不可实例化
 
-    // ── 内置物品 ─────────────────────────────────────────
+    static {
+        loadAll();
+    }
 
-    // ── 饮品 ──
-    public static final ItemType WATER_BOTTLE = registerBuiltin(
-            new ItemType.Builder(0, "water_bottle")
-                    .description("一瓶干净的饮用水")
-                    .weight(550).volume(500)
-                    .maxStackSize(4)
-                    .consumable(ConsumableType.WATER)
-                    .nutrition(0, 0, 500)
-                    .build()
-    );
+    // ── 从 JSON 加载 ────────────────────────────────────
 
-    public static final ItemType DIRTY_WATER = registerBuiltin(
-            new ItemType.Builder(1, "dirty_water")
-                    .description("浑浊的水，饮用可能导致不适")
-                    .weight(550).volume(500)
-                    .maxStackSize(4)
-                    .consumable(ConsumableType.WATER)
-                    .nutrition(0, 0, 500)
-                    .build()
-    );
+    /**
+     * 从 classpath 加载所有物品定义。
+     * 扫描 items/ 目录下的 JSON 文件。
+     */
+    public static synchronized void loadAll() {
+        if (loaded) {
+            return;
+        }
 
-    // ── 食物 ──
-    public static final ItemType BREAD = registerBuiltin(
-            new ItemType.Builder(2, "bread")
-                    .description("一块基本的面包，能填饱肚子")
-                    .weight(300).volume(400)
-                    .maxStackSize(5)
-                    .consumable(ConsumableType.FOOD)
-                    .nutrition(350, 60, 30)
-                    .build()
-    );
+        // 饮品
+        loadFromClasspath("items/water_bottle.json");
+        loadFromClasspath("items/dirty_water.json");
+        // 食物
+        loadFromClasspath("items/bread.json");
+        loadFromClasspath("items/canned_food.json");
+        // 药物
+        loadFromClasspath("items/bandage.json");
+        loadFromClasspath("items/painkiller.json");
+        // 复合消耗类型
+        loadFromClasspath("items/herbal_tea.json");
+        // 唯一物品
+        loadFromClasspath("items/rusty_knife.json");
+        loadFromClasspath("items/stone_axe.json");
+        // 动物掉落物 — 肉类
+        loadFromClasspath("items/venison_raw.json");
+        loadFromClasspath("items/rabbit_meat_raw.json");
+        loadFromClasspath("items/boar_meat_raw.json");
+        loadFromClasspath("items/wolf_meat_raw.json");
+        loadFromClasspath("items/badger_meat_raw.json");
+        loadFromClasspath("items/roe_venison_raw.json");
+        loadFromClasspath("items/hare_meat_raw.json");
+        loadFromClasspath("items/mouflon_meat_raw.json");
+        loadFromClasspath("items/squirrel_meat_raw.json");
+        // 动物掉落物 — 毛皮
+        loadFromClasspath("items/deer_hide.json");
+        loadFromClasspath("items/rabbit_pelt.json");
+        loadFromClasspath("items/fox_pelt.json");
+        loadFromClasspath("items/boar_hide.json");
+        loadFromClasspath("items/wolf_pelt.json");
+        loadFromClasspath("items/badger_fur.json");
+        loadFromClasspath("items/hare_pelt.json");
+        loadFromClasspath("items/mouflon_hide.json");
+        // 动物掉落物 — 特殊材料
+        loadFromClasspath("items/antler.json");
+        loadFromClasspath("items/bone.json");
+        loadFromClasspath("items/boar_tusk.json");
+        loadFromClasspath("items/wolf_fang.json");
+        // 植物掉落物 — 木材
+        loadFromClasspath("items/oak_log.json");
+        loadFromClasspath("items/birch_log.json");
+        loadFromClasspath("items/pine_log.json");
+        loadFromClasspath("items/fir_log.json");
+        loadFromClasspath("items/beech_log.json");
+        // 植物掉落物 — 植物材料
+        loadFromClasspath("items/small_branch.json");
+        loadFromClasspath("items/birch_bark.json");
+        loadFromClasspath("items/dried_branch.json");
+        loadFromClasspath("items/bracken_fern.json");
+        loadFromClasspath("items/heather_flower.json");
+        loadFromClasspath("items/gorse_branch.json");
+        loadFromClasspath("items/blackberry.json");
+        loadFromClasspath("items/acorn.json");
+        loadFromClasspath("items/pine_cone.json");
+        loadFromClasspath("items/grass_bundle.json");
+        loadFromClasspath("items/reed_bundle.json");
+        loadFromClasspath("items/green_moss.json");
+        loadFromClasspath("items/sphagnum_moss.json");
+        loadFromClasspath("items/lichen.json");
+        loadFromClasspath("items/peat.json");
 
-    public static final ItemType CANNED_FOOD = registerBuiltin(
-            new ItemType.Builder(3, "canned_food")
-                    .description("罐头食品，保质期长")
-                    .weight(400).volume(350)
-                    .maxStackSize(8)
-                    .consumable(ConsumableType.FOOD)
-                    .nutrition(500, 80, 50)
-                    .build()
-    );
+        loaded = true;
+        logger.info("物品注册表加载完成，共 {} 种物品", REGISTRY.size());
+    }
 
-    // ── 药物 ──
-    public static final ItemType BANDAGE = registerBuiltin(
-            new ItemType.Builder(4, "bandage")
-                    .description("简易绷带，用于处理伤口")
-                    .weight(50).volume(30)
-                    .maxStackSize(10)
-                    .consumable(ConsumableType.MEDICINE)
-                    .build()
-    );
-
-    public static final ItemType PAINKILLER = registerBuiltin(
-            new ItemType.Builder(5, "painkiller")
-                    .description("止痛药，缓解疼痛")
-                    .weight(20).volume(10)
-                    .maxStackSize(20)
-                    .consumable(ConsumableType.MEDICINE)
-                    .build()
-    );
-
-    // ── 复合消耗类型示例 ──
-    public static final ItemType HERBAL_TEA = registerBuiltin(
-            new ItemType.Builder(6, "herbal_tea")
-                    .description("草药茶，既能解渴又有疗效")
-                    .weight(250).volume(200)
-                    .maxStackSize(3)
-                    .consumable(ConsumableType.WATER, ConsumableType.MEDICINE)
-                    .nutrition(10, 5, 200)
-                    .build()
-    );
-
-    // ── 唯一物品示例 ──
-    public static final ItemType RUSTY_KNIFE = registerBuiltin(
-            new ItemType.Builder(7, "rusty_knife")
-                    .description("一把生锈的小刀，聊胜于无")
-                    .weight(150).volume(50)
-                    .unique()
-                    .build()
-    );
-
-    // ── 工具 ──
-    public static final ItemType STONE_AXE = registerBuiltin(
-            new ItemType.Builder(8, "stone_axe")
-                    .description("石斧 — 粗糙但实用的砍伐工具")
-                    .weight(800).volume(200)
-                    .unique()
-                    .tag("chopping")
-                    .build()
-    );
+    /**
+     * 从 classpath 加载单个物品定义。
+     *
+     * @param path classpath 路径
+     */
+    private static void loadFromClasspath(String path) {
+        try (InputStream is = ItemRegistry.class.getClassLoader().getResourceAsStream(path)) {
+            if (is == null) {
+                logger.warn("物品定义文件未找到: {}", path);
+                return;
+            }
+            ItemDefinition def = GSON.fromJson(
+                    new InputStreamReader(is, StandardCharsets.UTF_8),
+                    ItemDefinition.class
+            );
+            if (def == null || def.name == null || def.name.isBlank()) {
+                logger.warn("物品定义无效: {}", path);
+                return;
+            }
+            ItemType type = def.toItemType();
+            validateAndPut(type);
+            logger.debug("注册物品定义: {} (id={})", def.name, def.id);
+        } catch (Exception e) {
+            logger.error("加载物品定义失败: {}", path, e);
+        }
+    }
 
     // ── 注册 API ──────────────────────────────────────────
-
-    /** 注册内置物品（静态初始化时调用） */
-    private static ItemType registerBuiltin(ItemType type) {
-        validateAndPut(type);
-        return type;
-    }
 
     /**
      * Mod 注册新物品类型（运行时调用）。
@@ -172,5 +196,14 @@ public final class ItemRegistry {
     /** 获取已注册数量（便于调试 / UI 分页） */
     public static int size() {
         return REGISTRY.size();
+    }
+
+    /**
+     * 清空注册表（用于测试）。
+     */
+    public static void clear() {
+        REGISTRY.clear();
+        NAME_REGISTRY.clear();
+        loaded = false;
     }
 }

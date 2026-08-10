@@ -1,0 +1,12 @@
+{
+  "id": 1000,
+  "name": "venison_raw",
+  "description": "新鲜鹿肉，高蛋白",
+  "weightGrams": 500,
+  "volumeMl": 400,
+  "maxStackSize": 5,
+  "consumableTypes": 1,
+  "calories": 800,
+  "satiety": 70,
+  "waterContent": 50
+}

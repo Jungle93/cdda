@@ -1,0 +1,12 @@
+{
+  "id": 6,
+  "name": "herbal_tea",
+  "description": "草药茶，既能解渴又有疗效",
+  "weightGrams": 250,
+  "volumeMl": 200,
+  "maxStackSize": 3,
+  "consumableTypes": 6,
+  "calories": 10,
+  "satiety": 5,
+  "waterContent": 200
+}

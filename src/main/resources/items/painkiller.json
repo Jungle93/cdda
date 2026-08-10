@@ -1,0 +1,9 @@
+{
+  "id": 5,
+  "name": "painkiller",
+  "description": "止痛药，缓解疼痛",
+  "weightGrams": 20,
+  "volumeMl": 10,
+  "maxStackSize": 20,
+  "consumableTypes": 4
+}

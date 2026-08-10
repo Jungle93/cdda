@@ -1,0 +1,9 @@
+{
+  "id": 1031,
+  "name": "birch_log",
+  "description": "桦木原木，质地较轻",
+  "weightGrams": 1500,
+  "volumeMl": 2000,
+  "maxStackSize": 5,
+  "tags": ["crafting", "wood"]
+}

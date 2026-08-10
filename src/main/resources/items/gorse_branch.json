@@ -1,0 +1,9 @@
+{
+  "id": 1040,
+  "name": "gorse_branch",
+  "description": "金雀花枝，带刺",
+  "weightGrams": 150,
+  "volumeMl": 250,
+  "maxStackSize": 8,
+  "tags": ["crafting", "material"]
+}

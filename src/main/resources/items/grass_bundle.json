@@ -1,0 +1,9 @@
+{
+  "id": 1044,
+  "name": "grass_bundle",
+  "description": "干草捆，可作 bedding 或编织",
+  "weightGrams": 100,
+  "volumeMl": 500,
+  "maxStackSize": 5,
+  "tags": ["crafting", "material"]
+}

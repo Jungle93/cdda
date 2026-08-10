@@ -1,0 +1,9 @@
+{
+  "id": 1037,
+  "name": "dried_branch",
+  "description": "干树枝，干燥易燃",
+  "weightGrams": 100,
+  "volumeMl": 200,
+  "maxStackSize": 10,
+  "tags": ["crafting", "material"]
+}

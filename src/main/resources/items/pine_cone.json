@@ -1,0 +1,9 @@
+{
+  "id": 1043,
+  "name": "pine_cone",
+  "description": "松果，富含树脂，易燃",
+  "weightGrams": 40,
+  "volumeMl": 80,
+  "maxStackSize": 15,
+  "tags": ["crafting", "material"]
+}

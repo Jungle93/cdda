@@ -1,0 +1,9 @@
+{
+  "id": 1015,
+  "name": "badger_fur",
+  "description": "獾皮，厚实耐用",
+  "weightGrams": 500,
+  "volumeMl": 400,
+  "maxStackSize": 4,
+  "tags": ["crafting", "leather"]
+}

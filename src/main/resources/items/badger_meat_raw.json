@@ -1,0 +1,12 @@
+{
+  "id": 1004,
+  "name": "badger_meat_raw",
+  "description": "獾肉，味道腥膻",
+  "weightGrams": 300,
+  "volumeMl": 250,
+  "maxStackSize": 6,
+  "consumableTypes": 1,
+  "calories": 550,
+  "satiety": 45,
+  "waterContent": 35
+}

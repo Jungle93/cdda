@@ -4,10 +4,12 @@ import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.creature.config.CreatureRegistry;
 import com.github.game.cdda.game.WorldSettings;
 import com.github.game.cdda.item.GroundItemManager;
+import com.github.game.cdda.item.ItemRegistry;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.chunk.ChunkManager;
+import com.github.game.cdda.world.vegetation.VegetationRegistry;
 /**
  * 游戏世界（逻辑层）。创建并持有所有游戏子系统，是游戏状态的唯一权威来源。
  *
@@ -75,7 +77,9 @@ public class GameWorld {
         hydrationManager = new HydrationManager(gameTime, temperatureManager);
 
         // 6) 生物系统
+        ItemRegistry.loadAll();
         CreatureRegistry.loadAll();
+        VegetationRegistry.loadAll();
         creatureManager = new CreatureManager(chunkManager, turnManager);
 
         // 7) 地面物品系统
@@ -108,6 +112,14 @@ public class GameWorld {
     public void registerPlayerToTurnSystem() {
         turnManager.addEntity(player);
         player.addEnergy(TurnManager.ENERGY_PER_ACTION);
+    }
+
+    /**
+     * 更新现实气泡中心位置。
+     * 在玩家跨越区块边界时调用，使气泡外的动物静止、气泡内的恢复活跃。
+     */
+    public void updateRealityBubble() {
+        creatureManager.updateBubble(player.getTileX(), player.getTileY());
     }
 
     /**

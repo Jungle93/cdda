@@ -1,0 +1,9 @@
+{
+  "id": 1016,
+  "name": "hare_pelt",
+  "description": "野兔皮，冬季毛更厚",
+  "weightGrams": 120,
+  "volumeMl": 100,
+  "maxStackSize": 10,
+  "tags": ["crafting", "leather"]
+}

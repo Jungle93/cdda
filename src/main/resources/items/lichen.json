@@ -1,0 +1,12 @@
+{
+  "id": 1048,
+  "name": "lichen",
+  "description": "地衣，可应急食用",
+  "weightGrams": 20,
+  "volumeMl": 50,
+  "maxStackSize": 15,
+  "consumableTypes": 1,
+  "calories": 10,
+  "satiety": 5,
+  "waterContent": 5
+}

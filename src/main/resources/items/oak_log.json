@@ -1,0 +1,9 @@
+{
+  "id": 1030,
+  "name": "oak_log",
+  "description": "橡木原木，坚硬耐用",
+  "weightGrams": 2000,
+  "volumeMl": 2500,
+  "maxStackSize": 5,
+  "tags": ["crafting", "wood"]
+}

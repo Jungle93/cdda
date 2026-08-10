@@ -1,0 +1,12 @@
+{
+  "id": 1007,
+  "name": "mouflon_meat_raw",
+  "description": "盘羊肉，膻味较重",
+  "weightGrams": 600,
+  "volumeMl": 500,
+  "maxStackSize": 4,
+  "consumableTypes": 1,
+  "calories": 900,
+  "satiety": 75,
+  "waterContent": 35
+}

@@ -1,0 +1,9 @@
+{
+  "id": 1036,
+  "name": "birch_bark",
+  "description": "桦树皮，易燃，可作引火物",
+  "weightGrams": 50,
+  "volumeMl": 100,
+  "maxStackSize": 10,
+  "tags": ["crafting", "material"]
+}

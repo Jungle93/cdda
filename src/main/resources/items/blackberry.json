@@ -1,0 +1,12 @@
+{
+  "id": 1041,
+  "name": "blackberry",
+  "description": "黑莓，甜美多汁",
+  "weightGrams": 50,
+  "volumeMl": 60,
+  "maxStackSize": 10,
+  "consumableTypes": 1,
+  "calories": 50,
+  "satiety": 30,
+  "waterContent": 20
+}

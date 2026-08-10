@@ -132,16 +132,6 @@ public class TemperatureManager {
     // ── 温度计算（内部） ──────────────────────────────────
 
     /**
-     * 更新温度。在每次查询时调用，计算三层叠加。
-     */
-    private void recalculate() {
-        double base = getMonthlyBaseTemperature();
-        double daily = getDailyVariation();
-        updateDriftIfNeeded();
-        currentTemperature = base + daily + driftOffset;
-    }
-
-    /**
      * 计算月均温（相邻月份间线性插值，保证月度过渡平滑）。
      */
     private double getMonthlyBaseTemperature() {

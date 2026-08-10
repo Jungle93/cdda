@@ -34,7 +34,6 @@ public class MainMenuScreen extends MenuScreen {
 
     @Override
     protected void renderMenu(Renderer renderer) {
-        int width = getWidth();
         int height = getHeight();
 
         // 标题

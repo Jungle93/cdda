@@ -69,8 +69,6 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
 
     /** 世界设置 */
     private final WorldSettings worldSettings;
-    /** 角色设置 */
-    private final CharacterSettings characterSettings;
 
     /** 使用默认设置创建 */
     public MainScreen(GameEngine engine) {
@@ -84,7 +82,6 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
                       CharacterSettings characterSettings) {
         super(engine);
         this.worldSettings = worldSettings;
-        this.characterSettings = characterSettings;
     }
 
     @Override

@@ -342,4 +342,69 @@ public class WorldMap {
                 worldTileX * frequency, worldTileY * frequency,
                 octaves, persistence, lacunarity);
     }
+
+    // ── 环境参数查询（供植被系统使用） ──────────────
+
+    /**
+     * 获取指定世界瓦片坐标的环境温度 (°C)。
+     * 基于温度噪声 + 海拔修正（每升高 1 单位高程降温约 6.5°C）。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 估算温度 (°C)，约 -20 ~ 30°C
+     */
+    public double getTemperatureAt(int worldTileX, int worldTileY) {
+        // 基础温度（温度噪声映射到 -5 ~ 25°C 范围）
+        double tempNoise = temperatureNoise.fbm(
+                worldTileX * TEMPERATURE_FREQ + 1000.0,
+                worldTileY * TEMPERATURE_FREQ + 1000.0,
+                OCTAVES, PERSISTENCE, LACUNARITY);
+        double baseTemp = 10.0 + tempNoise * 15.0; // -5 ~ 25°C
+
+        // 海拔修正（高程越高温度越低）
+        double elevation = getElevationAt(worldTileX, worldTileY);
+        double elevationPenalty = Math.max(0, elevation) * 6.5; // 每单位高程降 6.5°C
+
+        return baseTemp - elevationPenalty;
+    }
+
+    /**
+     * 获取指定世界瓦片坐标的土壤深度 (0-1)。
+     * 基于高程和生物群落估算：低地土壤深，高地土壤浅。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 土壤深度 (0-1)，0 = 裸岩/无土壤，1 = 深土
+     */
+    public double getSoilDepthAt(int worldTileX, int worldTileY) {
+        double elevation = getElevationAt(worldTileX, worldTileY);
+        BiomeType biome = getBiomeAt(worldTileX, worldTileY);
+
+        // 基础土壤深度：低地深，高地浅
+        double baseDepth = Math.max(0.0, 0.7 - elevation * 0.8);
+
+        // 生物群落修正
+        if (biome == BiomeType.SWAMP) {
+            return Math.min(1.0, baseDepth + 0.2); // 沼泽土壤较深
+        } else if (biome == BiomeType.DESERT) {
+            return Math.max(0.0, baseDepth - 0.2); // 沙漠土壤较浅
+        } else if (biome == BiomeType.MOUNTAIN) {
+            return Math.max(0.0, baseDepth - 0.3); // 山地多岩石
+        }
+        return baseDepth;
+    }
+
+    /**
+     * 获取指定世界瓦片坐标的湿度 (0-1)。
+     * 将原始湿度噪声值 (-1 ~ 1) 归一化到 0-1 范围。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 湿度 (0-1)
+     */
+    public double getHumidityAt(int worldTileX, int worldTileY) {
+        double moisture = getMoistureAt(worldTileX, worldTileY);
+        // 噪声值约 -1 ~ 1，归一化到 0 ~ 1
+        return Math.max(0.0, Math.min(1.0, (moisture + 1.0) * 0.5));
+    }
 }

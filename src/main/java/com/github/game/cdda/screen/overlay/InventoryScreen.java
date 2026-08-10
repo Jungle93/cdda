@@ -25,12 +25,6 @@ public class InventoryScreen extends MenuScreen {
 
     private static final String TITLE = "背包";
 
-    /** 玩家引用 */
-    private final Player player;
-
-    /** 地面物品管理器（丢弃物品用） */
-    private final GroundItemManager groundItemManager;
-
     /** 背包引用 */
     private final PlayerInventory inventory;
 
@@ -43,8 +37,6 @@ public class InventoryScreen extends MenuScreen {
      */
     public InventoryScreen(GameEngine engine, Player player, GroundItemManager groundItemManager) {
         super(engine);
-        this.player = player;
-        this.groundItemManager = groundItemManager;
         this.inventory = player.getInventory();
     }
 

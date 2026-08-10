@@ -140,9 +140,6 @@ public class DrainageMap {
     private static final int RIVER_THRESHOLD = 8;
     /** 河流宽度系数（对数缩放） */
     private static final double RIVER_WIDTH_SCALE = 0.25;
-    /** 水域过渡带宽度（瓦片数，用于创建沙滩/浅水过渡） */
-    private static final int WATER_TRANSITION_RADIUS = 2;
-
     /** 水域核心强度（0 = 无水，越大水越深） */
     private double[] waterCore;
     /** 是否已计算过渡梯度 */
@@ -249,8 +246,6 @@ public class DrainageMap {
                 if (nr < 0 || nr >= height || nc < 0 || nc >= width) continue;
                 if (visited[nr][nc]) continue;
 
-                // 计算距离（曼哈顿距离）
-                int dist = Math.abs(nr - (curRow)) + Math.abs(nc - (curCol));
                 // 梯度衰减：每远离 1 瓦片，降低 0.3（创建更宽的过渡带）
                 double decay = 0.3;
                 double newGradient = Math.max(0.0, curGradient - decay);

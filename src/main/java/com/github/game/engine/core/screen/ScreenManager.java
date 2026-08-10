@@ -14,12 +14,11 @@ public class ScreenManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ScreenManager.class);
 
-    private final GameEngine engine;
     private Screen currentScreen;
     private final Deque<Screen> screenStack = new ArrayDeque<>();
 
     public ScreenManager(GameEngine engine) {
-        this.engine = engine;
+        // engine 由 Screen 基类持有，ScreenManager 无需存储
     }
 
     /**
@@ -46,7 +45,7 @@ public class ScreenManager {
         }
         currentScreen = newScreen;
         currentScreen.init();
-        logger.info("压入屏幕: {} (栈深度: {})", newScreen.getClass().getSimpleName(), screenStack.size());
+        logger.info("压入屏幕: {} -> {} (栈深度: {})", oldName, newScreen.getClass().getSimpleName(), screenStack.size());
     }
 
     /**

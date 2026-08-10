@@ -1,11 +1,9 @@
 package com.github.game.cdda.world.drainage;
 
 import com.github.game.cdda.world.biome.WorldMap;
-import com.github.game.cdda.world.chunk.Chunk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
@@ -261,9 +259,7 @@ public class DrainageCalculator {
             int col = cell[1] - map.minX;
 
             if (row < 0 || row >= map.height || col < 0 || col >= map.width) continue;
-            double elev = map.getElevation(cell[1], cell[0]);
             double fill = map.getFillElevation(cell[1], cell[0]);
-
             if (fill >= fillLevel) continue; // 已经填到或超过目标水位
 
             // 更新填充高程
@@ -343,8 +339,6 @@ public class DrainageCalculator {
 
         // 计算入度（有多少邻居流向自己）
         int[] inDegree = new int[totalTiles];
-        int[] dRow = {-1, -1, -1, 0, 0, 1, 1, 1};
-        int[] dCol = {-1, 0, 1, -1, 1, -1, 0, 1};
 
         for (int row = 0; row < map.height; row++) {
             for (int col = 0; col < map.width; col++) {
@@ -380,7 +374,6 @@ public class DrainageCalculator {
             int col = cell[1] - map.minX;
             int worldX = cell[1];
             int worldY = cell[0];
-            int idx = row * map.width + col;
 
             // 自身降水 = 1，加上下游传过来的（已经在入队时累加了）
             map.addFlowAccum(worldX, worldY, 1);

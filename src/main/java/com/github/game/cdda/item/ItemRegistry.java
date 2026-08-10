@@ -116,6 +116,27 @@ public final class ItemRegistry {
         loadFromClasspath("items/sphagnum_moss.json");
         loadFromClasspath("items/lichen.json");
         loadFromClasspath("items/peat.json");
+        // 木材加工品 — 木板
+        loadFromClasspath("items/oak_plank.json");
+        loadFromClasspath("items/birch_plank.json");
+        loadFromClasspath("items/pine_plank.json");
+        loadFromClasspath("items/fir_plank.json");
+        loadFromClasspath("items/beech_plank.json");
+        // 木材加工品 — 木柴
+        loadFromClasspath("items/oak_firewood.json");
+        loadFromClasspath("items/birch_firewood.json");
+        loadFromClasspath("items/pine_firewood.json");
+        // 动物尸体
+        loadFromClasspath("items/deer_corpse.json");
+        loadFromClasspath("items/rabbit_corpse.json");
+        loadFromClasspath("items/boar_corpse.json");
+        loadFromClasspath("items/wolf_corpse.json");
+        loadFromClasspath("items/fox_corpse.json");
+        loadFromClasspath("items/badger_corpse.json");
+        loadFromClasspath("items/hare_corpse.json");
+        loadFromClasspath("items/roe_deer_corpse.json");
+        loadFromClasspath("items/mouflon_corpse.json");
+        loadFromClasspath("items/squirrel_corpse.json");
 
         loaded = true;
         logger.info("物品注册表加载完成，共 {} 种物品", REGISTRY.size());

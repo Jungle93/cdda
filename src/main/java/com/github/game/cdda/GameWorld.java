@@ -9,7 +9,6 @@ import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.chunk.ChunkManager;
-import com.github.game.cdda.world.vegetation.VegetationRegistry;
 /**
  * 游戏世界（逻辑层）。创建并持有所有游戏子系统，是游戏状态的唯一权威来源。
  *
@@ -79,12 +78,16 @@ public class GameWorld {
         // 6) 生物系统
         ItemRegistry.loadAll();
         CreatureRegistry.loadAll();
-        VegetationRegistry.loadAll();
+        com.github.game.cdda.world.vegetation.VegetationRegistry.loadAll();
+        com.github.game.cdda.crafting.RecipeRegistry.loadAll();
         creatureManager = new CreatureManager(chunkManager, turnManager);
 
         // 7) 地面物品系统
         groundItemManager = new GroundItemManager();
         creatureManager.setGroundItemManager(groundItemManager);
+
+        // 8) 连接区块管理器与生物管理器（新区块加载时触发新生物生成）
+        chunkManager.setCreatureManager(creatureManager);
 
         // 8) 玩家（在可通行的出生点创建）
         int[] spawn = findPassableSpawn();

@@ -72,8 +72,6 @@ public class GameSetupScreen extends MenuScreen {
 
     @Override
     protected void renderMenu(Renderer renderer) {
-        int width = getWidth();
-
         // ── 标题 ──
         drawTitle(renderer, "新游戏", 24, TITLE_Y);
 

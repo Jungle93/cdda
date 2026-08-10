@@ -5,6 +5,7 @@ import com.github.game.cdda.world.biome.BiomeType;
 import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.drainage.DrainageCalculator;
 import com.github.game.cdda.world.drainage.DrainageMap;
+import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,9 @@ public class ChunkManager {
 
     /** 世界地图（大地图，提供生物群落信息） */
     private final WorldMap worldMap;
+
+    /** 生物管理器（新区块生成后通知其生成生物，可为 null） */
+    private CreatureManager creatureManager;
 
     /** 已加载区块缓存，key = chunkKey(cx, cy) */
     private final Map<Long, Chunk> chunks;
@@ -243,6 +247,15 @@ public class ChunkManager {
                 }
             }
         }
+
+        // 通知生物管理器在新生成的区块中按概率生成生物
+        if (creatureManager != null) {
+            int spawnMinX = playerChunkX - preloadRadius;
+            int spawnMinY = playerChunkY - preloadRadius;
+            int spawnMaxX = playerChunkX + preloadRadius;
+            int spawnMaxY = playerChunkY + preloadRadius;
+            creatureManager.onChunksGenerated(spawnMinX, spawnMinY, spawnMaxX, spawnMaxY);
+        }
     }
 
     /**
@@ -256,6 +269,16 @@ public class ChunkManager {
     /** 设置预加载半径 */
     public void setPreloadRadius(int radius) {
         this.preloadRadius = radius;
+    }
+
+    /**
+     * 设置生物管理器（区块生成后回调）。
+     * 由 GameWorld 在构造时调用。
+     *
+     * @param creatureManager 生物管理器
+     */
+    public void setCreatureManager(CreatureManager creatureManager) {
+        this.creatureManager = creatureManager;
     }
 
     /**
@@ -278,6 +301,43 @@ public class ChunkManager {
 
     /** 获取当前已加载区块数 */
     public int getLoadedChunkCount() { return chunks.size(); }
+
+    /**
+     * 获取指定世界瓦片坐标的植被物种 ID。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 物种 ID，无植被或区块未加载返回 null
+     */
+    public String getVegetation(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        if (chunk == null) return null;
+
+        int localCol = floorMod(worldTileX, Chunk.SIZE);
+        int localRow = floorMod(worldTileY, Chunk.SIZE);
+        return chunk.getVegetation(localCol, localRow);
+    }
+
+    /**
+     * 清除指定世界瓦片坐标的植被（砍伐后调用）。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     */
+    public void clearVegetation(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        if (chunk == null) return;
+
+        int localCol = floorMod(worldTileX, Chunk.SIZE);
+        int localRow = floorMod(worldTileY, Chunk.SIZE);
+        chunk.clearVegetation(localCol, localRow);
+    }
 
     /**
      * 获取指定区块（如果已加载）。

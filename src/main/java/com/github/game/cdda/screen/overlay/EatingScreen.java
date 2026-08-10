@@ -40,7 +40,6 @@ public class EatingScreen extends MenuScreen {
 
     private static final String TITLE = "进食";
 
-    private final GameWorld world;
     private final Player player;
     private final PlayerInventory inventory;
     private final MetabolismManager metabolismManager;
@@ -59,7 +58,6 @@ public class EatingScreen extends MenuScreen {
 
     public EatingScreen(GameEngine engine, GameWorld world) {
         super(engine);
-        this.world = world;
         this.player = world.getPlayer();
         this.inventory = player.getInventory();
         this.metabolismManager = world.getMetabolismManager();

@@ -1,0 +1,18 @@
+{
+  "id": "cattail",
+  "name": "香蒲",
+  "type": "AQUATIC",
+  "tempMin": 5.0,
+  "tempMax": 30.0,
+  "humidityMin": 0.6,
+  "humidityMax": 1.0,
+  "soilMin": 0.0,
+  "soilMax": 1.0,
+  "probability": 0.25,
+  "minClusterSize": 1,
+  "maxClusterSize": 4,
+  "drops": [
+    { "itemId": "grass_bundle", "minCount": 0, "maxCount": 1, "chance": 0.4 },
+    { "itemId": "small_branch", "minCount": 0, "maxCount": 1, "chance": 0.15 }
+  ]
+}

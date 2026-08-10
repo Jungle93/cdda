@@ -1,0 +1,18 @@
+{
+  "id": "willow",
+  "name": "柳树",
+  "type": "TREE",
+  "tempMin": 5.0,
+  "tempMax": 25.0,
+  "humidityMin": 0.6,
+  "humidityMax": 1.0,
+  "soilMin": 0.4,
+  "soilMax": 0.9,
+  "probability": 0.6,
+  "minClusterSize": 1,
+  "maxClusterSize": 2,
+  "drops": [
+    { "itemId": "oak_log", "minCount": 1, "maxCount": 1, "chance": 1.0 },
+    { "itemId": "small_branch", "minCount": 2, "maxCount": 4, "chance": 0.9 }
+  ]
+}

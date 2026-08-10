@@ -1,0 +1,17 @@
+{
+  "id": "tall_grass",
+  "name": "高草",
+  "type": "GRASS",
+  "tempMin": 5.0,
+  "tempMax": 30.0,
+  "humidityMin": 0.2,
+  "humidityMax": 0.8,
+  "soilMin": 0.2,
+  "soilMax": 0.8,
+  "probability": 0.9,
+  "minClusterSize": 3,
+  "maxClusterSize": 8,
+  "drops": [
+    { "itemId": "grass_bundle", "minCount": 0, "maxCount": 1, "chance": 0.4 }
+  ]
+}

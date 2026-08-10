@@ -1,0 +1,18 @@
+{
+  "id": "sphagnum",
+  "name": "泥炭藓",
+  "type": "MOSS",
+  "tempMin": 0.0,
+  "tempMax": 15.0,
+  "humidityMin": 0.7,
+  "humidityMax": 1.0,
+  "soilMin": 0.0,
+  "soilMax": 0.5,
+  "probability": 0.8,
+  "minClusterSize": 3,
+  "maxClusterSize": 8,
+  "drops": [
+    { "itemId": "sphagnum_moss", "minCount": 1, "maxCount": 1, "chance": 0.9 },
+    { "itemId": "peat", "minCount": 0, "maxCount": 1, "chance": 0.3 }
+  ]
+}

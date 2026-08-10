@@ -4,9 +4,15 @@ import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.BiomeType;
 import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.drainage.DrainageMap;
+import com.github.game.cdda.world.vegetation.VegetationDefinition;
+import com.github.game.cdda.world.vegetation.VegetationMap;
+import com.github.game.cdda.world.vegetation.VegetationRegistry;
+import com.github.game.cdda.world.vegetation.VegetationType;
 import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Random;
 
 /**
  * 单个区块（chunk）。持有 64×64 瓦片数据。
@@ -73,6 +79,9 @@ public class Chunk {
     /** 瓦片数据 [row][col]（generate() 调用后初始化） */
     private TileType[][] tiles;
 
+    /** 植被地图（存储每个瓦片的植被物种 ID） */
+    private VegetationMap vegetationMap;
+
     /** 排水图（generate() 时使用，可为 null 表示使用 WorldMap 水域特征） */
     private DrainageMap drainageMap;
 
@@ -115,6 +124,7 @@ public class Chunk {
         if (generated) return;
         this.drainageMap = drainageMap;
         this.tiles = new TileType[SIZE][SIZE];
+        this.vegetationMap = new VegetationMap(chunkX, chunkY);
         generated = true;
 
         // 群落基数参数（rockiness 全区块统一）
@@ -129,7 +139,7 @@ public class Chunk {
                     tiles[row][col] = TileType.WATER;
                 }
             }
-            placeVegetation(noise);
+            placeVegetation(noise, worldMap);
             logger.debug("区块 ({}, {}) 生成完成 — 群落: {}", chunkX, chunkY, biome.getName());
             return;
         }
@@ -145,15 +155,7 @@ public class Chunk {
                 // 采样 WorldMap 湿度（tile 级，跨区块连续）
                 double tileMoisture = worldMap.getMoistureAt(globalX, globalY);
 
-                // 水域阈值 = 群落基数 + 局部湿度调制（湿度越高 → 水域越多）
-                // 干燥群落（waterLevel==0）强制压低阈值，防止生成水域
-                double waterThreshold;
-                if (wl <= 0.0f) {
-                    // 干燥群落：阈值压到极低，几乎不生成水域
-                    waterThreshold = BASE_WATER_LEVEL + DRY_THRESHOLD_OFFSET;
-                } else {
-                    waterThreshold = BASE_WATER_LEVEL + wl * 0.35 + tileMoisture * 0.08;
-                }
+                // 水域阈值不再在此使用，水域由第三遍 carveWaterFeatures 根据排水梯度决定
 
                 // 沙滩阈值：只有有水群落才生成沙滩
                 double beachThreshold;
@@ -174,31 +176,16 @@ public class Chunk {
             }
         }
 
-        // ── 第二遍：噪声 + 群落参数 → 植被 ──
-        placeVegetation(noise);
+        // ── 第二遍：噪声 + 环境适配 → 植被 ──
+        placeVegetation(noise, worldMap);
 
         // ─ 第三遍：排水算法 → 湖泊/河流/海洋 ──
         carveWaterFeatures(worldMap);
 
-        logger.debug("区块 ({}, {}) 生成完成 — 群落: {}", chunkX, chunkY, biome.getName());
-    }
+        // ── 第四遍：水边放置水生植被（芦苇/香蒲）──
+        placeAquaticVegetation(noise, worldMap);
 
-    /**
-     * 根据高程和阈值分类基底地形。
-     */
-    private TileType classifyTerrain(double elevation,
-                                      double waterThreshold,
-                                      double beachThreshold,
-                                      double rockThreshold) {
-        if (elevation < waterThreshold) {
-            return TileType.WATER;
-        } else if (elevation < beachThreshold) {
-            return TileType.SAND;
-        } else if (elevation > rockThreshold) {
-            return TileType.STONE;
-        } else {
-            return TileType.GRASS;
-        }
+        logger.debug("区块 ({}, {}) 生成完成 — 群落: {}", chunkX, chunkY, biome.getName());
     }
 
     /**
@@ -216,22 +203,32 @@ public class Chunk {
     }
 
     /**
-     * 在基底地形上放置植被。
+     * 在基底地形上放置植被（环境适配版）。
      *
-     * <p>使用双层机制避免"大片色块"：
+     * <p>使用三层机制：
      * <ol>
-     *   <li><b>噪声区域层</b>（中频 fbm）— 决定哪些区域"可能"有植被，
-     *       形成松散的聚集趋势（不是硬边界）</li>
-     *   <li><b>哈希散布层</b>（确定性 hash）— 在"可能有"的区域内，
-     *       逐瓦片打散，避免连续平滑色块</li>
+     *   <li><b>环境查询</b> — 获取每瓦片的温度、湿度、土壤深度</li>
+     *   <li><b>噪声区域层</b>（中频 fbm）— 决定哪些区域"可能"有植被</li>
+     *   <li><b>物种选择</b> — 根据环境从 VegetationRegistry 选择适生物种</li>
      * </ol>
      *
-     * <p>效果：树木/花草零零星星，有些地方有几棵聚一起，有些地方完全没有，
-     *   但整体趋势跟随生物群落密度。
+     * <p>植被类型映射到 TileType：
+     * <ul>
+     *   <li>TREE → TileType.TREE</li>
+     *   <li>SHRUB → TileType.BUSH</li>
+     *   <li>GRASS → TileType.TALL_GRASS（部分 FLOWER）</li>
+     *   <li>MOSS → TileType.TALL_GRASS（潮湿区域）</li>
+     * </ul>
+     *
+     * @param noise    Perlin 噪声生成器
+     * @param worldMap 世界地图（提供环境数据）
      */
-    private void placeVegetation(PerlinNoise noise) {
+    private void placeVegetation(PerlinNoise noise, WorldMap worldMap) {
         float treeD = biome.getTreeDensity();
         float grassD = biome.getGrassDensity();
+
+        // 使用区块坐标作为随机种子（确定性生成）
+        Random vegRandom = new Random(chunkX * 374761393L + chunkY * 668265263L);
 
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
@@ -250,25 +247,75 @@ public class Chunk {
                         globalY * VEG_FREQ + 2000.0,
                         VEG_OCTAVES, PERSISTENCE, LACUNARITY
                 );
-                // 归一化到 0~1
                 double zoneFactor = (zone + 1.0) * 0.5;
 
+                // ── 查询环境参数 ──
+                double temperature = worldMap.getTemperatureAt(globalX, globalY);
+                double humidity = worldMap.getHumidityAt(globalX, globalY);
+                double soilDepth = worldMap.getSoilDepthAt(globalX, globalY);
+
                 // ── 树木 ──
-                // 基础概率 = 群落密度，区域系数 0.3~1.0 调制
                 double treeProb = treeD * (0.3 + 0.7 * zoneFactor);
                 if (hash < treeProb) {
-                    // 在树之间散布少量灌木
-                    double subHash = tileHash(globalX + 7919, globalY + 104729);
-                    tiles[row][col] = (subHash < 0.25) ? TileType.BUSH : TileType.TREE;
+                    // 从注册表选择适生树种
+                    VegetationDefinition treeDef = VegetationRegistry.selectForEnvironment(
+                            temperature, humidity, soilDepth, VegetationType.TREE, vegRandom);
+                    if (treeDef != null) {
+                        tiles[row][col] = TileType.TREE;
+                        vegetationMap.setVegetation(col, row, treeDef.id);
+                    } else {
+                        // 无适生树种，尝试灌木
+                        VegetationDefinition shrubDef = VegetationRegistry.selectForEnvironment(
+                                temperature, humidity, soilDepth, VegetationType.SHRUB, vegRandom);
+                        if (shrubDef != null) {
+                            tiles[row][col] = TileType.BUSH;
+                            vegetationMap.setVegetation(col, row, shrubDef.id);
+                        }
+                    }
                     continue;
                 }
 
-                // ── 高草 / 花 ──
+                // ── 灌木 ──
+                double shrubProb = treeD * 0.25 * (0.3 + 0.7 * zoneFactor);
+                double subHash = tileHash(globalX + 7919, globalY + 104729);
+                if (subHash < shrubProb) {
+                    VegetationDefinition shrubDef = VegetationRegistry.selectForEnvironment(
+                            temperature, humidity, soilDepth, VegetationType.SHRUB, vegRandom);
+                    if (shrubDef != null) {
+                        tiles[row][col] = TileType.BUSH;
+                        vegetationMap.setVegetation(col, row, shrubDef.id);
+                        continue;
+                    }
+                }
+
+                // ── 草 / 花 / 苔藓 ──
                 double grassProb = grassD * (0.3 + 0.7 * zoneFactor);
                 if (hash < treeProb + grassProb) {
-                    // 花比高草更稀疏
                     double flowerHash = tileHash(globalX + 131, globalY + 523);
-                    tiles[row][col] = (flowerHash < 0.12) ? TileType.FLOWER : TileType.TALL_GRASS;
+
+                    // 高湿度 + 浅土壤 → 尝试苔藓
+                    if (humidity > 0.6 && soilDepth < 0.4 && flowerHash < 0.2) {
+                        VegetationDefinition mossDef = VegetationRegistry.selectForEnvironment(
+                                temperature, humidity, soilDepth, VegetationType.MOSS, vegRandom);
+                        if (mossDef != null) {
+                            tiles[row][col] = TileType.TALL_GRASS;
+                            vegetationMap.setVegetation(col, row, mossDef.id);
+                            continue;
+                        }
+                    }
+
+                    // 普通草地：花 vs 高草
+                    if (flowerHash < 0.12) {
+                        tiles[row][col] = TileType.FLOWER;
+                    } else {
+                        tiles[row][col] = TileType.TALL_GRASS;
+                        // 选择草种
+                        VegetationDefinition grassDef = VegetationRegistry.selectForEnvironment(
+                                temperature, humidity, soilDepth, VegetationType.GRASS, vegRandom);
+                        if (grassDef != null) {
+                            vegetationMap.setVegetation(col, row, grassDef.id);
+                        }
+                    }
                     continue;
                 }
 
@@ -344,6 +391,81 @@ public class Chunk {
     }
 
     /**
+     * 在水域边缘放置水生植被（芦苇/香蒲）。
+     *
+     * <p>规则：
+     * <ul>
+     *   <li>WATER 瓦片且四邻接有非 WATER → 有概率放置（水边芦苇）</li>
+     *   <li>SAND 瓦片且四邻接有 WATER → 有概率放置（湿地香蒲）</li>
+     * </ul>
+     *
+     * <p>使用确定性哈希控制概率，相同坐标总是产生相同结果。
+     */
+    private void placeAquaticVegetation(PerlinNoise noise, WorldMap worldMap) {
+        // 四邻接偏移
+        final int[] dx = {0, 0, -1, 1};
+        final int[] dy = {-1, 1, 0, 0};
+
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                TileType tile = tiles[row][col];
+                int globalX = chunkX * SIZE + col;
+                int globalY = chunkY * SIZE + row;
+
+                boolean isWaterEdge = false;  // WATER 邻接陆地
+                boolean isSandEdge = false;   // SAND 邻接水
+
+                if (tile == TileType.WATER) {
+                    // 检查是否有非 WATER 邻接（陆地边缘）
+                    for (int d = 0; d < 4; d++) {
+                        int nr = row + dy[d];
+                        int nc = col + dx[d];
+                        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE
+                                && tiles[nr][nc] != TileType.WATER
+                                && tiles[nr][nc] != TileType.STONE) {
+                            isWaterEdge = true;
+                            break;
+                        }
+                    }
+                } else if (tile == TileType.SAND) {
+                    // 检查是否有 WATER 邻接（水边沙滩）
+                    for (int d = 0; d < 4; d++) {
+                        int nr = row + dy[d];
+                        int nc = col + dx[d];
+                        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE
+                                && tiles[nr][nc] == TileType.WATER) {
+                            isSandEdge = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isWaterEdge && !isSandEdge) continue;
+
+                // 环境查询
+                double temperature = worldMap.getTemperatureAt(globalX, globalY);
+                double humidity = worldMap.getHumidityAt(globalX, globalY);
+                double soilDepth = worldMap.getSoilDepthAt(globalX, globalY);
+
+                // 概率判定（使用偏移哈希区分 WATER/SAND 两种情况）
+                int hashOffset = isWaterEdge ? 0 : 50000;
+                double hash = tileHash(globalX + hashOffset, globalY + hashOffset);
+                double threshold = isWaterEdge ? 0.30 : 0.15;
+
+                if (hash < threshold) {
+                    VegetationDefinition aquDef = VegetationRegistry.selectForEnvironment(
+                            temperature, humidity, soilDepth, VegetationType.AQUATIC,
+                            new Random(globalX * 7391L + globalY * 27413L));
+                    if (aquDef != null) {
+                        tiles[row][col] = TileType.REEDS;
+                        vegetationMap.setVegetation(col, row, aquDef.id);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * 确定性瓦片哈希函数。
      * 给定世界坐标，返回 0~1 的伪随机值。
      * 相同坐标总是返回相同值（跨区块一致）。
@@ -391,4 +513,37 @@ public class Chunk {
     public int getChunkX() { return chunkX; }
     public int getChunkY() { return chunkY; }
     public BiomeType getBiome() { return biome; }
+
+    /**
+     * 获取植被地图。
+     *
+     * @return 植被地图（generate() 调用后可用）
+     */
+    public VegetationMap getVegetationMap() {
+        return vegetationMap;
+    }
+
+    /**
+     * 获取局部坐标处的植被物种 ID。
+     *
+     * @param localCol 局部列号
+     * @param localRow 局部行号
+     * @return 物种 ID，无植被返回 null
+     */
+    public String getVegetation(int localCol, int localRow) {
+        if (vegetationMap == null) return null;
+        return vegetationMap.getVegetation(localCol, localRow);
+    }
+
+    /**
+     * 清除局部坐标处的植被（砍伐后调用）。
+     *
+     * @param localCol 局部列号
+     * @param localRow 局部行号
+     */
+    public void clearVegetation(int localCol, int localRow) {
+        if (vegetationMap != null) {
+            vegetationMap.clear(localCol, localRow);
+        }
+    }
 }

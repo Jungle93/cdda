@@ -1,0 +1,19 @@
+{
+  "id": "pine",
+  "name": "松树",
+  "type": "TREE",
+  "tempMin": -10.0,
+  "tempMax": 15.0,
+  "humidityMin": 0.2,
+  "humidityMax": 0.6,
+  "soilMin": 0.2,
+  "soilMax": 0.7,
+  "probability": 0.75,
+  "minClusterSize": 2,
+  "maxClusterSize": 5,
+  "drops": [
+    { "itemId": "pine_log", "minCount": 1, "maxCount": 2, "chance": 1.0 },
+    { "itemId": "dried_branch", "minCount": 1, "maxCount": 2, "chance": 0.7 },
+    { "itemId": "pine_cone", "minCount": 0, "maxCount": 2, "chance": 0.5 }
+  ]
+}

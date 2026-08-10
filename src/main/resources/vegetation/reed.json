@@ -1,0 +1,18 @@
+{
+  "id": "reed",
+  "name": "芦苇",
+  "type": "AQUATIC",
+  "tempMin": 0.0,
+  "tempMax": 35.0,
+  "humidityMin": 0.5,
+  "humidityMax": 1.0,
+  "soilMin": 0.0,
+  "soilMax": 1.0,
+  "probability": 0.35,
+  "minClusterSize": 2,
+  "maxClusterSize": 6,
+  "drops": [
+    { "itemId": "reed_bundle", "minCount": 0, "maxCount": 1, "chance": 0.5 },
+    { "itemId": "small_branch", "minCount": 0, "maxCount": 1, "chance": 0.2 }
+  ]
+}

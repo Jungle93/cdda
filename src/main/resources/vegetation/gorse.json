@@ -1,0 +1,18 @@
+{
+  "id": "gorse",
+  "name": "荆豆",
+  "type": "SHRUB",
+  "tempMin": 8.0,
+  "tempMax": 22.0,
+  "humidityMin": 0.2,
+  "humidityMax": 0.5,
+  "soilMin": 0.1,
+  "soilMax": 0.5,
+  "probability": 0.5,
+  "minClusterSize": 1,
+  "maxClusterSize": 4,
+  "drops": [
+    { "itemId": "gorse_branch", "minCount": 1, "maxCount": 2, "chance": 0.9 },
+    { "itemId": "dried_branch", "minCount": 0, "maxCount": 1, "chance": 0.5 }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "oak",
+  "name": "橡树",
+  "type": "TREE",
+  "tempMin": 5.0,
+  "tempMax": 25.0,
+  "humidityMin": 0.3,
+  "humidityMax": 0.8,
+  "soilMin": 0.5,
+  "soilMax": 1.0,
+  "probability": 0.8,
+  "minClusterSize": 1,
+  "maxClusterSize": 3,
+  "drops": [
+    { "itemId": "oak_log", "minCount": 1, "maxCount": 2, "chance": 1.0 },
+    { "itemId": "small_branch", "minCount": 1, "maxCount": 3, "chance": 0.8 }
+  ]
+}

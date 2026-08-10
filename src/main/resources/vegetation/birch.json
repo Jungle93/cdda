@@ -1,0 +1,19 @@
+{
+  "id": "birch",
+  "name": "桦树",
+  "type": "TREE",
+  "tempMin": -5.0,
+  "tempMax": 20.0,
+  "humidityMin": 0.3,
+  "humidityMax": 0.7,
+  "soilMin": 0.3,
+  "soilMax": 0.8,
+  "probability": 0.7,
+  "minClusterSize": 1,
+  "maxClusterSize": 4,
+  "drops": [
+    { "itemId": "birch_log", "minCount": 1, "maxCount": 2, "chance": 1.0 },
+    { "itemId": "small_branch", "minCount": 1, "maxCount": 2, "chance": 0.7 },
+    { "itemId": "birch_bark", "minCount": 1, "maxCount": 2, "chance": 0.9 }
+  ]
+}

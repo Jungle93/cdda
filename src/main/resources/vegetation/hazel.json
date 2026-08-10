@@ -1,0 +1,18 @@
+{
+  "id": "hazel",
+  "name": "榛树",
+  "type": "SHRUB",
+  "tempMin": 5.0,
+  "tempMax": 20.0,
+  "humidityMin": 0.3,
+  "humidityMax": 0.7,
+  "soilMin": 0.3,
+  "soilMax": 0.8,
+  "probability": 0.5,
+  "minClusterSize": 1,
+  "maxClusterSize": 3,
+  "drops": [
+    { "itemId": "small_branch", "minCount": 1, "maxCount": 2, "chance": 0.9 },
+    { "itemId": "blackberry", "minCount": 0, "maxCount": 1, "chance": 0.3 }
+  ]
+}

@@ -56,6 +56,10 @@ public class TileType {
     /** 地板 — 可通过 */
     public static final TileType FLOOR = register(12, "floor", '.', Color.GRAY, true);
 
+    // ── 水生植被 ──────────────────────────────────
+    /** 芦苇/水生植物 — 不可通过，生长于水边 */
+    public static final TileType REEDS = register(13, "reeds", '‖', new Color(60, 150, 60), false);
+
     // ── 字段 ──────────────────────────────────────────
 
     /** 稳定数字标识 */

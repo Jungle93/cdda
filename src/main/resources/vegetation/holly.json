@@ -1,0 +1,17 @@
+{
+  "id": "holly",
+  "name": "冬青",
+  "type": "SHRUB",
+  "tempMin": 5.0,
+  "tempMax": 20.0,
+  "humidityMin": 0.3,
+  "humidityMax": 0.6,
+  "soilMin": 0.3,
+  "soilMax": 0.7,
+  "probability": 0.4,
+  "minClusterSize": 1,
+  "maxClusterSize": 2,
+  "drops": [
+    { "itemId": "small_branch", "minCount": 1, "maxCount": 2, "chance": 0.8 }
+  ]
+}

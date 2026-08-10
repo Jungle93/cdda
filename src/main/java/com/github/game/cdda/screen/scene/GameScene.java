@@ -8,7 +8,6 @@ import com.github.game.cdda.item.GroundItem;
 import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.item.ItemStack;
 import com.github.game.cdda.input.InputStateMachine;
-import com.github.game.cdda.screen.overlay.PickupScreen;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.Scene;
@@ -21,6 +20,8 @@ import com.github.game.cdda.GameWorld;
 import com.github.game.cdda.world.TileMap;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.ChunkManager;
+import com.github.game.cdda.world.vegetation.VegetationDefinition;
+import com.github.game.cdda.world.vegetation.VegetationRegistry;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -560,6 +561,14 @@ public class GameScene extends Scene {
             coordStr += "  未知区域";
         }
 
+        // 附加植被物种信息（如：橡树、桦树）
+        String vegSpeciesId = chunkManager.getVegetation(targetTileX, targetTileY);
+        VegetationDefinition vegDef = (vegSpeciesId != null)
+                ? VegetationRegistry.getById(vegSpeciesId) : null;
+        if (vegDef != null) {
+            coordStr += String.format("  %s", vegDef.name);
+        }
+
         // 附加地面物品提示
         java.util.List<GroundItem> groundItems = groundItemManager.getItemsAt(targetTileX, targetTileY);
         if (!groundItems.isEmpty()) {
@@ -611,8 +620,12 @@ public class GameScene extends Scene {
                 renderer.drawText(cycleHint, hpBarX + hpBarWidth + 4 + renderer.getTextWidth(hpStr), barY + 30);
             }
         } else {
-            // 无生物时显示地形名称
-            if (tile != null) {
+            // 无生物时显示植被或地形信息
+            if (vegDef != null) {
+                renderer.setColor(new Color(100, 200, 100));
+                renderer.drawText(String.format("%s (%s)  %s",
+                        vegDef.name, vegDef.type.getDisplayName(), vegDef.id), 4, barY + 30);
+            } else if (tile != null) {
                 renderer.setColor(Color.GRAY);
                 renderer.drawText("地形：" + tile.getName(), 4, barY + 30);
             }

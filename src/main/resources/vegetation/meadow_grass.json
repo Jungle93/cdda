@@ -1,0 +1,15 @@
+{
+  "id": "meadow_grass",
+  "name": "草地草",
+  "type": "GRASS",
+  "tempMin": 8.0,
+  "tempMax": 25.0,
+  "humidityMin": 0.3,
+  "humidityMax": 0.7,
+  "soilMin": 0.3,
+  "soilMax": 0.7,
+  "probability": 0.95,
+  "minClusterSize": 4,
+  "maxClusterSize": 10,
+  "drops": []
+}

@@ -1,0 +1,17 @@
+{
+  "id": "green_moss",
+  "name": "绿苔藓",
+  "type": "MOSS",
+  "tempMin": 5.0,
+  "tempMax": 20.0,
+  "humidityMin": 0.5,
+  "humidityMax": 1.0,
+  "soilMin": 0.0,
+  "soilMax": 0.3,
+  "probability": 0.7,
+  "minClusterSize": 2,
+  "maxClusterSize": 6,
+  "drops": [
+    { "itemId": "green_moss", "minCount": 1, "maxCount": 1, "chance": 0.8 }
+  ]
+}

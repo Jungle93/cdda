@@ -1,0 +1,9 @@
+{
+  "id": 1054,
+  "name": "beech_plank",
+  "description": "山毛榉板，硬度高，耐磨",
+  "weightGrams": 520,
+  "volumeMl": 800,
+  "maxStackSize": 10,
+  "tags": ["crafting", "wood", "processing"]
+}

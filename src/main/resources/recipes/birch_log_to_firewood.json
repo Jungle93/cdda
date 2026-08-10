@@ -1,0 +1,11 @@
+{
+  "id": "birch_log_to_firewood",
+  "name": "劈桦木柴",
+  "inputItemId": "birch_log",
+  "inputCount": 1,
+  "toolRequired": "chopping",
+  "processingTime": 80,
+  "outputs": [
+    { "itemId": "birch_firewood", "count": 6 }
+  ]
+}

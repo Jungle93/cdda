@@ -1,0 +1,11 @@
+{
+  "id": "fir_log_to_planks",
+  "name": "制作冷杉板",
+  "inputItemId": "fir_log",
+  "inputCount": 1,
+  "toolRequired": "chopping",
+  "processingTime": 100,
+  "outputs": [
+    { "itemId": "fir_plank", "count": 4 }
+  ]
+}

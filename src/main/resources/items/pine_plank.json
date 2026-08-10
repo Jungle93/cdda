@@ -1,0 +1,9 @@
+{
+  "id": 1052,
+  "name": "pine_plank",
+  "description": "松木板，轻质柔软，易加工",
+  "weightGrams": 350,
+  "volumeMl": 800,
+  "maxStackSize": 10,
+  "tags": ["crafting", "wood", "processing"]
+}

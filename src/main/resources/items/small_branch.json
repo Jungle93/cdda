@@ -5,5 +5,5 @@
   "weightGrams": 200,
   "volumeMl": 300,
   "maxStackSize": 10,
-  "tags": ["crafting", "material"]
+  "tags": ["crafting", "material", "processing"]
 }

@@ -1,0 +1,11 @@
+{
+  "id": "branch_to_firewood",
+  "name": "整理树枝为柴",
+  "inputItemId": "small_branch",
+  "inputCount": 2,
+  "toolRequired": null,
+  "processingTime": 40,
+  "outputs": [
+    { "itemId": "oak_firewood", "count": 1 }
+  ]
+}

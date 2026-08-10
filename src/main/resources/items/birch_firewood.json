@@ -1,0 +1,9 @@
+{
+  "id": 1061,
+  "name": "birch_firewood",
+  "description": "桦木柴，易燃，适合引火",
+  "weightGrams": 250,
+  "volumeMl": 400,
+  "maxStackSize": 20,
+  "tags": ["fuel", "wood"]
+}

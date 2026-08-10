@@ -1,0 +1,11 @@
+{
+  "id": "birch_log_to_planks",
+  "name": "制作桦木板",
+  "inputItemId": "birch_log",
+  "inputCount": 1,
+  "toolRequired": "chopping",
+  "processingTime": 100,
+  "outputs": [
+    { "itemId": "birch_plank", "count": 4 }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": 1062,
+  "name": "pine_firewood",
+  "description": "松木柴，含油脂，火焰明亮",
+  "weightGrams": 220,
+  "volumeMl": 400,
+  "maxStackSize": 20,
+  "tags": ["fuel", "wood"]
+}

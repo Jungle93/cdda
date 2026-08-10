@@ -1,0 +1,9 @@
+{
+  "id": 1051,
+  "name": "birch_plank",
+  "description": "桦木板，纹理细腻，质地较轻",
+  "weightGrams": 400,
+  "volumeMl": 800,
+  "maxStackSize": 10,
+  "tags": ["crafting", "wood", "processing"]
+}

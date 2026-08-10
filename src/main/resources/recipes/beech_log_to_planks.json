@@ -1,0 +1,11 @@
+{
+  "id": "beech_log_to_planks",
+  "name": "制作山毛榉板",
+  "inputItemId": "beech_log",
+  "inputCount": 1,
+  "toolRequired": "chopping",
+  "processingTime": 100,
+  "outputs": [
+    { "itemId": "beech_plank", "count": 4 }
+  ]
+}

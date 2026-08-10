@@ -1,0 +1,9 @@
+{
+  "id": 1060,
+  "name": "oak_firewood",
+  "description": "橡木柴，热值高，燃烧持久",
+  "weightGrams": 300,
+  "volumeMl": 400,
+  "maxStackSize": 20,
+  "tags": ["fuel", "wood"]
+}

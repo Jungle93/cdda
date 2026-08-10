@@ -1,0 +1,9 @@
+{
+  "id": 1074,
+  "name": "fox_corpse",
+  "description": "狐狸的尸体，可以解剖获取肉和皮",
+  "weightGrams": 6000,
+  "volumeMl": 5000,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

@@ -1,6 +1,8 @@
 package com.github.game.cdda.item;
 
+import com.github.game.cdda.item.action.ButcherAction;
 import com.github.game.cdda.item.action.ChopTreeAction;
+import com.github.game.cdda.item.action.ProcessItemAction;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -88,5 +90,7 @@ public final class ItemActionRegistry {
      */
     public static void registerBuiltins() {
         register("chopping", new ChopTreeAction());
+        register("processing", new ProcessItemAction());
+        register("cutting", new ButcherAction());
     }
 }

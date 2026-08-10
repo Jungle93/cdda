@@ -1,0 +1,32 @@
+{
+  "id": "mouflon",
+  "name": "盘羊",
+  "hp": 35,
+  "speed": 105,
+  "stats": {
+    "strength": 12,
+    "agility": 12,
+    "endurance": 14
+  },
+  "perception": {
+    "vision": 7,
+    "hearing": 6
+  },
+  "displayChar": "m",
+  "displayColor": [140, 110, 80],
+  "lifeStages": [
+    { "stage": "juvenile", "name": "盘羊羔", "hp": 18, "growTurns": 700 },
+    { "stage": "adult", "name": "盘羊", "hp": 35, "growTurns": null }
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 1078, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "reproduction": {
+    "matureTurns": 1500,
+    "cooldownTurns": 3000,
+    "maxOffspring": 1,
+    "chance": 0.03
+  }
+}

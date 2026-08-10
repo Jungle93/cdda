@@ -1,0 +1,32 @@
+{
+  "id": "hare",
+  "name": "野兔",
+  "hp": 8,
+  "speed": 150,
+  "stats": {
+    "strength": 3,
+    "agility": 18,
+    "endurance": 6
+  },
+  "perception": {
+    "vision": 7,
+    "hearing": 10
+  },
+  "displayChar": "h",
+  "displayColor": [170, 140, 110],
+  "lifeStages": [
+    { "stage": "juvenile", "name": "幼野兔", "hp": 4, "growTurns": 400 },
+    { "stage": "adult", "name": "野兔", "hp": 8, "growTurns": null }
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 1076, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "reproduction": {
+    "matureTurns": 600,
+    "cooldownTurns": 1200,
+    "maxOffspring": 4,
+    "chance": 0.08
+  }
+}

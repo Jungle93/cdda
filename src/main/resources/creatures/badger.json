@@ -1,0 +1,32 @@
+{
+  "id": "badger",
+  "name": "獾",
+  "hp": 20,
+  "speed": 90,
+  "stats": {
+    "strength": 10,
+    "agility": 8,
+    "endurance": 14
+  },
+  "perception": {
+    "vision": 4,
+    "hearing": 6
+  },
+  "displayChar": "B",
+  "displayColor": [160, 160, 160],
+  "lifeStages": [
+    { "stage": "juvenile", "name": "小獾", "hp": 10, "growTurns": 600 },
+    { "stage": "adult", "name": "獾", "hp": 20, "growTurns": null }
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 1075, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "reproduction": {
+    "matureTurns": 1000,
+    "cooldownTurns": 2500,
+    "maxOffspring": 2,
+    "chance": 0.04
+  }
+}

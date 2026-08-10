@@ -7,6 +7,7 @@ import com.github.game.engine.core.render.Renderer;
 
 import java.awt.*;
 import java.util.List;
+import java.util.Random;
 
 /**
  * 动物类。
@@ -32,6 +33,9 @@ public class Animal extends Creature {
 
     /** 已存活回合数 */
     private int turnsLived = 0;
+
+    /** 上次繁殖的回合数（-9999 表示从未繁殖） */
+    private int lastReproductionTurn = -9999;
 
     /**
      * 从定义创建动物。
@@ -139,6 +143,55 @@ public class Animal extends Creature {
             applyLifeStage(nextStage);
             // 可在此添加日志或事件通知
         }
+    }
+
+    /**
+     * 尝试繁殖。
+     * 检查成熟度、冷却时间、概率，成功时返回后代。
+     *
+     * @param currentTurn 当前回合数
+     * @param random      随机数生成器
+     * @return 后代动物，繁殖失败返回 null
+     */
+    public Animal tryReproduce(int currentTurn, Random random) {
+        CreatureDefinition.Reproduction repro = definition.reproduction;
+        if (repro == null) return null;
+
+        // 必须达到成熟期
+        if (turnsLived < repro.matureTurns) return null;
+
+        // 冷却检查
+        if (currentTurn - lastReproductionTurn < repro.cooldownTurns) return null;
+
+        // 概率判定
+        if (random.nextDouble() > repro.chance) return null;
+
+        // 繁殖成功
+        lastReproductionTurn = currentTurn;
+
+        // 创建后代（同物种，幼年阶段）
+        // 后代初始位置与父母相同，实际偏移由 CreatureManager.placeNearby() 处理
+        return new Animal(definition, tileX, tileY);
+    }
+
+    /**
+     * 获取上次繁殖的回合数。
+     *
+     * @return 回合数
+     */
+    public int getLastReproductionTurn() {
+        return lastReproductionTurn;
+    }
+
+    /**
+     * 是否为成年（达到成熟期）。
+     *
+     * @return true 如果已成熟
+     */
+    public boolean isMature() {
+        CreatureDefinition.Reproduction repro = definition.reproduction;
+        if (repro == null) return true; // 无繁殖参数的视为成熟
+        return turnsLived >= repro.matureTurns;
     }
 
     @Override

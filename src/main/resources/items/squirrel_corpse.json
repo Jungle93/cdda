@@ -1,0 +1,9 @@
+{
+  "id": 1079,
+  "name": "squirrel_corpse",
+  "description": "松鼠的尸体，可以解剖获取肉和皮",
+  "weightGrams": 500,
+  "volumeMl": 400,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

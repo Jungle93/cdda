@@ -1,0 +1,9 @@
+{
+  "id": 1072,
+  "name": "boar_corpse",
+  "description": "野猪的尸体，可以解剖获取肉和皮",
+  "weightGrams": 50000,
+  "volumeMl": 30000,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

@@ -1,0 +1,9 @@
+{
+  "id": 1078,
+  "name": "mouflon_corpse",
+  "description": "盘羊的尸体，可以解剖获取肉和皮",
+  "weightGrams": 35000,
+  "volumeMl": 25000,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

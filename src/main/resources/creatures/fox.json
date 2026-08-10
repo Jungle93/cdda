@@ -1,0 +1,32 @@
+{
+  "id": "fox",
+  "name": "狐狸",
+  "hp": 15,
+  "speed": 140,
+  "stats": {
+    "strength": 5,
+    "agility": 16,
+    "endurance": 8
+  },
+  "perception": {
+    "vision": 7,
+    "hearing": 9
+  },
+  "displayChar": "f",
+  "displayColor": [200, 100, 30],
+  "lifeStages": [
+    { "stage": "juvenile", "name": "小狐狸", "hp": 8, "growTurns": 500 },
+    { "stage": "adult", "name": "狐狸", "hp": 15, "growTurns": null }
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 1074, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "reproduction": {
+    "matureTurns": 800,
+    "cooldownTurns": 2000,
+    "maxOffspring": 3,
+    "chance": 0.05
+  }
+}

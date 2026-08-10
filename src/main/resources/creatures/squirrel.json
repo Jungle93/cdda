@@ -1,0 +1,32 @@
+{
+  "id": "squirrel",
+  "name": "松鼠",
+  "hp": 5,
+  "speed": 160,
+  "stats": {
+    "strength": 2,
+    "agility": 18,
+    "endurance": 4
+  },
+  "perception": {
+    "vision": 6,
+    "hearing": 8
+  },
+  "displayChar": "s",
+  "displayColor": [160, 100, 50],
+  "lifeStages": [
+    { "stage": "juvenile", "name": "小松鼠", "hp": 3, "growTurns": 300 },
+    { "stage": "adult", "name": "松鼠", "hp": 5, "growTurns": null }
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 1079, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "reproduction": {
+    "matureTurns": 500,
+    "cooldownTurns": 1000,
+    "maxOffspring": 4,
+    "chance": 0.08
+  }
+}

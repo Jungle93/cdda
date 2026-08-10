@@ -1,0 +1,32 @@
+{
+  "id": "boar",
+  "name": "野猪",
+  "hp": 40,
+  "speed": 100,
+  "stats": {
+    "strength": 14,
+    "agility": 8,
+    "endurance": 16
+  },
+  "perception": {
+    "vision": 5,
+    "hearing": 7
+  },
+  "displayChar": "b",
+  "displayColor": [120, 80, 50],
+  "lifeStages": [
+    { "stage": "juvenile", "name": "小猪崽", "hp": 20, "growTurns": 800 },
+    { "stage": "adult", "name": "野猪", "hp": 40, "growTurns": null }
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 1072, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "reproduction": {
+    "matureTurns": 1200,
+    "cooldownTurns": 2500,
+    "maxOffspring": 3,
+    "chance": 0.04
+  }
+}

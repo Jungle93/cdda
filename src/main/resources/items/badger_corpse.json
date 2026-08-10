@@ -1,0 +1,9 @@
+{
+  "id": 1075,
+  "name": "badger_corpse",
+  "description": "獾的尸体，可以解剖获取肉和皮",
+  "weightGrams": 10000,
+  "volumeMl": 8000,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

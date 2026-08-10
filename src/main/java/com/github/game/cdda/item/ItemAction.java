@@ -47,8 +47,23 @@ public interface ItemAction {
      * 是否需要方向选择。
      * 返回 true 时，玩家选择此动作后需按方向键指定目标方向，
      * 然后调用 {@link #executeDirection}。
+     *
+     * <p>默认返回 false。子类可覆写。
      */
     default boolean needsDirection() { return false; }
+
+    /**
+     * 是否需要方向选择（带上下文）。
+     * 默认委托给无参版本。需要动态判断的场景（如根据玩家脚下是否有目标）
+     * 可覆写此方法。
+     *
+     * @param player 执行动作的玩家
+     * @param world  游戏世界
+     * @return true 如果需要选择方向
+     */
+    default boolean needsDirection(Player player, GameWorld world) {
+        return needsDirection();
+    }
 
     /**
      * 带方向执行动作（仅当 {@link #needsDirection()} 返回 true 时调用）。

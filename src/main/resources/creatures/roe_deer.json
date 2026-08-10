@@ -1,0 +1,32 @@
+{
+  "id": "roe_deer",
+  "name": "狍子",
+  "hp": 25,
+  "speed": 120,
+  "stats": {
+    "strength": 6,
+    "agility": 15,
+    "endurance": 10
+  },
+  "perception": {
+    "vision": 8,
+    "hearing": 7
+  },
+  "displayChar": "r",
+  "displayColor": [160, 120, 70],
+  "lifeStages": [
+    { "stage": "juvenile", "name": "狍羔", "hp": 12, "growTurns": 500 },
+    { "stage": "adult", "name": "狍子", "hp": 25, "growTurns": null }
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 1077, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "reproduction": {
+    "matureTurns": 1200,
+    "cooldownTurns": 2500,
+    "maxOffspring": 2,
+    "chance": 0.04
+  }
+}

@@ -93,6 +93,14 @@ public class CreatureRegistry {
         // 加载内置生物
         loadFromClasspath("creatures/deer.json");
         loadFromClasspath("creatures/rabbit.json");
+        loadFromClasspath("creatures/boar.json");
+        loadFromClasspath("creatures/wolf.json");
+        loadFromClasspath("creatures/fox.json");
+        loadFromClasspath("creatures/badger.json");
+        loadFromClasspath("creatures/hare.json");
+        loadFromClasspath("creatures/roe_deer.json");
+        loadFromClasspath("creatures/mouflon.json");
+        loadFromClasspath("creatures/squirrel.json");
 
         loaded = true;
         logger.info("生物注册表加载完成，共 {} 种生物", BY_ID.size());

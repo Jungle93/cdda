@@ -1,0 +1,9 @@
+{
+  "id": 1073,
+  "name": "wolf_corpse",
+  "description": "狼的尸体，可以解剖获取肉和皮",
+  "weightGrams": 25000,
+  "volumeMl": 18000,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

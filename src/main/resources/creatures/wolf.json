@@ -1,0 +1,32 @@
+{
+  "id": "wolf",
+  "name": "狼",
+  "hp": 25,
+  "speed": 130,
+  "stats": {
+    "strength": 12,
+    "agility": 14,
+    "endurance": 12
+  },
+  "perception": {
+    "vision": 8,
+    "hearing": 10
+  },
+  "displayChar": "w",
+  "displayColor": [130, 130, 130],
+  "lifeStages": [
+    { "stage": "juvenile", "name": "狼崽", "hp": 12, "growTurns": 600 },
+    { "stage": "adult", "name": "狼", "hp": 25, "growTurns": null }
+  ],
+  "lootTable": {
+    "entries": [
+      { "itemId": 1073, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "reproduction": {
+    "matureTurns": 1000,
+    "cooldownTurns": 3000,
+    "maxOffspring": 2,
+    "chance": 0.03
+  }
+}

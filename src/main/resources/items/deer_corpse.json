@@ -1,0 +1,9 @@
+{
+  "id": 1070,
+  "name": "deer_corpse",
+  "description": "鹿的尸体，可以解剖获取肉和皮",
+  "weightGrams": 30000,
+  "volumeMl": 20000,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

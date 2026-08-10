@@ -1,0 +1,9 @@
+{
+  "id": 1071,
+  "name": "rabbit_corpse",
+  "description": "兔子的尸体，可以解剖获取肉和皮",
+  "weightGrams": 2000,
+  "volumeMl": 1500,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

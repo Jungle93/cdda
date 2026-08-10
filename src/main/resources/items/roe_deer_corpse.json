@@ -1,0 +1,9 @@
+{
+  "id": 1077,
+  "name": "roe_deer_corpse",
+  "description": "狍子的尸体，可以解剖获取肉和皮",
+  "weightGrams": 20000,
+  "volumeMl": 15000,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

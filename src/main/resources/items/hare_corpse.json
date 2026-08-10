@@ -1,0 +1,9 @@
+{
+  "id": 1076,
+  "name": "hare_corpse",
+  "description": "野兔的尸体，可以解剖获取肉和皮",
+  "weightGrams": 3000,
+  "volumeMl": 2000,
+  "maxStackSize": 1,
+  "tags": ["corpse", "butchering"]
+}

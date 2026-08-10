@@ -158,7 +158,7 @@ public class ItemUseOverlay extends GameOverlay {
                 if (actionIndex >= 0 && actionIndex < currentActions.size()) {
                     ItemAction action = currentActions.get(actionIndex);
                     if (action.canExecute(player, world)) {
-                        if (action.needsDirection()) {
+                        if (action.needsDirection(player, world)) {
                             // 关闭覆盖层，进入主界面方向选择
                             dismiss();
                             inputStateMachine.startDirectionSelection(action, selectedTool);

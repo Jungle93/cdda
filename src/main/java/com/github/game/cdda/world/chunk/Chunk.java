@@ -125,20 +125,7 @@ public class Chunk {
 
         // 群落基数参数
         double rockThreshold = BASE_ROCK_LEVEL - biome.getRockiness() * 0.30;
-
-        // ── 特殊处理：海洋群落 → 全区块水域 ──
-        if (biome == BiomeType.OCEAN) {
-            this.tiles = new TileType[SIZE][SIZE];
-            for (int row = 0; row < SIZE; row++) {
-                for (int col = 0; col < SIZE; col++) {
-                    tiles[row][col] = TileType.WATER;
-                }
-            }
-            placeVegetation(noise, worldMap);
-            logger.debug("区块 ({}, {}) 生成完成 — 群落: {}", chunkX, chunkY, biome.getName());
-            return;
-        }
-
+        
         // ── 第一遍：高程 + 环境查询 → 基底地形 ──
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {

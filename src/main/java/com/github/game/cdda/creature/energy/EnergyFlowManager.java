@@ -88,14 +88,18 @@ public class EnergyFlowManager {
      * @param predator 捕食者
      */
     public void recordPredation(Animal prey, Animal predator) {
-        // 能量传递：猎物的 20% 转移给捕食者
-        int gained = (int) (prey.getBodyEnergy() * TRANSFER_RATE);
+        // 基础能量获取 = 猎物的 20%（生态学十分之一定律的保守近似）
+        int baseGain = (int) (prey.getBodyEnergy() * TRANSFER_RATE);
+        // 物种特定的猎食增益（不同捕食者效率不同）
+        int huntGain = predator.getEnergyConfig().getHuntGain();
+        int gained = Math.max(baseGain, huntGain);
         int actualGain = Math.min(gained, predator.getMaxBodyEnergy() - predator.getBodyEnergy());
 
         if (actualGain > 0) {
             predator.addBodyEnergy(actualGain);
-            logger.debug("捕食: {} 吃掉 {}，获得 {} 能量",
-                    predator.getDefinition().name, prey.getDefinition().name, actualGain);
+            logger.debug("捕食: {} 吃掉 {}，获得 {} 能量（base={}%, huntGain={}）",
+                    predator.getDefinition().name, prey.getDefinition().name, actualGain,
+                    (int) (TRANSFER_RATE * 100), huntGain);
         } else {
             logger.trace("捕食: {} 吃掉 {}，但能量已满",
                     predator.getDefinition().name, prey.getDefinition().name);

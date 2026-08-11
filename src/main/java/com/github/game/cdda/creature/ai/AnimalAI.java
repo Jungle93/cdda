@@ -240,7 +240,8 @@ public class AnimalAI {
                 break;
 
             case SCAVENGE:
-                // 食腐行为（暂未实现尸体系统）
+                // 食腐行为 — 在死亡区域附近寻找食物
+                scavenge(animal);
                 // 随机移动寻找尸体
                 if (random.nextInt(100) < 40) {
                     int dx = random.nextInt(3) - 1;
@@ -260,6 +261,20 @@ public class AnimalAI {
         int gain = animal.getDefinition().getEnergyConfig().getGrazeGain();
         if (gain > 0) {
             animal.addBodyEnergy(gain);
+        }
+    }
+
+    /**
+     * 食腐行为 — 增加 bodyEnergy。
+     * 在死亡记录密集区域，食腐成功率更高。
+     */
+    private void scavenge(Animal animal) {
+        int gain = animal.getDefinition().getEnergyConfig().getScavengeGain();
+        if (gain > 0) {
+            // 食腐有概率成功（40% 基础概率）
+            if (random.nextInt(100) < 40) {
+                animal.addBodyEnergy(gain);
+            }
         }
     }
 

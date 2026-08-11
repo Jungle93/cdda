@@ -396,7 +396,125 @@ public class CreatureManager {
         if (energyFlowManager != null) {
             energyFlowManager.processDecay();
             energyFlowManager.updateVegetationBoosts();
+            // 迁徙触发：检查玩家附近区块是否应生成捕食者
+            processMigrationSpawning(context);
         }
+    }
+
+    /**
+     * 处理迁徙触发：食物丰富的区块有概率生成上层捕食者。
+     * 每 100 回合检查一次玩家所在区块。
+     */
+    private void processMigrationSpawning(CreatureActionContext context) {
+        int currentRound = turnManager.getCurrentRound();
+        if (currentRound % 100 != 0) return;
+
+        int playerTileX = context.getPlayerTileX();
+        int playerTileY = context.getPlayerTileY();
+        int playerChunkX = playerTileX >> 5;
+        int playerChunkY = playerTileY >> 5;
+
+        // 检查玩家周围 3x3 区块
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                int cx = playerChunkX + dx;
+                int cy = playerChunkY + dy;
+                long chunkKey = chunkKey(cx, cy);
+
+                // 检查该营养级是否应生成捕食者
+                trySpawnMigratingPredator(cx, cy, chunkKey);
+            }
+        }
+    }
+
+    /**
+     * 尝试在指定区块生成迁徙来的捕食者。
+     * 同时 enforced APEX 每区块数量限制。
+     */
+    private void trySpawnMigratingPredator(int chunkX, int chunkY, long chunkKey) {
+        if (energyFlowManager == null) return;
+
+        // APEX 数量限制：每区块最多 2 只
+        int apexCount = countApePredatorsInChunk(chunkX, chunkY);
+        if (apexCount >= energyFlowManager.getMaxApexPerChunk()) return;
+
+        // 检查是否应生成次级消费者
+        if (energyFlowManager.shouldSpawnPredator(chunkKey, TrophicLevel.SECONDARY_CONSUMER)) {
+            spawnPredatorInChunk(chunkX, chunkY, TrophicLevel.SECONDARY_CONSUMER);
+            return;
+        }
+
+        // 检查是否应生成顶级捕食者
+        if (energyFlowManager.shouldSpawnPredator(chunkKey, TrophicLevel.APEX_PREDATOR)) {
+            spawnPredatorInChunk(chunkX, chunkY, TrophicLevel.APEX_PREDATOR);
+        }
+    }
+
+    /**
+     * 统计区块内顶级捕食者数量。
+     */
+    private int countApePredatorsInChunk(int chunkX, int chunkY) {
+        int chunkSize = Chunk.SIZE;
+        int baseX = chunkX * chunkSize;
+        int baseY = chunkY * chunkSize;
+        int count = 0;
+        for (Creature c : creatures) {
+            if (!c.isAlive() || !(c instanceof Animal)) continue;
+            Animal a = (Animal) c;
+            if (a.getDefinition().getTrophicLevel() != TrophicLevel.APEX_PREDATOR) continue;
+            int atx = a.getTileX();
+            int aty = a.getTileY();
+            if (atx >= baseX && atx < baseX + chunkSize
+                    && aty >= baseY && aty < baseY + chunkSize) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 在指定区块生成指定营养级的捕食者。
+     */
+    private void spawnPredatorInChunk(int chunkX, int chunkY, TrophicLevel trophicLevel) {
+        int chunkSize = Chunk.SIZE;
+        int baseTileX = chunkX * chunkSize;
+        int baseTileY = chunkY * chunkSize;
+
+        for (int attempt = 0; attempt < 20; attempt++) {
+            int tileX = baseTileX + random.nextInt(chunkSize);
+            int tileY = baseTileY + random.nextInt(chunkSize);
+
+            TileType tile = chunkManager.getTile(tileX, tileY);
+            if (tile == null || !tile.isPassable()) continue;
+
+            // 随机选择一个匹配营养级的物种
+            CreatureDefinition def = getCreatureByTrophicLevel(trophicLevel);
+            if (def == null) continue;
+
+            Animal animal = new Animal(def, tileX, tileY);
+            injectEnergyFlowManager(animal);
+            addCreature(animal);
+            GameLog.getInstance().log(String.format("迁徙触发: 一只%s来到了这个区域！", def.name));
+            logger.info("迁徙生成: {} at ({},{})", def.name, tileX, tileY);
+            return;
+        }
+    }
+
+    /**
+     * 随机获取指定营养级的生物定义。
+     */
+    private CreatureDefinition getCreatureByTrophicLevel(TrophicLevel level) {
+        Collection<CreatureDefinition> all = CreatureRegistry.getAll();
+        if (all.isEmpty()) return null;
+
+        List<CreatureDefinition> matching = new ArrayList<>();
+        for (CreatureDefinition def : all) {
+            if (def.getTrophicLevel() == level) {
+                matching.add(def);
+            }
+        }
+        if (matching.isEmpty()) return null;
+        return matching.get(random.nextInt(matching.size()));
     }
 
     /**

@@ -15,41 +15,37 @@ public enum TrophicLevel {
      * 初级消费者 — 食草动物（兔子、鹿、野猪等）。
      * 直接啃食植物，数量多，繁殖快，警惕性高。
      */
-    PRIMARY_CONSUMER("初级消费者", EnumSet.noneOf(TrophicLevel.class)),
+    PRIMARY_CONSUMER("初级消费者"),
 
     /**
      * 次级消费者 — 小型捕食者（狐狸、獾、蛇等）。
      * 捕食初级消费者，数量中等，有领地意识。
      */
-    SECONDARY_CONSUMER("次级消费者", EnumSet.of(PRIMARY_CONSUMER)),
+    SECONDARY_CONSUMER("次级消费者"),
 
     /**
      * 顶级消费者 — 大型捕食者（狼、熊、豹等）。
      * 捕食次级消费者和大型食草动物，数量稀少，战斗力强。
      */
-    APEX_PREDATOR("顶级捕食者", EnumSet.of(PRIMARY_CONSUMER, SECONDARY_CONSUMER)),
+    APEX_PREDATOR("顶级捕食者"),
 
     /**
      * 食腐动物 — 以尸体为食（秃鹫等）。
      * 寻找自然死亡的动物尸体。
      */
-    SCAVENGER("食腐动物", EnumSet.noneOf(TrophicLevel.class)),
+    SCAVENGER("食腐动物"),
 
     /**
      * 分解者 — 真菌、昆虫等。
      * 将死亡生物分解为无机物，完成能量循环。
      */
-    DECOMPOSER("分解者", EnumSet.noneOf(TrophicLevel.class));
+    DECOMPOSER("分解者");
 
     /** 显示名称 */
     private final String displayName;
 
-    /** 可捕食的营养级（本营养级的猎物范围） */
-    private final Set<TrophicLevel> preyLevels;
-
-    TrophicLevel(String displayName, Set<TrophicLevel> preyLevels) {
+    TrophicLevel(String displayName) {
         this.displayName = displayName;
-        this.preyLevels = Collections.unmodifiableSet(preyLevels);
     }
 
     /** 获取显示名称 */
@@ -57,14 +53,24 @@ public enum TrophicLevel {
         return displayName;
     }
 
-    /** 获取可捕食的营养级集合 */
+    /**
+     * 获取可捕食的营养级集合。
+     * 使用静态方法避免枚举初始化时的循环依赖。
+     */
     public Set<TrophicLevel> getPreyLevels() {
-        return preyLevels;
+        switch (this) {
+            case SECONDARY_CONSUMER:
+                return Collections.singleton(PRIMARY_CONSUMER);
+            case APEX_PREDATOR:
+                return EnumSet.of(PRIMARY_CONSUMER, SECONDARY_CONSUMER);
+            default:
+                return Collections.emptySet();
+        }
     }
 
     /** 判断是否可以捕食指定营养级 */
     public boolean canPreyOn(TrophicLevel target) {
-        return preyLevels.contains(target);
+        return getPreyLevels().contains(target);
     }
 
     /** 是否为食草动物 */

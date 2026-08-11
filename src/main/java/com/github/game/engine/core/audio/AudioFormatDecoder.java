@@ -1,6 +1,7 @@
 package com.github.game.engine.core.audio;
 
 import javazoom.jl.decoder.Bitstream;
+import javazoom.jl.decoder.BitstreamException;
 import javazoom.jl.decoder.Decoder;
 import javazoom.jl.decoder.Header;
 import javazoom.jl.decoder.SampleBuffer;
@@ -228,7 +229,12 @@ public class AudioFormatDecoder {
             this.bitstream = new Bitstream(in);
             this.decoder = new Decoder();
 
-            Header header = bitstream.readFrame();
+            Header header;
+            try {
+                header = bitstream.readFrame();
+            } catch (BitstreamException e) {
+                throw new IOException("读取 MP3 帧失败", e);
+            }
             if (header == null) {
                 throw new IOException("无效的 MP3 文件");
             }

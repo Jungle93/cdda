@@ -2,6 +2,9 @@ package com.github.game.cdda.creature;
 
 import com.github.game.cdda.creature.ai.AnimalAI;
 import com.github.game.cdda.creature.config.CreatureDefinition;
+import com.github.game.cdda.creature.energy.DeathCause;
+import com.github.game.cdda.creature.energy.EnergyConfig;
+import com.github.game.cdda.creature.energy.EnergyFlowManager;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
 
@@ -37,6 +40,23 @@ public class Animal extends Creature {
     /** 上次繁殖的回合数（-9999 表示从未繁殖） */
     private int lastReproductionTurn = -9999;
 
+    // ── 能量系统 ──────────────────────────
+
+    /** 代谢能量/饱腹度（0~100） */
+    private int bodyEnergy;
+
+    /** bodyEnergy=0 的持续回合计数 */
+    private int turnsStarving = 0;
+
+    /** 死亡原因 */
+    private DeathCause deathCause;
+
+    /** 能量流动管理器 */
+    private transient EnergyFlowManager energyFlowManager;
+
+    /** 攻击此动物的捕食者（用于 PREDATION 死亡） */
+    private transient Animal attackingPredator;
+
     /**
      * 从定义创建动物。
      *
@@ -52,6 +72,10 @@ public class Animal extends Creature {
 
         // 初始化属性
         initializeFromDefinition();
+
+        // 初始化能量
+        EnergyConfig ec = definition.getEnergyConfig();
+        this.bodyEnergy = ec.getInitialEnergy();
     }
 
     /**
@@ -119,8 +143,59 @@ public class Animal extends Creature {
         // 更新存活回合
         turnsLived++;
 
+        // 代谢消耗
+        updateMetabolism();
+
         // 检查成长
         checkGrowth();
+
+        // 检查寿命
+        checkLifespan();
+
+        // 检查饥饿
+        checkStarvation();
+    }
+
+    /**
+     * 代谢更新：每 N 回合 -1 bodyEnergy。
+     */
+    private void updateMetabolism() {
+        EnergyConfig ec = definition.getEnergyConfig();
+        int interval = ec.getMetabolismInterval();
+        if (interval <= 0) return;
+
+        if (turnsLived % interval == 0) {
+            bodyEnergy = Math.max(0, bodyEnergy - 1);
+        }
+    }
+
+    /**
+     * 检查寿命：达到寿命上限 → 自然老死。
+     */
+    private void checkLifespan() {
+        EnergyConfig ec = definition.getEnergyConfig();
+        if (turnsLived >= ec.getLifespanTurns()) {
+            deathCause = DeathCause.NATURAL_AGE;
+            alive = false;
+            onDeath();
+        }
+    }
+
+    /**
+     * 检查饥饿：bodyEnergy=0 持续足够久 → 饿死。
+     */
+    private void checkStarvation() {
+        if (bodyEnergy == 0) {
+            turnsStarving++;
+            EnergyConfig ec = definition.getEnergyConfig();
+            if (turnsStarving >= ec.getStarvationTurns()) {
+                deathCause = DeathCause.STARVATION;
+                alive = false;
+                onDeath();
+            }
+        } else {
+            turnsStarving = 0;
+        }
     }
 
     /**
@@ -147,7 +222,7 @@ public class Animal extends Creature {
 
     /**
      * 尝试繁殖。
-     * 检查成熟度、冷却时间、概率，成功时返回后代。
+     * 检查成熟度、冷却时间、能量门槛、概率，成功时返回后代。
      *
      * @param currentTurn 当前回合数
      * @param random      随机数生成器
@@ -163,11 +238,16 @@ public class Animal extends Creature {
         // 冷却检查
         if (currentTurn - lastReproductionTurn < repro.cooldownTurns) return null;
 
+        // 能量门槛
+        EnergyConfig ec = definition.getEnergyConfig();
+        if (bodyEnergy < ec.getReproduceThreshold()) return null;
+
         // 概率判定
         if (random.nextDouble() > repro.chance) return null;
 
         // 繁殖成功
         lastReproductionTurn = currentTurn;
+        bodyEnergy -= ec.getReproduceCost();
 
         // 创建后代（同物种，幼年阶段）
         // 后代初始位置与父母相同，实际偏移由 CreatureManager.placeNearby() 处理
@@ -214,7 +294,64 @@ public class Animal extends Creature {
 
     @Override
     protected void onDeath() {
-        // 死亡逻辑（掉落物品等，后续实现）
+        alive = false;
+
+        if (energyFlowManager != null) {
+            if (deathCause == null) {
+                deathCause = DeathCause.NATURAL_AGE;
+            }
+
+            switch (deathCause) {
+                case NATURAL_AGE:
+                case STARVATION:
+                    // 自然死亡，不掉落，尸体分解
+                    energyFlowManager.recordNaturalDeath(this);
+                    break;
+                case PREDATION:
+                    // 被上层捕食者吃掉，能量转移
+                    if (attackingPredator != null) {
+                        energyFlowManager.recordPredation(this, attackingPredator);
+                    }
+                    break;
+                case PLAYER_KILL:
+                    // 玩家杀死，记录掉落
+                    energyFlowManager.recordPlayerKill(this);
+                    break;
+            }
+        }
+    }
+
+    /**
+     * 被玩家杀死。
+     */
+    public void killByPlayer() {
+        if (!alive) return;
+        deathCause = DeathCause.PLAYER_KILL;
+        alive = false;
+        onDeath();
+    }
+
+    /**
+     * 被上层捕食者吃掉。
+     *
+     * @param predator 捕食者
+     */
+    public void eatenBy(Animal predator) {
+        if (!alive) return;
+        deathCause = DeathCause.PREDATION;
+        this.attackingPredator = predator;
+        alive = false;
+        onDeath();
+    }
+
+    /** 设置能量流动管理器 */
+    void setEnergyFlowManager(EnergyFlowManager manager) {
+        this.energyFlowManager = manager;
+    }
+
+    /** 获取能量流动管理器（内部使用） */
+    EnergyFlowManager getEnergyFlowManager() {
+        return energyFlowManager;
     }
 
     // ── 访问器 ──────────────────────────────────
@@ -257,5 +394,50 @@ public class Animal extends Creature {
      */
     public String getAIState() {
         return ai.getCurrentState().name();
+    }
+
+    // ── 能量系统访问器 ──────────────────────────
+
+    /** 获取当前 bodyEnergy */
+    public int getBodyEnergy() {
+        return bodyEnergy;
+    }
+
+    /** 获取最大 bodyEnergy */
+    public int getMaxBodyEnergy() {
+        return definition.getEnergyConfig().getMaxEnergy();
+    }
+
+    /** 设置 bodyEnergy（用于进食、捕食等） */
+    public void addBodyEnergy(int amount) {
+        this.bodyEnergy = Math.min(getMaxBodyEnergy(), Math.max(0, this.bodyEnergy + amount));
+        if (bodyEnergy > 0) {
+            turnsStarving = 0;
+        }
+    }
+
+    /** 获取死亡原因 */
+    public DeathCause getDeathCause() {
+        return deathCause;
+    }
+
+    /** 获取饥饿回合数 */
+    public int getTurnsStarving() {
+        return turnsStarving;
+    }
+
+    /** 获取能量配置 */
+    public EnergyConfig getEnergyConfig() {
+        return definition.getEnergyConfig();
+    }
+
+    /** 是否处于饥饿状态 */
+    public boolean isStarving() {
+        return bodyEnergy < 30;
+    }
+
+    /** 是否健康（能量充足） */
+    public boolean isHealthy() {
+        return bodyEnergy > 60;
     }
 }

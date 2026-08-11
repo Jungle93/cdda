@@ -3,6 +3,9 @@
   "name": "狼",
   "hp": 25,
   "speed": 130,
+  "trophicLevel": "APEX_PREDATOR",
+  "preyLevels": ["PRIMARY_CONSUMER", "SECONDARY_CONSUMER"],
+  "energyValue": 45,
   "stats": {
     "strength": 12,
     "agility": 14,
@@ -22,6 +25,23 @@
     "entries": [
       { "itemId": 1073, "chance": 1.0, "minCount": 1, "maxCount": 1 }
     ]
+  },
+  "lootOnPlayerKill": {
+    "entries": [
+      { "itemId": 1073, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "energyConfig": {
+    "maxEnergy": 100,
+    "initialEnergy": 70,
+    "metabolismInterval": 10,
+    "grazeGain": 0,
+    "huntGain": 25,
+    "scavengeGain": 10,
+    "reproduceCost": 30,
+    "reproduceThreshold": 60,
+    "starvationTurns": 300,
+    "lifespanTurns": 8000
   },
   "reproduction": {
     "matureTurns": 1000,

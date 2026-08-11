@@ -3,6 +3,8 @@
   "name": "野猪",
   "hp": 40,
   "speed": 100,
+  "trophicLevel": "PRIMARY_CONSUMER",
+  "energyValue": 35,
   "stats": {
     "strength": 14,
     "agility": 8,
@@ -22,6 +24,23 @@
     "entries": [
       { "itemId": 1072, "chance": 1.0, "minCount": 1, "maxCount": 1 }
     ]
+  },
+  "lootOnPlayerKill": {
+    "entries": [
+      { "itemId": 1072, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "energyConfig": {
+    "maxEnergy": 100,
+    "initialEnergy": 70,
+    "metabolismInterval": 10,
+    "grazeGain": 5,
+    "huntGain": 0,
+    "scavengeGain": 0,
+    "reproduceCost": 30,
+    "reproduceThreshold": 55,
+    "starvationTurns": 150,
+    "lifespanTurns": 5000
   },
   "reproduction": {
     "matureTurns": 1200,

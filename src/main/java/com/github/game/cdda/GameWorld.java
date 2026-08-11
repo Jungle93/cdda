@@ -2,6 +2,7 @@ package com.github.game.cdda;
 
 import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.creature.config.CreatureRegistry;
+import com.github.game.cdda.creature.energy.EnergyFlowManager;
 import com.github.game.cdda.game.WorldSettings;
 import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.item.ItemRegistry;
@@ -44,6 +45,7 @@ public class GameWorld {
     private final HydrationManager hydrationManager;
     private final CreatureManager creatureManager;
     private final GroundItemManager groundItemManager;
+    private final EnergyFlowManager energyFlowManager;
 
     // ── 玩家 ──────────────────────────────────
     private final Player player;
@@ -85,6 +87,10 @@ public class GameWorld {
         // 7) 地面物品系统
         groundItemManager = new GroundItemManager();
         creatureManager.setGroundItemManager(groundItemManager);
+
+        // 7.5) 能量流动系统
+        energyFlowManager = new EnergyFlowManager();
+        creatureManager.setEnergyFlowManager(energyFlowManager);
 
         // 8) 连接区块管理器与生物管理器（新区块加载时触发新生物生成）
         chunkManager.setCreatureManager(creatureManager);
@@ -178,5 +184,6 @@ public class GameWorld {
     public HydrationManager getHydrationManager() { return hydrationManager; }
     public CreatureManager getCreatureManager() { return creatureManager; }
     public GroundItemManager getGroundItemManager() { return groundItemManager; }
+    public EnergyFlowManager getEnergyFlowManager() { return energyFlowManager; }
     public Player getPlayer() { return player; }
 }

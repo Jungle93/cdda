@@ -3,6 +3,8 @@
   "name": "鹿",
   "hp": 30,
   "speed": 110,
+  "trophicLevel": "PRIMARY_CONSUMER",
+  "energyValue": 30,
   "stats": {
     "strength": 8,
     "agility": 14,
@@ -32,6 +34,23 @@
     "entries": [
       { "itemId": 1070, "chance": 1.0, "minCount": 1, "maxCount": 1 }
     ]
+  },
+  "lootOnPlayerKill": {
+    "entries": [
+      { "itemId": 1070, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "energyConfig": {
+    "maxEnergy": 100,
+    "initialEnergy": 70,
+    "metabolismInterval": 10,
+    "grazeGain": 5,
+    "huntGain": 0,
+    "scavengeGain": 0,
+    "reproduceCost": 30,
+    "reproduceThreshold": 60,
+    "starvationTurns": 200,
+    "lifespanTurns": 6000
   },
   "reproduction": {
     "matureTurns": 1500,

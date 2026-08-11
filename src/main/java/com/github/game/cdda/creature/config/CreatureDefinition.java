@@ -1,6 +1,12 @@
 package com.github.game.cdda.creature.config;
 
+import com.github.game.cdda.creature.energy.DeathCause;
+import com.github.game.cdda.creature.energy.EnergyConfig;
+import com.github.game.cdda.creature.energy.TrophicLevel;
+import com.github.game.cdda.item.LootTable;
+
 import java.util.List;
+import java.util.Set;
 
 /**
  * 生物定义（JSON 数据结构）。
@@ -36,10 +42,56 @@ public class CreatureDefinition {
     public List<LifeStage> lifeStages;
 
     /** 战利品表（死亡掉落物品，可为 null） */
-    public com.github.game.cdda.item.LootTable lootTable;
+    public LootTable lootTable;
 
     /** 繁殖参数（可为 null 表示不繁殖） */
     public Reproduction reproduction;
+
+    // ── 能量系统字段 ──────────────────────────
+
+    /** 营养级 */
+    public TrophicLevel trophicLevel;
+
+    /** 可捕食的营养级列表 */
+    public Set<TrophicLevel> preyLevels;
+
+    /** 该物种死亡时的基准能量值（被吃时传递给捕食者） */
+    public int energyValue = 20;
+
+    /** 能量配置 */
+    public EnergyConfig energyConfig;
+
+    /** 玩家杀死时的掉落表（自然死亡不掉落） */
+    public LootTable lootOnPlayerKill;
+
+    /** 自然死亡掉落表（始终 null = 不掉落） */
+    public LootTable lootOnNaturalDeath;
+
+    // ── 辅助方法 ──────────────────────────────────
+
+    /** 获取能量配置（未配置时返回默认值） */
+    public EnergyConfig getEnergyConfig() {
+        if (energyConfig == null) {
+            energyConfig = new EnergyConfig();
+        }
+        return energyConfig;
+    }
+
+    /** 获取杀死掉落表（优先 lootOnPlayerKill，回退 lootTable） */
+    public LootTable getKillLootTable() {
+        if (lootOnPlayerKill != null) {
+            return lootOnPlayerKill;
+        }
+        return lootTable;
+    }
+
+    /** 获取营养级（未配置时默认初级消费者） */
+    public TrophicLevel getTrophicLevel() {
+        if (trophicLevel == null) {
+            trophicLevel = TrophicLevel.PRIMARY_CONSUMER;
+        }
+        return trophicLevel;
+    }
 
     /**
      * 基础属性。

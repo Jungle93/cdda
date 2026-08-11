@@ -3,6 +3,9 @@
   "name": "狐狸",
   "hp": 15,
   "speed": 140,
+  "trophicLevel": "SECONDARY_CONSUMER",
+  "preyLevels": ["PRIMARY_CONSUMER"],
+  "energyValue": 20,
   "stats": {
     "strength": 5,
     "agility": 16,
@@ -22,6 +25,23 @@
     "entries": [
       { "itemId": 1074, "chance": 1.0, "minCount": 1, "maxCount": 1 }
     ]
+  },
+  "lootOnPlayerKill": {
+    "entries": [
+      { "itemId": 1074, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "energyConfig": {
+    "maxEnergy": 100,
+    "initialEnergy": 70,
+    "metabolismInterval": 10,
+    "grazeGain": 0,
+    "huntGain": 20,
+    "scavengeGain": 10,
+    "reproduceCost": 25,
+    "reproduceThreshold": 55,
+    "starvationTurns": 200,
+    "lifespanTurns": 5000
   },
   "reproduction": {
     "matureTurns": 800,

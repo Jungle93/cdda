@@ -2,6 +2,9 @@ package com.github.game.cdda.creature;
 
 import com.github.game.cdda.creature.config.CreatureDefinition;
 import com.github.game.cdda.creature.config.CreatureRegistry;
+import com.github.game.cdda.creature.energy.DeathCause;
+import com.github.game.cdda.creature.energy.EnergyFlowManager;
+import com.github.game.cdda.creature.energy.TrophicLevel;
 import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.item.ItemStack;
 import com.github.game.cdda.item.LootTable;
@@ -50,6 +53,9 @@ public class CreatureManager {
 
     /** 地面物品管理器（用于生物死亡掉落） */
     private GroundItemManager groundItemManager;
+
+    /** 能量流动管理器 */
+    private EnergyFlowManager energyFlowManager;
 
     /** 已生成过生物的区块集合（避免重复生成） */
     private final Set<Long> spawnedChunks = new HashSet<>();
@@ -100,6 +106,23 @@ public class CreatureManager {
      */
     public void setGroundItemManager(GroundItemManager groundItemManager) {
         this.groundItemManager = groundItemManager;
+    }
+
+    /**
+     * 设置能量流动管理器。
+     * 由 GameWorld 在构造时调用。
+     *
+     * @param energyFlowManager 能量流动管理器
+     */
+    public void setEnergyFlowManager(EnergyFlowManager energyFlowManager) {
+        this.energyFlowManager = energyFlowManager;
+    }
+
+    /**
+     * 获取能量流动管理器。
+     */
+    public EnergyFlowManager getEnergyFlowManager() {
+        return energyFlowManager;
     }
 
     /**
@@ -189,6 +212,7 @@ public class CreatureManager {
             if (def == null) continue;
 
             Animal animal = new Animal(def, tileX, tileY);
+            injectEnergyFlowManager(animal);
             addCreature(animal);
             return true;
         }
@@ -248,6 +272,7 @@ public class CreatureManager {
                 if (def == null) continue;
 
                 Animal animal = new Animal(def, tileX, tileY);
+                injectEnergyFlowManager(animal);
                 addCreature(animal);
                 break;
             }
@@ -259,6 +284,15 @@ public class CreatureManager {
      */
     private static long chunkKey(int cx, int cy) {
         return ((long) cx << 32) | (cy & 0xFFFFFFFFL);
+    }
+
+    /**
+     * 注入能量流动管理器到新创建的动物。
+     */
+    private void injectEnergyFlowManager(Animal animal) {
+        if (energyFlowManager != null) {
+            animal.setEnergyFlowManager(energyFlowManager);
+        }
     }
 
     /**
@@ -339,6 +373,7 @@ public class CreatureManager {
 
         // 添加新出生的生物
         for (Animal baby : newborns) {
+            injectEnergyFlowManager(baby);
             addCreature(baby);
         }
 
@@ -356,6 +391,12 @@ public class CreatureManager {
             }
             return false;
         });
+
+        // 能量流动更新（每回合调用）
+        if (energyFlowManager != null) {
+            energyFlowManager.processDecay();
+            energyFlowManager.updateVegetationBoosts();
+        }
     }
 
     /**
@@ -436,41 +477,29 @@ public class CreatureManager {
 
     /**
      * 生物死亡时掉落战利品。
-     * 根据生物的 CreatureDefinition.lootTable 随机生成地面物品。
+     * 只有玩家杀死的生物才掉落物品，自然死亡不掉落（尸体分解）。
      *
      * @param creature 死亡的生物
      */
     private void dropCreatureLoot(Creature creature) {
-        logger.info("dropCreatureLoot 被调用，生物: {}, 类型: {}", creature, creature.getClass().getSimpleName());
-
-        if (groundItemManager == null) {
-            logger.warn("groundItemManager 为 null，无法掉落物品");
-            return;
-        }
-        if (!(creature instanceof Animal)) {
-            logger.info("生物不是 Animal 类型，跳过掉落");
-            return;
-        }
+        if (groundItemManager == null) return;
+        if (!(creature instanceof Animal)) return;
 
         Animal animal = (Animal) creature;
-        CreatureDefinition def = animal.getDefinition();
-        LootTable lootTable = def.lootTable;
 
-        logger.info("生物定义: {}, lootTable: {}", def.name, lootTable);
-
-        if (lootTable == null) {
-            logger.info("{} 没有战利品表，跳过掉落", def.name);
+        // 只有玩家杀死的才掉落
+        if (animal.getDeathCause() != DeathCause.PLAYER_KILL) {
             return;
         }
 
-        List<ItemStack> drops = lootTable.roll(random);
-        logger.info("{} 掉落 {} 件物品", def.name, drops.size());
+        CreatureDefinition def = animal.getDefinition();
+        LootTable lootTable = def.getKillLootTable();
 
+        if (lootTable == null) return;
+
+        List<ItemStack> drops = lootTable.roll(random);
         for (ItemStack stack : drops) {
             groundItemManager.dropItem(stack, creature.getTileX(), creature.getTileY());
-            logger.info("掉落物品: {} x{} 在位置 ({}, {})",
-                    stack.getType().getName(), stack.getCount(),
-                    creature.getTileX(), creature.getTileY());
         }
         if (!drops.isEmpty()) {
             GameLog.getInstance().log(String.format("%s 掉落了 %d 件物品",

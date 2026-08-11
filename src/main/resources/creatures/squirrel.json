@@ -3,6 +3,8 @@
   "name": "松鼠",
   "hp": 5,
   "speed": 160,
+  "trophicLevel": "PRIMARY_CONSUMER",
+  "energyValue": 8,
   "stats": {
     "strength": 2,
     "agility": 18,
@@ -22,6 +24,23 @@
     "entries": [
       { "itemId": 1079, "chance": 1.0, "minCount": 1, "maxCount": 1 }
     ]
+  },
+  "lootOnPlayerKill": {
+    "entries": [
+      { "itemId": 1079, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "energyConfig": {
+    "maxEnergy": 100,
+    "initialEnergy": 70,
+    "metabolismInterval": 10,
+    "grazeGain": 3,
+    "huntGain": 0,
+    "scavengeGain": 0,
+    "reproduceCost": 20,
+    "reproduceThreshold": 45,
+    "starvationTurns": 80,
+    "lifespanTurns": 2000
   },
   "reproduction": {
     "matureTurns": 500,

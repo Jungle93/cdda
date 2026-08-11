@@ -3,6 +3,8 @@
   "name": "兔子",
   "hp": 10,
   "speed": 130,
+  "trophicLevel": "PRIMARY_CONSUMER",
+  "energyValue": 15,
   "stats": {
     "strength": 3,
     "agility": 16,
@@ -32,6 +34,23 @@
     "entries": [
       { "itemId": 1071, "chance": 1.0, "minCount": 1, "maxCount": 1 }
     ]
+  },
+  "lootOnPlayerKill": {
+    "entries": [
+      { "itemId": 1071, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+    ]
+  },
+  "energyConfig": {
+    "maxEnergy": 100,
+    "initialEnergy": 70,
+    "metabolismInterval": 10,
+    "grazeGain": 5,
+    "huntGain": 0,
+    "scavengeGain": 0,
+    "reproduceCost": 25,
+    "reproduceThreshold": 50,
+    "starvationTurns": 100,
+    "lifespanTurns": 3000
   },
   "reproduction": {
     "matureTurns": 500,

@@ -216,7 +216,8 @@ public class ChunkManager {
      * <ol>
      *   <li>确定预加载区域的瓦片范围</li>
      *   <li>使用 DrainageCalculator 计算排水图</li>
-     *   <li>对区域内每个区块调用 generate()</li>
+     *   <li>构建 5×5 邻居区块引用数组</li>
+     *   <li>对区域内每个区块调用 generate()，传入邻居引用</li>
      * </ol>
      */
     private void computeDrainageAndGenerate(int playerChunkX, int playerChunkY) {
@@ -236,6 +237,16 @@ public class ChunkManager {
         DrainageCalculator calculator = new DrainageCalculator(worldMap);
         DrainageMap drainageMap = calculator.compute(minWorldX, minWorldY, maxWorldX, maxWorldY);
 
+        // 构建 5×5 邻居区块引用（用于区块边界混合）
+        Chunk[][] neighbors = new Chunk[5][5];
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -2; dx <= 2; dx++) {
+                int cx = playerChunkX + dx;
+                int cy = playerChunkY + dy;
+                neighbors[dy + 2][dx + 2] = chunks.get(chunkKey(cx, cy));
+            }
+        }
+
         // 生成预加载区域内的所有区块
         for (int dy = -preloadRadius; dy <= preloadRadius; dy++) {
             for (int dx = -preloadRadius; dx <= preloadRadius; dx++) {
@@ -243,7 +254,7 @@ public class ChunkManager {
                 int cy = playerChunkY + dy;
                 Chunk chunk = chunks.get(chunkKey(cx, cy));
                 if (chunk != null) {
-                    chunk.generate(noise, worldMap, drainageMap);
+                    chunk.generate(noise, worldMap, drainageMap, neighbors);
                 }
             }
         }

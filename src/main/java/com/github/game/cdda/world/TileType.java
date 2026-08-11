@@ -60,6 +60,10 @@ public class TileType {
     /** 芦苇/水生植物 — 不可通过，生长于水边 */
     public static final TileType REEDS = register(13, "reeds", '‖', new Color(60, 150, 60), false);
 
+    // ── 过渡地形 ──────────────────────────────────
+    /** 泥土地 — 可通过（平原/沼泽的常见地面） */
+    public static final TileType MUD = register(14, "mud", ':', new Color(120, 100, 70), true);
+
     // ── 字段 ──────────────────────────────────────────
 
     /** 稳定数字标识 */

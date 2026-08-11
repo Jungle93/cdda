@@ -75,10 +75,14 @@ public class WorldMap {
     private static final double HIGHLAND_THRESHOLD = 0.35;
     /** 高山阈值（高于此值 = 山地） */
     private static final double MOUNTAIN_THRESHOLD = 0.55;
+    /** 高原阈值（高于此值且低湿度 = 高原） */
+    private static final double PLATEAU_THRESHOLD = 0.30;
     /** 干燥阈值（低于此湿度 = 沙漠） */
     private static final double DRY_THRESHOLD = -0.20;
     /** 湿润阈值（高于此湿度 + 低地 = 森林/沼泽） */
     private static final double WET_THRESHOLD = 0.10;
+    /** 草原湿度上限（介于此值与干燥阈值之间 = 草原） */
+    private static final double GRASSLAND_MOISTURE_MAX = 0.05;
 
     /** 世界种子 */
     private final long worldSeed;
@@ -146,16 +150,17 @@ public class WorldMap {
     /**
      * 根据噪声值分类生物群落。
      *
-     * <p>分类逻辑：
+     * <p>分类逻辑（从上到下，先命中先返回）：
      * <ol>
      *   <li>低高程 → 海洋</li>
      *   <li>海岸高程 + 高湿度 → 沼泽</li>
      *   <li>海岸高程 + 低湿度 → 平原</li>
-     *   <li>低地 + 干燥 → 沙漠</li>
-     *   <li>低地 + 适中 → 平原</li>
-     *   <li>低地 + 湿润 → 森林/密林</li>
-     *   <li>高地 → 丘陵</li>
      *   <li>很高 → 山地</li>
+     *   <li>高海拔 + 低湿度 → 高原</li>
+     *   <li>高地 → 丘陵</li>
+     *   <li>低地 + 干燥 → 沙漠</li>
+     *   <li>低地 + 中等湿度 → 草原</li>
+     *   <li>低地 + 湿润 → 森林/密林</li>
      * </ol>
      */
     private BiomeType classifyBiome(int chunkX, int chunkY) {
@@ -192,10 +197,17 @@ public class WorldMap {
             return BiomeType.PLAINS;
         }
 
-        // 高地
+        // 高海拔 → 山地
         if (elevation > MOUNTAIN_THRESHOLD) {
             return BiomeType.MOUNTAIN;
         }
+
+        // 高海拔平地 → 高原（中等偏高海拔 + 低湿度）
+        if (elevation > PLATEAU_THRESHOLD && moisture < 0.0) {
+            return BiomeType.PLATEAU;
+        }
+
+        // 高地 → 丘陵
         if (elevation > HIGHLAND_THRESHOLD) {
             return BiomeType.HILLS;
         }
@@ -203,6 +215,8 @@ public class WorldMap {
         // 低地 — 根据湿度划分
         if (moisture < DRY_THRESHOLD) {
             return BiomeType.DESERT;
+        } else if (moisture <= GRASSLAND_MOISTURE_MAX) {
+            return BiomeType.GRASSLAND;
         } else if (moisture < WET_THRESHOLD) {
             return BiomeType.PLAINS;
         } else {

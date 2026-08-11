@@ -65,6 +65,14 @@ public class BiomeType {
     public static final BiomeType DESERT = register(7, "desert", '∴',
             new Color(220, 200, 140), 0.0f, 0.02f, 0.05f, 0.0f, 0.20f);
 
+    /** 草原 — 开阔草地，中等海拔，高草密度 */
+    public static final BiomeType GRASSLAND = register(8, "grassland", '∶',
+            new Color(140, 185, 60), 0.02f, 0.30f, 0.0f, 0.0f, 0.10f);
+
+    /** 高原 — 高海拔平地，稀疏植被，多岩石 */
+    public static final BiomeType PLATEAU = register(9, "plateau", '▬',
+            new Color(170, 160, 120), 0.02f, 0.05f, 0.20f, 0.0f, 0.35f);
+
     // ── 实例字段 ────────────────────────────
 
     private final int id;

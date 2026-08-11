@@ -59,15 +59,9 @@ public class Chunk {
     private static final double PERSISTENCE = 0.5;
     private static final double LACUNARITY = 2.0;
 
-    // ── 基础高程阈值（会被 biome 参数偏移） ──────────────
-    /** 基础水域阈值 */
-    private static final double BASE_WATER_LEVEL = -0.15;
-    /** 基础沙滩阈值 */
-    private static final double BASE_BEACH_LEVEL = -0.05;
+    // ── 基础高程阈值 ──────────────────
     /** 基础岩石阈值 */
     private static final double BASE_ROCK_LEVEL = 0.50;
-    /** waterLevel=0 时，将水域/沙滩阈值额外下移的量（使内陆几乎不生成水域） */
-    private static final double DRY_THRESHOLD_OFFSET = -0.40;
 
     /** 区块坐标 */
     private final int chunkX;
@@ -108,27 +102,36 @@ public class Chunk {
     /**
      * 根据生物群落参数生成区块地形。
      *
-     * <p>三遍生成：
+     * <p>五遍生成：
      * <ol>
-     *   <li><b>高程 → 基底地形</b>
-     *       局部噪声生成地形起伏，阈值由群落的 {@code waterLevel} 和 {@code rockiness} 偏移。</li>
+     *   <li><b>高程 + 环境 → 基底地形</b>
+     *       局部噪声生成地形起伏，海拔/湿度/温度共同决定地形类型。</li>
      *   <li><b>噪声 → 植被放置</b>
      *       植被密度噪声 + 群落参数（{@code treeDensity}, {@code grassDensity}）
      *       控制树木/草/花的密度和分布，形成聚簇效果。</li>
-     *   <li><b>大地图水域特征 → 湖泊/河流</b>
-     *       查询 {@link WorldMap#getWaterFeature(int, int)} 决定湖泊和河流位置，
+     *   <li><b>排水算法 → 湖泊/河流</b>
+     *       查询 {@link DrainageMap} 决定湖泊和河流位置，
      *       水域出现在低洼湿润区域，跨区块连续自然。</li>
+     *   <li><b>水边植被</b>
+     *       在水域边缘放置芦苇/香蒲。</li>
+     *   <li><b>边界混合</b>
+     *       检查相邻区块的群落类型和边缘瓦片数据，实现跨区块平滑过渡。</li>
      * </ol>
+     *
+     * @param noise       Perlin 噪声生成器
+     * @param worldMap    世界地图（提供环境数据）
+     * @param drainageMap 排水图（可为 null 表示使用 WorldMap 水域特征）
+     * @param neighbors   周围 5×5 邻居区块（可为 null）
      */
-    public void generate(PerlinNoise noise, WorldMap worldMap, DrainageMap drainageMap) {
+    public void generate(PerlinNoise noise, WorldMap worldMap,
+                         DrainageMap drainageMap, Chunk[][] neighbors) {
         if (generated) return;
         this.drainageMap = drainageMap;
         this.tiles = new TileType[SIZE][SIZE];
         this.vegetationMap = new VegetationMap(chunkX, chunkY);
         generated = true;
 
-        // 群落基数参数（rockiness 全区块统一）
-        float wl = biome.getWaterLevel();
+        // 群落基数参数
         double rockThreshold = BASE_ROCK_LEVEL - biome.getRockiness() * 0.30;
 
         // ── 特殊处理：海洋群落 → 全区块水域 ──
@@ -144,9 +147,7 @@ public class Chunk {
             return;
         }
 
-        // ── 第一遍：高程 + WorldMap 湿度采样 → 基底地形（不生成水域） ──
-        // 每瓦片采样 WorldMap 湿度，调制水域/沙滩阈值，实现群落边界自然过渡。
-        // 噪声是全局连续的 → 相邻区块在边界处阈值渐变，而非硬切。
+        // ── 第一遍：高程 + 环境查询 → 基底地形 ──
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 int globalX = chunkX * SIZE + col;
@@ -154,25 +155,19 @@ public class Chunk {
 
                 // 采样 WorldMap 湿度（tile 级，跨区块连续）
                 double tileMoisture = worldMap.getMoistureAt(globalX, globalY);
-
-                // 水域阈值不再在此使用，水域由第三遍 carveWaterFeatures 根据排水梯度决定
-
-                // 沙滩阈值：只有有水群落才生成沙滩
-                double beachThreshold;
-                if (wl > 0.05f) {
-                    beachThreshold = BASE_BEACH_LEVEL + wl * 0.10 + tileMoisture * 0.04;
-                } else {
-                    beachThreshold = BASE_WATER_LEVEL + DRY_THRESHOLD_OFFSET;
-                }
-
                 double elevation = noise.fbm(
                         globalX * TERRAIN_FREQ,
                         globalY * TERRAIN_FREQ,
                         TERRAIN_OCTAVES, PERSISTENCE, LACUNARITY
                 );
 
-                tiles[row][col] = classifyTerrainWithoutWater(elevation,
-                        beachThreshold, rockThreshold);
+                // 环境参数
+                double temperature = worldMap.getTemperatureAt(globalX, globalY);
+                double humidity = worldMap.getHumidityAt(globalX, globalY);
+
+                tiles[row][col] = classifyTerrain(
+                        elevation, temperature, humidity, tileMoisture,
+                        biome, rockThreshold);
             }
         }
 
@@ -185,20 +180,243 @@ public class Chunk {
         // ── 第四遍：水边放置水生植被（芦苇/香蒲）──
         placeAquaticVegetation(noise, worldMap);
 
+        // ── 第五遍：区块边界混合（双层级检查）──
+        blendChunkEdges(neighbors, worldMap);
+
         logger.debug("区块 ({}, {}) 生成完成 — 群落: {}", chunkX, chunkY, biome.getName());
     }
 
     /**
-     * 根据高程和阈值分类基底地形（不生成水域和沙滩，由第三遍统一处理）。
+     * 根据高程、温度、湿度和群落参数分类基底地形。
+     *
+     * <p>判定优先级：
+     * <ol>
+     *   <li>高海拔 + 高岩石率 → 石头</li>
+     *   <li>低海拔 + 高湿度 → 泥地</li>
+     *   <li>低海拔 + 中等湿度 → 泥土</li>
+     *   <li>干燥 + 低湿度噪声 → 沙地</li>
+     *   <li>高海拔 + 低温 → 石头（高原冻土）</li>
+     *   <li>默认 → 草地</li>
+     * </ol>
      */
-    private TileType classifyTerrainWithoutWater(double elevation,
-                                                  double beachThreshold,
-                                                  double rockThreshold) {
-        // 第一遍只生成陆地地形（GRASS/STONE），水域和沙滩由第三遍根据排水梯度决定
+    private TileType classifyTerrain(double elevation, double temperature,
+                                      double humidity, double moisture,
+                                      BiomeType biome, double rockThreshold) {
+        // 岩石优先（高海拔 + 群落岩石率）
         if (elevation > rockThreshold) {
             return TileType.STONE;
-        } else {
-            return TileType.GRASS;
+        }
+
+        // 低海拔 + 高湿度 → 泥地（沼泽边缘）
+        if (elevation < -0.10 && humidity > 0.6) {
+            return TileType.MUD;
+        }
+
+        // 低海拔 + 中等湿度 → 泥土地
+        if (elevation < -0.05 && humidity > 0.3) {
+            return humidity > 0.5 ? TileType.MUD : TileType.DIRT;
+        }
+
+        // 干燥环境 → 沙地
+        if (humidity < 0.2 && moisture < -0.15) {
+            return TileType.SAND;
+        }
+
+        // 高海拔 + 低温 → 高原冻土（石头）
+        if (elevation > 0.30 && temperature < 0) {
+            return TileType.STONE;
+        }
+
+        // 默认 → 草地
+        return TileType.GRASS;
+    }
+
+    // ── 边界混合（第五遍） ────────────────────
+
+    /** 方向偏移：上、下、左、右 */
+    private static final int[] BLEND_DIR_DX = {0, 0, -1, 1};
+    private static final int[] BLEND_DIR_DY = {-1, 1, 0, 0};
+
+    /**
+     * 区块边界混合（双层级检查）。
+     *
+     * <p>第一层：检查相邻区块的群落类型（大地图）—— 群落相同则无需混合。
+     * <p>第二层：读取相邻区块边缘瓦片数据（小地图）—— 根据邻居实际瓦片类型决定混合。
+     *
+     * <p>混合宽度 2 格，距离边缘越近受邻居影响越大。
+     * 混合策略：
+     * <ul>
+     *   <li>邻居是 WATER → 本区块边缘概率变为 SAND 过渡</li>
+     *   <li>邻居是 SAND → 本区块边缘概率变为 SAND</li>
+     *   <li>邻居是 STONE → 只在自身也是石头时保持</li>
+     *   <li>邻居是 TREE/BUSH → 如果自身是 GRASS，概率变植被</li>
+     *   <li>邻居是 GRASS/MUD/DIRT → 概率混合为邻居类型</li>
+     * </ul>
+     */
+    private void blendChunkEdges(Chunk[][] neighbors, WorldMap worldMap) {
+        if (neighbors == null) return;
+
+        int blendWidth = 2;
+
+        // 4 个方向：上(-Y)、下(+Y)、左(-X)、右(+X)
+        for (int dir = 0; dir < 4; dir++) {
+            int ny = 2 + BLEND_DIR_DY[dir];
+            int nx = 2 + BLEND_DIR_DX[dir];
+            if (nx < 0 || nx >= 5 || ny < 0 || ny >= 5) continue;
+
+            Chunk neighbor = neighbors[ny][nx];
+
+            // 第一层：检查群落类型（大地图）
+            if (neighbor == null || !neighbor.generated || neighbor.getBiome() == this.biome) {
+                continue;
+            }
+
+            // 第二层：读取邻居边缘瓦片数据（小地图），进行混合
+            blendWithNeighborTiles(dir, neighbor, blendWidth);
+        }
+    }
+
+    /**
+     * 与相邻区块边缘瓦片进行混合。
+     *
+     * @param dir        方向：0=上, 1=下, 2=左, 3=右
+     * @param neighbor   相邻区块
+     * @param blendWidth 混合宽度（格数）
+     */
+    private void blendWithNeighborTiles(int dir, Chunk neighbor, int blendWidth) {
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 1; j <= blendWidth; j++) {
+                // 从邻居区块获取对应边缘瓦片
+                TileType neighborTile = neighbor.getTileAtEdge(dir, i);
+                if (neighborTile == null) continue;
+
+                // 混合因子：距离边缘越近，受邻居影响越大
+                double blendFactor = (double) (blendWidth + 1 - j) / (blendWidth + 1);
+
+                // 确定当前区块中对应边缘的瓦片坐标
+                int[] selfPos = getEdgeTilePos(dir, i, j - 1);
+                int selfRow = selfPos[0];
+                int selfCol = selfPos[1];
+
+                TileType selfTile = tiles[selfRow][selfCol];
+
+                // 根据邻居瓦片类型决定混合策略
+                TileType blended = blendTile(selfTile, neighborTile, blendFactor, dir);
+                if (blended != null) {
+                    tiles[selfRow][selfCol] = blended;
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取当前区块在指定方向上、距离边缘 offset 格的瓦片。
+     *
+     * @param dir    方向
+     * @param along  沿边缘的位置 (0 ~ SIZE-1)
+     * @param offset 距离边缘的格数（0 = 边缘本身）
+     * @return [row, col]
+     */
+    private int[] getEdgeTilePos(int dir, int along, int offset) {
+        switch (dir) {
+            case 0: return new int[]{offset, along};           // 上边缘
+            case 1: return new int[]{SIZE - 1 - offset, along}; // 下边缘
+            case 2: return new int[]{along, offset};            // 左边缘
+            case 3: return new int[]{along, SIZE - 1 - offset}; // 右边缘
+            default: return new int[]{0, 0};
+        }
+    }
+
+    /**
+     * 根据邻居瓦片类型和混合因子决定当前瓦片的混合结果。
+     *
+     * @param selfTile    当前瓦片
+     * @param neighborTile 邻居瓦片
+     * @param blendFactor  混合因子 (0~1，越大越倾向于采纳邻居类型)
+     * @param dir          方向
+     * @return 混合后的瓦片类型（null 表示不改变）
+     */
+    private TileType blendTile(TileType selfTile, TileType neighborTile,
+                                double blendFactor, int dir) {
+        // 使用确定性哈希决定是否采纳混合
+        int globalX = chunkX * SIZE;
+        int globalY = chunkY * SIZE;
+
+        // 根据混合方向计算实际瓦片的世界坐标
+        int[] pos = getEdgeTilePos(dir, 0, 0); // 简化哈希，用边缘行/列
+        long hash = (long) (globalX + pos[1]) * 374761393L
+                  + (long) (globalY + pos[0]) * 668265263L;
+        hash = (hash ^ (hash >> 13)) * 1274126177L;
+        hash = hash ^ (hash >> 16);
+        double randomVal = (hash & 0x7FFFFFFFL) / (double) 0x7FFFFFFFL;
+
+        // 邻居是水 → 本区块边缘有概率变成沙地过渡
+        if (neighborTile == TileType.WATER) {
+            if (randomVal < blendFactor * 0.6 && selfTile == TileType.GRASS) {
+                return TileType.SAND;
+            }
+            return null;
+        }
+
+        // 邻居是沙滩 → 本区块边缘有概率变成沙滩
+        if (neighborTile == TileType.SAND) {
+            if (randomVal < blendFactor * 0.5 && (selfTile == TileType.GRASS || selfTile == TileType.DIRT)) {
+                return TileType.SAND;
+            }
+            return null;
+        }
+
+        // 邻居是石头 → 只在自身也是石头时保持，否则渐变
+        if (neighborTile == TileType.STONE) {
+            if (selfTile == TileType.GRASS && randomVal < blendFactor * 0.3) {
+                return TileType.STONE;
+            }
+            return null;
+        }
+
+        // 邻居是树木/灌木 → 如果自身是草地，概率变为植被
+        if ((neighborTile == TileType.TREE || neighborTile == TileType.BUSH)
+                && selfTile == TileType.GRASS) {
+            if (randomVal < blendFactor * 0.4) {
+                return neighborTile;
+            }
+            return null;
+        }
+
+        // 邻居是芦苇 → 本区块边缘如果是草地，概率变芦苇
+        if (neighborTile == TileType.REEDS && selfTile == TileType.GRASS) {
+            if (randomVal < blendFactor * 0.2) {
+                return TileType.SAND; // 水边过渡先变沙地
+            }
+            return null;
+        }
+
+        // 邻居是草地/泥地/泥土 → 概率混合为邻居类型
+        if (neighborTile == TileType.MUD || neighborTile == TileType.DIRT) {
+            if (selfTile == TileType.GRASS && randomVal < blendFactor * 0.4) {
+                return neighborTile;
+            }
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * 获取当前区块在指定方向上的边缘瓦片（供邻居区块混合调用）。
+     *
+     * @param dir 方向：0=上, 1=下, 2=左, 3=右
+     * @param i   沿边缘的位置 (0 ~ SIZE-1)
+     * @return 边缘瓦片类型
+     */
+    private TileType getTileAtEdge(int dir, int i) {
+        if (i < 0 || i >= SIZE || tiles == null) return null;
+        switch (dir) {
+            case 0: return tiles[0][i];              // 上边缘
+            case 1: return tiles[SIZE - 1][i];       // 下边缘
+            case 2: return tiles[i][0];               // 左边缘
+            case 3: return tiles[i][SIZE - 1];        // 右边缘
+            default: return null;
         }
     }
 

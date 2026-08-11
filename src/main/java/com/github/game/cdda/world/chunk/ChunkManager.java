@@ -3,8 +3,6 @@ package com.github.game.cdda.world.chunk;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.BiomeType;
 import com.github.game.cdda.world.biome.WorldMap;
-import com.github.game.cdda.world.drainage.DrainageCalculator;
-import com.github.game.cdda.world.drainage.DrainageMap;
 import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
@@ -210,33 +208,17 @@ public class ChunkManager {
     }
 
     /**
-     * 计算排水并生成预加载区域内的所有区块瓦片。
+     * 生成预加载区域内的所有区块。
      *
      * <p>流程：
      * <ol>
-     *   <li>确定预加载区域的瓦片范围</li>
-     *   <li>使用 DrainageCalculator 计算排水图</li>
      *   <li>构建 5×5 邻居区块引用数组</li>
      *   <li>对区域内每个区块调用 generate()，传入邻居引用</li>
      * </ol>
+     *
+     * <p>注意：不再生成 DrainageMap（性能考虑），水域由 WorldMap 直接提供。
      */
     private void computeDrainageAndGenerate(int playerChunkX, int playerChunkY) {
-        // 确定区域范围（预加载区域向外扩展 1 区块，保证排水计算边界正确）
-        int margin = 1;
-        int minChunkX = playerChunkX - preloadRadius - margin;
-        int minChunkY = playerChunkY - preloadRadius - margin;
-        int maxChunkX = playerChunkX + preloadRadius + margin;
-        int maxChunkY = playerChunkY + preloadRadius + margin;
-
-        int minWorldX = minChunkX * Chunk.SIZE;
-        int minWorldY = minChunkY * Chunk.SIZE;
-        int maxWorldX = (maxChunkX + 1) * Chunk.SIZE - 1;
-        int maxWorldY = (maxChunkY + 1) * Chunk.SIZE - 1;
-
-        // 计算排水图
-        DrainageCalculator calculator = new DrainageCalculator(worldMap);
-        DrainageMap drainageMap = calculator.compute(minWorldX, minWorldY, maxWorldX, maxWorldY);
-
         // 构建 5×5 邻居区块引用（用于区块边界混合）
         Chunk[][] neighbors = new Chunk[5][5];
         for (int dy = -2; dy <= 2; dy++) {
@@ -254,7 +236,7 @@ public class ChunkManager {
                 int cy = playerChunkY + dy;
                 Chunk chunk = chunks.get(chunkKey(cx, cy));
                 if (chunk != null) {
-                    chunk.generate(noise, worldMap, drainageMap, neighbors);
+                    chunk.generate(noise, worldMap, neighbors);
                 }
             }
         }

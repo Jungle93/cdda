@@ -3,7 +3,6 @@ package com.github.game.cdda.world.chunk;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.BiomeType;
 import com.github.game.cdda.world.biome.WorldMap;
-import com.github.game.cdda.world.drainage.DrainageMap;
 import com.github.game.cdda.world.vegetation.VegetationDefinition;
 import com.github.game.cdda.world.vegetation.VegetationMap;
 import com.github.game.cdda.world.vegetation.VegetationRegistry;
@@ -76,9 +75,6 @@ public class Chunk {
     /** 植被地图（存储每个瓦片的植被物种 ID） */
     private VegetationMap vegetationMap;
 
-    /** 排水图（generate() 时使用，可为 null 表示使用 WorldMap 水域特征） */
-    private DrainageMap drainageMap;
-
     /** 是否已生成 */
     private boolean generated = false;
 
@@ -102,16 +98,15 @@ public class Chunk {
     /**
      * 根据生物群落参数生成区块地形。
      *
-     * <p>五遍生成：
+     * <p>四遍生成：
      * <ol>
      *   <li><b>高程 + 环境 → 基底地形</b>
      *       局部噪声生成地形起伏，海拔/湿度/温度共同决定地形类型。</li>
      *   <li><b>噪声 → 植被放置</b>
      *       植被密度噪声 + 群落参数（{@code treeDensity}, {@code grassDensity}）
      *       控制树木/草/花的密度和分布，形成聚簇效果。</li>
-     *   <li><b>排水算法 → 湖泊/河流</b>
-     *       查询 {@link DrainageMap} 决定湖泊和河流位置，
-     *       水域出现在低洼湿润区域，跨区块连续自然。</li>
+     *   <li><b>WorldMap 水域特征 → 湖泊/河流</b>
+     *       查询 WorldMap 决定水域位置。</li>
      *   <li><b>水边植被</b>
      *       在水域边缘放置芦苇/香蒲。</li>
      *   <li><b>边界混合</b>
@@ -120,13 +115,10 @@ public class Chunk {
      *
      * @param noise       Perlin 噪声生成器
      * @param worldMap    世界地图（提供环境数据）
-     * @param drainageMap 排水图（可为 null 表示使用 WorldMap 水域特征）
      * @param neighbors   周围 5×5 邻居区块（可为 null）
      */
-    public void generate(PerlinNoise noise, WorldMap worldMap,
-                         DrainageMap drainageMap, Chunk[][] neighbors) {
+    public void generate(PerlinNoise noise, WorldMap worldMap, Chunk[][] neighbors) {
         if (generated) return;
-        this.drainageMap = drainageMap;
         this.tiles = new TileType[SIZE][SIZE];
         this.vegetationMap = new VegetationMap(chunkX, chunkY);
         generated = true;
@@ -566,14 +558,8 @@ public class Chunk {
                 int globalX = chunkX * SIZE + col;
                 int globalY = chunkY * SIZE + row;
 
-                double waterGradient;
-                if (drainageMap != null) {
-                    // 使用排水算法的梯度值（带群落检查）
-                    waterGradient = getWaterGradientWithBiomeCheck(globalX, globalY, worldMap);
-                } else {
-                    // 回退到 WorldMap 水域特征
-                    waterGradient = worldMap.getWaterFeature(globalX, globalY);
-                }
+                // 使用 WorldMap 水域特征
+                double waterGradient = worldMap.getWaterFeature(globalX, globalY);
 
                 // 根据梯度值决定地形
                 if (waterGradient >= 0.6) {
@@ -587,25 +573,10 @@ public class Chunk {
                 }
             }
         }
-        // 调试输出
         if (waterCount > 0 || sandCount > 0) {
-            System.out.printf("Chunk (%d,%d) %s: WATER=%d SAND=%d GRASS=%d drainageMap=%s%n",
-                    chunkX, chunkY, biome.getName(), waterCount, sandCount, grassCount,
-                    drainageMap != null ? "yes" : "no");
+            logger.debug("Chunk ({},{}) {}: WATER={} SAND={} GRASS={}",
+                    chunkX, chunkY, biome.getName(), waterCount, sandCount, grassCount);
         }
-    }
-
-    /**
-     * 获取水域梯度值（带群落检查）。
-     * 干燥群落强制返回 0，确保大地图与小地图一致。
-     */
-    private double getWaterGradientWithBiomeCheck(int worldX, int worldY, WorldMap worldMap) {
-        // 检查群落类型
-        var biome = worldMap.getBiomeAt(worldX, worldY);
-        if (biome.getWaterLevel() <= 0.0f) {
-            return 0.0; // 干燥群落强制无水
-        }
-        return drainageMap.getWaterGradient(worldX, worldY);
     }
 
     /**

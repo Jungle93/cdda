@@ -62,6 +62,30 @@ public class VegetationDefinition {
     /** 砍伐/采集时的掉落物列表 */
     public List<Drop> drops;
 
+    // ── 肥力需求（新增：植物生长系统用） ────────────
+
+    /** 发芽所需最低肥力（0~100，参照现实世界） */
+    public double germinateFertility;
+    /** 幼苗期所需最低肥力 */
+    public double seedlingFertility;
+    /** 生长期所需最低肥力 */
+    public double growingFertility;
+    /** 成熟期所需最低肥力 */
+    public double matureFertility;
+
+    /** 每日肥力消耗量（0~100，每游戏日） */
+    public double dailyFertilityCost;
+
+    /** 幼苗期持续天数（游戏日） */
+    public int seedlingDays;
+    /** 生长期持续天数（游戏日） */
+    public int growingDays;
+    /** 成熟期持续天数（游戏日，之后枯萎） */
+    public int matureLifespanDays;
+
+    /** 每日传播概率（0~1，向相邻空地扩散） */
+    public double spreadProbability;
+
     /**
      * 掉落物定义。
      */

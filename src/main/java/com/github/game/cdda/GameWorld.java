@@ -10,6 +10,7 @@ import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.chunk.ChunkManager;
+import com.github.game.cdda.world.vegetation.PlantGrowthSystem;
 /**
  * 游戏世界（逻辑层）。创建并持有所有游戏子系统，是游戏状态的唯一权威来源。
  *
@@ -46,6 +47,7 @@ public class GameWorld {
     private final CreatureManager creatureManager;
     private final GroundItemManager groundItemManager;
     private final EnergyFlowManager energyFlowManager;
+    private final PlantGrowthSystem plantGrowthSystem;
 
     // ── 玩家 ──────────────────────────────────
     private final Player player;
@@ -59,7 +61,7 @@ public class GameWorld {
      */
     public GameWorld(WorldSettings settings, Month startMonth, int startHour) {
         // 0) 世界地图（大地图 — 生物群落分布）
-        worldMap = new WorldMap(settings.getSeed());
+        worldMap = new WorldMap(settings.getSeed(), settings.getGradients());
 
         // 1) 地图数据（小地图 — 由世界地图驱动区块生成）
         chunkManager = new ChunkManager(settings.getSeed(), Constants.DEFAULT_PRELOAD_RADIUS, worldMap);
@@ -91,6 +93,9 @@ public class GameWorld {
         // 7.5) 能量流动系统
         energyFlowManager = new EnergyFlowManager();
         creatureManager.setEnergyFlowManager(energyFlowManager);
+
+        // 8) 植物生长系统
+        plantGrowthSystem = new PlantGrowthSystem(chunkManager);
 
         // 8) 连接区块管理器与生物管理器（新区块加载时触发新生物生成）
         chunkManager.setCreatureManager(creatureManager);
@@ -185,10 +190,35 @@ public class GameWorld {
     public CreatureManager getCreatureManager() { return creatureManager; }
     public GroundItemManager getGroundItemManager() { return groundItemManager; }
     public EnergyFlowManager getEnergyFlowManager() { return energyFlowManager; }
+    public PlantGrowthSystem getPlantGrowthSystem() { return plantGrowthSystem; }
     public Player getPlayer() { return player; }
+
+    /**
+     * 请求更新植物生长系统（异步，立即返回）。
+     * 后台线程执行计算，变更放入队列。
+     * 必须在主线程调用 {@link #applyPendingPlantGrowthMutations()} 应用变更。
+     */
+    public void updatePlantGrowth() {
+        long totalSeconds = gameTime.getTotalSeconds();
+        if (totalSeconds <= 0) return;
+
+        // 更新玩家位置（用于区块遍历）
+        plantGrowthSystem.setPlayerPosition(player.getTileX(), player.getTileY());
+        plantGrowthSystem.requestUpdate(totalSeconds);
+    }
+
+    /**
+     * 应用待处理的植物生长变更（必须在主线程/EDT 调用）。
+     * @return 应用的变更数量
+     */
+    public int applyPendingPlantGrowthMutations() {
+        return plantGrowthSystem.applyPendingMutations();
+    }
 
     /** 清理资源（游戏退出时调用） */
     public void dispose() {
+        creatureManager.shutdown();
+        plantGrowthSystem.shutdown();
         chunkManager.shutdown();
     }
 }

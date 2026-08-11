@@ -1,5 +1,6 @@
 package com.github.game.cdda.world.biome;
 
+import com.github.game.cdda.game.DirectionalGradients;
 import com.github.game.cdda.world.chunk.Chunk;
 import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
@@ -87,6 +88,9 @@ public class WorldMap {
     /** 世界种子 */
     private final long worldSeed;
 
+    /** 方向梯度配置（默认 ~2000 区块尺度） */
+    private final DirectionalGradients gradients;
+
     /** 高程噪声生成器 */
     private final PerlinNoise elevationNoise;
     /** 湿度噪声生成器 */
@@ -105,13 +109,24 @@ public class WorldMap {
      * @param worldSeed 世界种子（决定地图布局）
      */
     public WorldMap(long worldSeed) {
+        this(worldSeed, DirectionalGradients.DEFAULT);
+    }
+
+    /**
+     * 创建世界地图。
+     *
+     * @param worldSeed  世界种子（决定地图布局）
+     * @param gradients  方向梯度配置（null 时使用默认梯度）
+     */
+    public WorldMap(long worldSeed, DirectionalGradients gradients) {
         this.worldSeed = worldSeed;
+        this.gradients = gradients != null ? gradients : DirectionalGradients.DEFAULT;
         // 每个噪声层使用不同种子偏移，保证独立性
         this.elevationNoise = new PerlinNoise(worldSeed);
         this.moistureNoise = new PerlinNoise(worldSeed + 0x9E3779B97F4A7C15L);
         this.temperatureNoise = new PerlinNoise(worldSeed + 0x517CC1B727220A95L);
         this.riverNoise = new PerlinNoise(worldSeed + 0x3C6EF372FE94F82BL);
-        logger.info("世界地图初始化 — 种子: {}", worldSeed);
+        logger.info("世界地图初始化 — 种子: {}, 梯度: {}", worldSeed, this.gradients);
     }
 
     /**
@@ -180,6 +195,11 @@ public class WorldMap {
                 centerX * TEMPERATURE_FREQ + 1000.0,
                 centerY * TEMPERATURE_FREQ + 1000.0,
                 OCTAVES, PERSISTENCE, LACUNARITY);
+
+        // ── 方向梯度偏移 ──
+        elevation += gradients.getElevationOffset(chunkY);
+        temperature += gradients.getTemperatureOffset(chunkX, chunkY);
+        moisture += gradients.getMoistureOffset(chunkX);
 
         // ── 分类 ──
 
@@ -361,7 +381,8 @@ public class WorldMap {
 
     /**
      * 获取指定世界瓦片坐标的环境温度 (°C)。
-     * 基于温度噪声 + 海拔修正（每升高 1 单位高程降温约 6.5°C）。
+     * 基于温度噪声 + 海拔修正（每升高 1 单位高程降温约 6.5°C）
+     * + 方向梯度偏移（北冷南热、西暖东凉）。
      *
      * @param worldTileX 世界瓦片 X 坐标
      * @param worldTileY 世界瓦片 Y 坐标
@@ -379,7 +400,12 @@ public class WorldMap {
         double elevation = getElevationAt(worldTileX, worldTileY);
         double elevationPenalty = Math.max(0, elevation) * 6.5; // 每单位高程降 6.5°C
 
-        return baseTemp - elevationPenalty;
+        // 方向梯度偏移
+        int chunkX = Math.floorDiv(worldTileX, Chunk.SIZE);
+        int chunkY = Math.floorDiv(worldTileY, Chunk.SIZE);
+        double gradientOffset = gradients.getTemperatureOffset(chunkX, chunkY) * 100.0;
+
+        return baseTemp - elevationPenalty + gradientOffset;
     }
 
     /**
@@ -410,7 +436,8 @@ public class WorldMap {
 
     /**
      * 获取指定世界瓦片坐标的湿度 (0-1)。
-     * 将原始湿度噪声值 (-1 ~ 1) 归一化到 0-1 范围。
+     * 将原始湿度噪声值 (-1 ~ 1) 归一化到 0-1 范围，
+     * + 方向梯度偏移（东湿西干）。
      *
      * @param worldTileX 世界瓦片 X 坐标
      * @param worldTileY 世界瓦片 Y 坐标
@@ -418,6 +445,11 @@ public class WorldMap {
      */
     public double getHumidityAt(int worldTileX, int worldTileY) {
         double moisture = getMoistureAt(worldTileX, worldTileY);
+
+        // 方向梯度偏移
+        int chunkX = Math.floorDiv(worldTileX, Chunk.SIZE);
+        moisture += gradients.getMoistureOffset(chunkX);
+
         // 噪声值约 -1 ~ 1，归一化到 0 ~ 1
         return Math.max(0.0, Math.min(1.0, (moisture + 1.0) * 0.5));
     }

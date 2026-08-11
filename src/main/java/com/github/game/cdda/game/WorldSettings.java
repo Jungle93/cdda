@@ -13,6 +13,8 @@ public class WorldSettings {
     private int mapWidth;
     /** 地图高度（瓦片数） */
     private int mapHeight;
+    /** 方向梯度（默认 ~2000 区块尺度） */
+    private DirectionalGradients gradients = DirectionalGradients.DEFAULT;
 
     /** 创建默认世界设置 */
     public WorldSettings() {
@@ -26,6 +28,7 @@ public class WorldSettings {
         this.seed = other.seed;
         this.mapWidth = other.mapWidth;
         this.mapHeight = other.mapHeight;
+        this.gradients = other.gradients;
     }
 
     // ── 访问器 ──────────────────────────────────────
@@ -38,4 +41,7 @@ public class WorldSettings {
 
     public int getMapHeight() { return mapHeight; }
     public void setMapHeight(int mapHeight) { this.mapHeight = mapHeight; }
+
+    public DirectionalGradients getGradients() { return gradients; }
+    public void setGradients(DirectionalGradients gradients) { this.gradients = gradients; }
 }

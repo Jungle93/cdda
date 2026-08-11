@@ -14,5 +14,14 @@
   "drops": [
     { "itemId": "gorse_branch", "minCount": 1, "maxCount": 2, "chance": 0.9 },
     { "itemId": "dried_branch", "minCount": 0, "maxCount": 1, "chance": 0.5 }
-  ]
+  ],
+  "germinateFertility": 15.0,
+  "seedlingFertility": 12.0,
+  "growingFertility": 18.0,
+  "matureFertility": 8.0,
+  "dailyFertilityCost": 0.8,
+  "seedlingDays": 7,
+  "growingDays": 15,
+  "matureLifespanDays": 180,
+  "spreadProbability": 0.01
 }

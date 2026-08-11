@@ -417,6 +417,29 @@ public class ChunkManager {
     }
 
     /**
+     * 获取指定世界瓦片坐标的土壤肥力值。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 肥力值（0~100），区块未加载返回 0
+     */
+    public double getSoilFertility(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        if (chunk == null || chunk.getSoilFertility() == null) return 0.0;
+
+        int localCol = floorMod(worldTileX, Chunk.SIZE);
+        int localRow = floorMod(worldTileY, Chunk.SIZE);
+        return chunk.getSoilFertility().getFertility(localCol, localRow);
+    }
+
+    /**
+     * 获取指定区块的预加载半径（供 PlantGrowthSystem 遍历使用）。
+     */
+
+    /**
      * 获取待生成区块数（调试用）。
      */
     public int getPendingGenerationCount() {

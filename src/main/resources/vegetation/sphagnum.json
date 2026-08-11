@@ -14,5 +14,14 @@
   "drops": [
     { "itemId": "sphagnum_moss", "minCount": 1, "maxCount": 1, "chance": 0.9 },
     { "itemId": "peat", "minCount": 0, "maxCount": 1, "chance": 0.3 }
-  ]
+  ],
+  "germinateFertility": 5.0,
+  "seedlingFertility": 5.0,
+  "growingFertility": 8.0,
+  "matureFertility": 3.0,
+  "dailyFertilityCost": 0.3,
+  "seedlingDays": 2,
+  "growingDays": 3,
+  "matureLifespanDays": 30,
+  "spreadProbability": 0.08
 }

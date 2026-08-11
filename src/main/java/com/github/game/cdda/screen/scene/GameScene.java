@@ -176,6 +176,12 @@ public class GameScene extends Scene {
                 player.getWorldX(), player.getWorldY(),
                 player.getPixelWidth(), player.getPixelHeight()
         );
+
+        // 3) 应用植物生长后台计算结果（每帧调用，批量执行变更）
+        world.applyPendingPlantGrowthMutations();
+
+        // 4) 应用生物回合后台计算结果（出生、死亡、迁徙）
+        creatureManager.applyPendingCreatureMutations();
     }
 
     @Override
@@ -324,9 +330,10 @@ public class GameScene extends Scene {
             metabolismManager.update();
             hydrationManager.addAction(Constants.ADD_THIRST_COMBAT);
             hydrationManager.update();
-            // 处理生物回合
-            processCreatureTurns();
+            // 处理生物回合（异步，立即返回）
+            requestCreatureTurns();
             turnManager.processRound();
+            world.updatePlantGrowth();
             return;
         }
 
@@ -338,9 +345,10 @@ public class GameScene extends Scene {
             metabolismManager.update();
             hydrationManager.addAction(Constants.ADD_THIRST_WALK);
             hydrationManager.update();
-            // 处理生物回合
-            processCreatureTurns();
+            // 处理生物回合（异步，立即返回）
+            requestCreatureTurns();
             turnManager.processRound();
+            world.updatePlantGrowth();
         }
     }
 
@@ -359,8 +367,9 @@ public class GameScene extends Scene {
     public boolean handleWait(int keyCode) {
         if (keyCode == KeyEvent.VK_5) {
             turnManager.addAction(player, Constants.WAIT_BASE_TIME);
-            processCreatureTurns();
+            requestCreatureTurns();
             turnManager.processRound();
+            world.updatePlantGrowth();
             metabolismManager.addActionCost(0);
             metabolismManager.update();
             hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
@@ -371,12 +380,13 @@ public class GameScene extends Scene {
         if (keyCode == KeyEvent.VK_MINUS || keyCode == KeyEvent.VK_SUBTRACT) {
             for (int i = 0; i < 10; i++) {
                 turnManager.addAction(player, Constants.WAIT_BASE_TIME);
-                processCreatureTurns();
+                requestCreatureTurns();
                 metabolismManager.update();
                 hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
                 hydrationManager.update();
             }
             turnManager.processRound();
+            world.updatePlantGrowth();
             GameLog.getInstance().log("持续等待了10回合...");
             return true;
         }
@@ -753,14 +763,15 @@ public class GameScene extends Scene {
     // ── 生物回合处理 ──────────────────────────────────
 
     /**
-     * 处理所有生物的回合。
-     * 创建行动上下文并委托给 CreatureManager。
+     * 请求处理所有生物的回合（异步，立即返回）。
+     * 创建行动上下文并提交到 CreatureManager 的后台线程。
+     * 实际变更通过 {@link CreatureManager#applyPendingCreatureMutations()} 在每帧应用。
      */
-    private void processCreatureTurns() {
+    private void requestCreatureTurns() {
         int tileW = tileMap.getTileWidth();
         int tileH = tileMap.getTileHeight();
         CreatureActionContext context = new CreatureActionContext(player, chunkManager, tileW, tileH);
         context.setCreatureManager(creatureManager);
-        creatureManager.processCreatureTurns(context);
+        creatureManager.requestTurnProcessing(context);
     }
 }

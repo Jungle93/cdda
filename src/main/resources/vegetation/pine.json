@@ -15,5 +15,14 @@
     { "itemId": "pine_log", "minCount": 1, "maxCount": 2, "chance": 1.0 },
     { "itemId": "dried_branch", "minCount": 1, "maxCount": 2, "chance": 0.7 },
     { "itemId": "pine_cone", "minCount": 0, "maxCount": 2, "chance": 0.5 }
-  ]
+  ],
+  "germinateFertility": 25.0,
+  "seedlingFertility": 20.0,
+  "growingFertility": 30.0,
+  "matureFertility": 10.0,
+  "dailyFertilityCost": 1.5,
+  "seedlingDays": 15,
+  "growingDays": 30,
+  "matureLifespanDays": 365,
+  "spreadProbability": 0.005
 }

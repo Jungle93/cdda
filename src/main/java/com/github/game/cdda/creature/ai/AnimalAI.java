@@ -330,11 +330,10 @@ public class AnimalAI {
         Animal nearest = null;
         int nearestDist = Integer.MAX_VALUE;
 
-        List<Creature> creatures = context.getCreatureManager().getCreatures();
-        for (Creature c : creatures) {
-            if (!c.isAlive() || c == predator) continue;
-            if (!(c instanceof Animal)) continue;
-            Animal other = (Animal) c;
+        // 使用快照列表（后台线程注入），仅遍历存活动物
+        List<Animal> animals = context.getTurnSnapshot();
+        for (Animal other : animals) {
+            if (!other.isAlive() || other == predator) continue;
 
             // 检查是否是可捕食的营养级
             if (!predatorLevel.canPreyOn(other.getDefinition().getTrophicLevel())) {

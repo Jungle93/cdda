@@ -11,5 +11,14 @@
   "probability": 0.95,
   "minClusterSize": 4,
   "maxClusterSize": 10,
-  "drops": []
+  "drops": [],
+  "germinateFertility": 5.0,
+  "seedlingFertility": 5.0,
+  "growingFertility": 8.0,
+  "matureFertility": 3.0,
+  "dailyFertilityCost": 0.3,
+  "seedlingDays": 2,
+  "growingDays": 3,
+  "matureLifespanDays": 30,
+  "spreadProbability": 0.08
 }

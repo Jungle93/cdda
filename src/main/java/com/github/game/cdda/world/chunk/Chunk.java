@@ -6,6 +6,7 @@ import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.vegetation.VegetationDefinition;
 import com.github.game.cdda.world.vegetation.VegetationMap;
 import com.github.game.cdda.world.vegetation.VegetationRegistry;
+import com.github.game.cdda.world.vegetation.VegetationState;
 import com.github.game.cdda.world.vegetation.VegetationType;
 import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
@@ -72,8 +73,11 @@ public class Chunk {
     /** 瓦片数据 [row][col]（generate() 调用后初始化） */
     private TileType[][] tiles;
 
-    /** 植被地图（存储每个瓦片的植被物种 ID） */
+    /** 植被地图（存储每个瓦片的植被物种 ID 和生长状态） */
     private VegetationMap vegetationMap;
+
+    /** 土壤肥力地图（存储每个瓦片的肥力值） */
+    private SoilFertility soilFertility;
 
     /** 是否已生成 */
     private boolean generated = false;
@@ -121,6 +125,7 @@ public class Chunk {
         if (generated) return;
         this.tiles = new TileType[SIZE][SIZE];
         this.vegetationMap = new VegetationMap(chunkX, chunkY);
+        this.soilFertility = new SoilFertility(chunkX, chunkY, biome);
         generated = true;
 
         // 群落基数参数
@@ -732,6 +737,15 @@ public class Chunk {
     }
 
     /**
+     * 获取土壤肥力地图。
+     *
+     * @return 土壤肥力地图（generate() 调用后可用）
+     */
+    public SoilFertility getSoilFertility() {
+        return soilFertility;
+    }
+
+    /**
      * 获取局部坐标处的植被物种 ID。
      *
      * @param localCol 局部列号
@@ -745,6 +759,7 @@ public class Chunk {
 
     /**
      * 清除局部坐标处的植被（砍伐后调用）。
+     * 同时清除物种 ID 和生长状态。
      *
      * @param localCol 局部列号
      * @param localRow 局部行号
@@ -753,5 +768,22 @@ public class Chunk {
         if (vegetationMap != null) {
             vegetationMap.clear(localCol, localRow);
         }
+    }
+
+    /**
+     * 设置局部坐标处的生长状态。
+     */
+    public void setGrowthState(int localCol, int localRow, VegetationState state) {
+        if (vegetationMap != null) {
+            vegetationMap.setGrowthState(localCol, localRow, state);
+        }
+    }
+
+    /**
+     * 获取局部坐标处的生长状态。
+     */
+    public VegetationState getGrowthState(int localCol, int localRow) {
+        if (vegetationMap == null) return null;
+        return vegetationMap.getGrowthState(localCol, localRow);
     }
 }

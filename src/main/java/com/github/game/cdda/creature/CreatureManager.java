@@ -23,6 +23,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 生物管理器。
@@ -30,7 +34,8 @@ import java.util.Set;
  *
  * <p>核心机制：
  * <ul>
- *   <li><b>区块加载生成</b> — 新区块生成时按概率生成新生物</li>
+ *   <li><b>空间索引</b> — CreatureGrid 提供 O(1) 位置查询，替代 O(N) 全列表扫描</li>
+ *   <li><b>回合异步化</b> — AI 回合在后台线程计算，EDT 每帧应用变更</li>
  *   <li><b>现实气泡</b> — 气泡内生物活跃，气泡外静止（但保留）</li>
  *   <li><b>繁殖</b> — 成熟生物按概率繁殖后代，受密度限制</li>
  * </ul>
@@ -39,8 +44,11 @@ public class CreatureManager {
 
     private static final Logger logger = LoggerFactory.getLogger(CreatureManager.class);
 
-    /** 所有生物列表 */
+    /** 所有生物列表（向后兼容遍历） */
     private final List<Creature> creatures = new ArrayList<>();
+
+    /** 空间索引（快速查询） */
+    private final CreatureGrid creatureGrid = new CreatureGrid();
 
     /** 地图管理器 */
     private final ChunkManager chunkManager;
@@ -63,7 +71,7 @@ public class CreatureManager {
     /** 现实气泡中心瓦片 X（-1 表示未设置，所有生物活跃） */
     private int bubbleCenterX = -1;
     /** 现实气泡中心瓦片 Y */
-    private int bubbleCenterY = -1;
+    private int bubbleCenterY = 0;
     /** 现实气泡激活半径（瓦片数，曼哈顿距离） */
     private static final int BUBBLE_RADIUS = 40;
 
@@ -87,6 +95,22 @@ public class CreatureManager {
     /** 同物种密度上限（附近 5 格内） */
     private static final int MAX_NEARBY_SAME_SPECIES = 4;
 
+    // ═══════════════════════════════════════════════
+    // 异步回合处理
+    // ═══════════════════════════════════════════════
+
+    /** 后台 AI 计算线程池 */
+    private final ExecutorService turnExecutor;
+
+    /** 变更队列（后台写入 → EDT 读取） */
+    private final ConcurrentLinkedQueue<CreatureMutation> mutationQueue = new ConcurrentLinkedQueue<>();
+
+    /** 是否有后台回合计算正在运行 */
+    private final AtomicBoolean computingTurns = new AtomicBoolean(false);
+
+    /** 上次请求回合处理时的回合数（防止重复提交） */
+    private volatile int lastRequestedRound = -1;
+
     /**
      * 创建生物管理器。
      *
@@ -96,73 +120,50 @@ public class CreatureManager {
     public CreatureManager(ChunkManager chunkManager, com.github.game.cdda.TurnManager turnManager) {
         this.chunkManager = chunkManager;
         this.turnManager = turnManager;
+        this.turnExecutor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "creature-ai");
+            t.setDaemon(true);
+            t.setPriority(Thread.NORM_PRIORITY - 1);
+            return t;
+        });
     }
 
-    /**
-     * 设置地面物品管理器（用于生物死亡掉落）。
-     * 由 GameWorld 在构造时调用。
-     *
-     * @param groundItemManager 地面物品管理器
-     */
+    // ═══════════════════════════════════════════════
+    // 依赖注入
+    // ═══════════════════════════════════════════════
+
     public void setGroundItemManager(GroundItemManager groundItemManager) {
         this.groundItemManager = groundItemManager;
     }
 
-    /**
-     * 设置能量流动管理器。
-     * 由 GameWorld 在构造时调用。
-     *
-     * @param energyFlowManager 能量流动管理器
-     */
     public void setEnergyFlowManager(EnergyFlowManager energyFlowManager) {
         this.energyFlowManager = energyFlowManager;
     }
 
-    /**
-     * 获取能量流动管理器。
-     */
     public EnergyFlowManager getEnergyFlowManager() {
         return energyFlowManager;
     }
 
-    /**
-     * 更新现实气泡中心位置。
-     * 气泡内的生物活跃（正常行动），气泡外的生物静止（跳过回合）。
-     * 在玩家跨越区块边界时调用。
-     *
-     * @param centerTileX 气泡中心瓦片 X（玩家位置）
-     * @param centerTileY 气泡中心瓦片 Y（玩家位置）
-     */
+    // ═══════════════════════════════════════════════
+    // 现实气泡
+    // ═══════════════════════════════════════════════
+
     public void updateBubble(int centerTileX, int centerTileY) {
         this.bubbleCenterX = centerTileX;
         this.bubbleCenterY = centerTileY;
     }
 
-    /**
-     * 判断生物是否在现实气泡内（活跃范围内）。
-     * 未设置气泡中心时，所有生物视为活跃。
-     *
-     * @param creature 待检查的生物
-     * @return true 如果在气泡内或未设置气泡
-     */
     private boolean isInBubble(Creature creature) {
-        if (bubbleCenterX < 0) return true; // 未设置气泡，所有活跃
+        if (bubbleCenterX < 0) return true;
         int dist = Math.abs(creature.getTileX() - bubbleCenterX)
                  + Math.abs(creature.getTileY() - bubbleCenterY);
         return dist <= BUBBLE_RADIUS;
     }
 
-    // ── 区块加载生成 ──────────────────────────────────
+    // ═══════════════════════════════════════════════
+    // 区块加载生成
+    // ═══════════════════════════════════════════════
 
-    /**
-     * 新区块生成后调用，按概率在其中生成生物。
-     * 已在 {@link #spawnedChunks} 中记录的区块不会重复生成。
-     *
-     * @param minChunkX 区域最小区块 X
-     * @param minChunkY 区域最小区块 Y
-     * @param maxChunkX 区域最大区块 X
-     * @param maxChunkY 区域最大区块 Y
-     */
     public void onChunksGenerated(int minChunkX, int minChunkY, int maxChunkX, int maxChunkY) {
         int spawned = 0;
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
@@ -170,13 +171,10 @@ public class CreatureManager {
                 long key = chunkKey(cx, cy);
                 if (spawnedChunks.contains(key)) continue;
 
-                // 标记为已处理
                 spawnedChunks.add(key);
 
-                // 概率触发
                 if (random.nextFloat() >= CHUNK_LOAD_SPAWN_CHANCE) continue;
 
-                // 生成 1 ~ CHUNK_LOAD_MAX_CREATURES 个生物
                 int count = 1 + random.nextInt(CHUNK_LOAD_MAX_CREATURES);
                 for (int i = 0; i < count; i++) {
                     if (spawnCreatureInChunk(cx, cy)) {
@@ -190,17 +188,11 @@ public class CreatureManager {
         }
     }
 
-    /**
-     * 在指定区块生成单个生物。
-     *
-     * @return true 如果成功生成
-     */
     private boolean spawnCreatureInChunk(int chunkX, int chunkY) {
         int chunkSize = Chunk.SIZE;
         int baseTileX = chunkX * chunkSize;
         int baseTileY = chunkY * chunkSize;
 
-        // 尝试多次找到可通行位置
         for (int attempt = 0; attempt < 10; attempt++) {
             int tileX = baseTileX + random.nextInt(chunkSize);
             int tileY = baseTileY + random.nextInt(chunkSize);
@@ -219,14 +211,6 @@ public class CreatureManager {
         return false;
     }
 
-    /**
-     * 生成初始生物（世界创建时调用）。
-     * 在玩家周围一定范围内生成生物。
-     *
-     * @param centerTileX 中心瓦片 X（玩家位置）
-     * @param centerTileY 中心瓦片 Y（玩家位置）
-     * @param radiusChunks 半径（区块数）
-     */
     public void spawnInitialCreatures(int centerTileX, int centerTileY, int radiusChunks) {
         int chunkSize = Chunk.SIZE;
         int centerChunkX = Math.floorDiv(centerTileX, chunkSize);
@@ -242,15 +226,11 @@ public class CreatureManager {
         logger.info("初始生物生成完成，共 {} 个生物", creatures.size());
     }
 
-    /**
-     * 在指定区块生成初始生物（较高概率）。
-     */
     private void spawnCreaturesInChunkInitial(int chunkX, int chunkY) {
         int chunkSize = Chunk.SIZE;
         int baseTileX = chunkX * chunkSize;
         int baseTileY = chunkY * chunkSize;
 
-        // 随机决定生成数量
         int count = 0;
         for (int i = 0; i < MAX_CREATURES_PER_CHUNK; i++) {
             if (random.nextFloat() < INITIAL_SPAWN_CHANCE) {
@@ -258,9 +238,7 @@ public class CreatureManager {
             }
         }
 
-        // 生成指定数量的生物
         for (int i = 0; i < count; i++) {
-            // 随机位置（尝试多次）
             for (int attempt = 0; attempt < 10; attempt++) {
                 int tileX = baseTileX + random.nextInt(chunkSize);
                 int tileY = baseTileY + random.nextInt(chunkSize);
@@ -279,27 +257,16 @@ public class CreatureManager {
         }
     }
 
-    /**
-     * 将区块坐标转为 long key（与 ChunkManager 一致）。
-     */
     private static long chunkKey(int cx, int cy) {
         return ((long) cx << 32) | (cy & 0xFFFFFFFFL);
     }
 
-    /**
-     * 注入能量流动管理器到新创建的动物。
-     */
     private void injectEnergyFlowManager(Animal animal) {
         if (energyFlowManager != null) {
             animal.setEnergyFlowManager(energyFlowManager);
         }
     }
 
-    /**
-     * 随机获取一个生物定义。
-     *
-     * @return 生物定义，或 null
-     */
     private CreatureDefinition getRandomCreatureDefinition() {
         Collection<CreatureDefinition> all = CreatureRegistry.getAll();
         if (all.isEmpty()) return null;
@@ -313,98 +280,236 @@ public class CreatureManager {
         return null;
     }
 
-    /**
-     * 添加生物。
-     *
-     * @param creature 生物实例
-     */
+    // ═══════════════════════════════════════════════
+    // 添加/移除生物（同步更新空间索引）
+    // ═══════════════════════════════════════════════
+
     public void addCreature(Creature creature) {
         if (creature == null) return;
         creatures.add(creature);
-        // 注册到回合系统
+        creatureGrid.add(creature);
         turnManager.addEntity(creature);
     }
 
-    /**
-     * 移除生物。
-     *
-     * @param creature 生物实例
-     */
     public void removeCreature(Creature creature) {
         creatures.remove(creature);
+        creatureGrid.remove(creature);
         turnManager.removeEntity(creature);
     }
 
-    // ── 回合处理（含繁殖） ──────────────────────────────────
+    // ═══════════════════════════════════════════════
+    // 异步回合处理
+    // ═══════════════════════════════════════════════
 
     /**
-     * 处理所有生物的回合（玩家行动后调用）。
-     * 气泡内生物正常行动 + 繁殖检查；气泡外生物只按间隔做繁殖检查。
+     * 请求处理生物回合（异步，立即返回）。
+     * 后台线程执行 AI，变更放入队列。
+     * EDT 通过 {@link #applyPendingCreatureMutations()} 应用。
      *
-     * @param context 行动上下文
+     * @param context 行动上下文（提供玩家位置等信息）
      */
-    public void processCreatureTurns(CreatureActionContext context) {
+    public void requestTurnProcessing(CreatureActionContext context) {
         int currentRound = turnManager.getCurrentRound();
-        boolean doOutOfBubbleReproduction =
-                currentRound - lastReproductionCheckRound >= OUT_OF_BUBBLE_CHECK_INTERVAL;
+        if (currentRound <= 0) return;
 
-        // 收集新出生的生物（避免在遍历中修改列表）
+        // 防止重复提交同一回合
+        if (currentRound == lastRequestedRound) return;
+
+        // 如果上次计算还没完成，跳过（避免队列堆积）
+        if (!computingTurns.compareAndSet(false, true)) return;
+
+        lastRequestedRound = currentRound;
+
+        final int round = currentRound;
+        final int lastRepro = lastReproductionCheckRound;
+        final long lastReproInterval = OUT_OF_BUBBLE_CHECK_INTERVAL;
+        final int bx = bubbleCenterX;
+        final int by = bubbleCenterY;
+        final int bubbleR = BUBBLE_RADIUS;
+
+        // 快照当前存活生物列表（后台线程只读这份快照）
+        final List<Animal> snapshot = snapshotAliveAnimals();
+
+        turnExecutor.submit(() -> {
+            try {
+                computeTurns(snapshot, context, round, lastRepro, lastReproInterval, bx, by, bubbleR);
+            } finally {
+                computingTurns.set(false);
+            }
+        });
+    }
+
+    /**
+     * 快照当前存活动物列表（用于后台线程安全计算）。
+     */
+    private List<Animal> snapshotAliveAnimals() {
+        List<Animal> result = new ArrayList<>(creatures.size());
+        for (Creature c : creatures) {
+            if (c.isAlive() && c instanceof Animal) {
+                result.add((Animal) c);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 后台计算：执行所有生物的回合。
+     */
+    private void computeTurns(List<Animal> animals, CreatureActionContext context,
+                              int currentRound, int lastReproductionCheckRound,
+                              long checkInterval, int bubbleCenterX, int bubbleCenterY,
+                              int bubbleRadius) {
+        // 注入快照（AI 的 findNearestPrey 使用此快照而非全列表扫描）
+        context.setTurnSnapshot(animals);
+
         List<Animal> newborns = new ArrayList<>();
+        boolean doOutOfBubbleReproduction =
+                currentRound - lastReproductionCheckRound >= checkInterval;
 
-        for (Creature creature : creatures) {
-            if (!creature.isAlive()) continue;
-            if (!(creature instanceof Animal)) continue;
-            Animal animal = (Animal) creature;
+        for (Animal animal : animals) {
+            if (!animal.isAlive()) continue;
 
-            if (isInBubble(animal)) {
-                // 气泡内：正常 AI + 每回合检查繁殖
+            boolean inBubble;
+            if (bubbleCenterX < 0) {
+                inBubble = true;
+            } else {
+                int dist = Math.abs(animal.getTileX() - bubbleCenterX)
+                         + Math.abs(animal.getTileY() - bubbleCenterY);
+                inBubble = dist <= bubbleRadius;
+            }
+
+            if (inBubble) {
+                // 气泡内：检查能量并执行 AI
                 if (turnManager.canAct(animal)) {
                     animal.takeTurn(context);
                     animal.spendEnergy(com.github.game.cdda.TurnManager.ENERGY_PER_ACTION);
                 }
+                // 繁殖检查
                 Animal baby = tryReproduce(animal, currentRound);
                 if (baby != null) newborns.add(baby);
             } else if (doOutOfBubbleReproduction) {
-                // 气泡外：按间隔检查繁殖（模拟时间流逝）
+                // 气泡外：仅繁殖检查
                 Animal baby = tryReproduce(animal, currentRound);
                 if (baby != null) newborns.add(baby);
             }
         }
 
-        // 添加新出生的生物
+        // 出生变更
         for (Animal baby : newborns) {
-            injectEnergyFlowManager(baby);
-            addCreature(baby);
+            mutationQueue.add(CreatureMutation.birth(baby));
         }
 
-        // 更新全局检查标记
-        if (doOutOfBubbleReproduction) {
-            lastReproductionCheckRound = currentRound;
-        }
-
-        // 清理死亡生物，掉落战利品
-        creatures.removeIf(c -> {
-            if (!c.isAlive()) {
-                turnManager.removeEntity(c);
-                dropCreatureLoot(c);
-                return true;
+        // 死亡变更 + 掉落
+        for (Animal animal : animals) {
+            if (!animal.isAlive()) {
+                dropCreatureLoot(animal);
+                mutationQueue.add(CreatureMutation.death(animal));
             }
-            return false;
-        });
+        }
 
-        // 能量流动更新（每回合调用）
+        // 能量流动更新
         if (energyFlowManager != null) {
             energyFlowManager.processDecay();
             energyFlowManager.updateVegetationBoosts();
-            // 迁徙触发：检查玩家附近区块是否应生成捕食者
             processMigrationSpawning(context);
         }
     }
 
     /**
-     * 处理迁徙触发：食物丰富的区块有概率生成上层捕食者。
-     * 每 100 回合检查一次玩家所在区块。
+     * 应用所有待处理的生物变更（必须在主线程/EDT 调用）。
+     *
+     * @return 应用的变更数量
      */
+    public int applyPendingCreatureMutations() {
+        int count = 0;
+        CreatureMutation mutation;
+        while ((mutation = mutationQueue.poll()) != null) {
+            applyCreatureMutation(mutation);
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * 应用单条生物变更。
+     */
+    private void applyCreatureMutation(CreatureMutation m) {
+        switch (m.type) {
+            case BIRTH -> {
+                Animal baby = (Animal) m.creature;
+                injectEnergyFlowManager(baby);
+                addCreature(baby);
+                GameLog.getInstance().log(String.format("一只%s繁殖了后代！",
+                        baby.getDefinition().name));
+            }
+            case DEATH -> {
+                removeCreature(m.creature);
+            }
+            case MIGRATION -> {
+                Animal migrant = (Animal) m.creature;
+                injectEnergyFlowManager(migrant);
+                addCreature(migrant);
+                GameLog.getInstance().log(String.format("迁徙触发: 一只%s来到了这个区域！",
+                        migrant.getDefinition().name));
+                logger.info("迁徙生成: {} at ({},{})", migrant.getDefinition().name,
+                        migrant.getTileX(), migrant.getTileY());
+            }
+        }
+    }
+
+    /**
+     * 是否有后台计算正在运行。
+     */
+    public boolean isComputingTurns() {
+        return computingTurns.get();
+    }
+
+    /**
+     * 待应用的变更数量。
+     */
+    public int getPendingMutationCount() {
+        return mutationQueue.size();
+    }
+
+    // ═══════════════════════════════════════════════
+    // 回合处理（繁殖、迁徙 —— 供后台线程调用）
+    // ═══════════════════════════════════════════════
+
+    private Animal tryReproduce(Animal animal, int currentRound) {
+        // 密度检查：使用空间索引，O(相邻区块) 而非 O(全列表)
+        int sameCount = creatureGrid.countSameSpeciesNearby(animal, 5);
+        if (sameCount >= MAX_NEARBY_SAME_SPECIES) return null;
+
+        Animal offspring = animal.tryReproduce(currentRound, random);
+        if (offspring == null) return null;
+
+        boolean placed = placeNearby(offspring, animal.getTileX(), animal.getTileY());
+        if (!placed) return null;
+
+        return offspring;
+    }
+
+    private boolean placeNearby(Animal animal, int centerX, int centerY) {
+        TileType centerTile = chunkManager.getTile(centerX, centerY);
+        if (centerTile != null && centerTile.isPassable()) {
+            return true;
+        }
+
+        int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
+        int[] dy = {-1, -1, -1, 0, 0, 1, 1, 1};
+        for (int i = 0; i < dx.length; i++) {
+            int nx = centerX + dx[i];
+            int ny = centerY + dy[i];
+            TileType tile = chunkManager.getTile(nx, ny);
+            if (tile != null && tile.isPassable()) {
+                animal.setTileX(nx);
+                animal.setTileY(ny);
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void processMigrationSpawning(CreatureActionContext context) {
         int currentRound = turnManager.getCurrentRound();
         if (currentRound % 100 != 0) return;
@@ -414,67 +519,47 @@ public class CreatureManager {
         int playerChunkX = playerTileX >> 5;
         int playerChunkY = playerTileY >> 5;
 
-        // 检查玩家周围 3x3 区块
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
                 int cx = playerChunkX + dx;
                 int cy = playerChunkY + dy;
                 long chunkKey = chunkKey(cx, cy);
-
-                // 检查该营养级是否应生成捕食者
                 trySpawnMigratingPredator(cx, cy, chunkKey);
             }
         }
     }
 
-    /**
-     * 尝试在指定区块生成迁徙来的捕食者。
-     * 同时 enforced APEX 每区块数量限制。
-     */
     private void trySpawnMigratingPredator(int chunkX, int chunkY, long chunkKey) {
         if (energyFlowManager == null) return;
 
-        // APEX 数量限制：每区块最多 2 只
+        // 使用空间索引 O(1) 查询替代 O(N) 扫描
         int apexCount = countApePredatorsInChunk(chunkX, chunkY);
         if (apexCount >= energyFlowManager.getMaxApexPerChunk()) return;
 
-        // 检查是否应生成次级消费者
         if (energyFlowManager.shouldSpawnPredator(chunkKey, TrophicLevel.SECONDARY_CONSUMER)) {
             spawnPredatorInChunk(chunkX, chunkY, TrophicLevel.SECONDARY_CONSUMER);
             return;
         }
 
-        // 检查是否应生成顶级捕食者
         if (energyFlowManager.shouldSpawnPredator(chunkKey, TrophicLevel.APEX_PREDATOR)) {
             spawnPredatorInChunk(chunkX, chunkY, TrophicLevel.APEX_PREDATOR);
         }
     }
 
     /**
-     * 统计区块内顶级捕食者数量。
+     * 统计区块内顶级捕食者数量（使用空间索引，O(单个区块)）。
      */
     private int countApePredatorsInChunk(int chunkX, int chunkY) {
-        int chunkSize = Chunk.SIZE;
-        int baseX = chunkX * chunkSize;
-        int baseY = chunkY * chunkSize;
+        List<Creature> chunkCreatures = creatureGrid.getInChunk(chunkX, chunkY);
         int count = 0;
-        for (Creature c : creatures) {
-            if (!c.isAlive() || !(c instanceof Animal)) continue;
-            Animal a = (Animal) c;
-            if (a.getDefinition().getTrophicLevel() != TrophicLevel.APEX_PREDATOR) continue;
-            int atx = a.getTileX();
-            int aty = a.getTileY();
-            if (atx >= baseX && atx < baseX + chunkSize
-                    && aty >= baseY && aty < baseY + chunkSize) {
+        for (Creature c : chunkCreatures) {
+            if (c instanceof Animal a && a.getDefinition().getTrophicLevel() == TrophicLevel.APEX_PREDATOR) {
                 count++;
             }
         }
         return count;
     }
 
-    /**
-     * 在指定区块生成指定营养级的捕食者。
-     */
     private void spawnPredatorInChunk(int chunkX, int chunkY, TrophicLevel trophicLevel) {
         int chunkSize = Chunk.SIZE;
         int baseTileX = chunkX * chunkSize;
@@ -487,22 +572,16 @@ public class CreatureManager {
             TileType tile = chunkManager.getTile(tileX, tileY);
             if (tile == null || !tile.isPassable()) continue;
 
-            // 随机选择一个匹配营养级的物种
             CreatureDefinition def = getCreatureByTrophicLevel(trophicLevel);
             if (def == null) continue;
 
             Animal animal = new Animal(def, tileX, tileY);
             injectEnergyFlowManager(animal);
-            addCreature(animal);
-            GameLog.getInstance().log(String.format("迁徙触发: 一只%s来到了这个区域！", def.name));
-            logger.info("迁徙生成: {} at ({},{})", def.name, tileX, tileY);
+            mutationQueue.add(CreatureMutation.migration(animal));
             return;
         }
     }
 
-    /**
-     * 随机获取指定营养级的生物定义。
-     */
     private CreatureDefinition getCreatureByTrophicLevel(TrophicLevel level) {
         Collection<CreatureDefinition> all = CreatureRegistry.getAll();
         if (all.isEmpty()) return null;
@@ -517,95 +596,16 @@ public class CreatureManager {
         return matching.get(random.nextInt(matching.size()));
     }
 
-    /**
-     * 尝试让动物繁殖。
-     *
-     * @param animal      成年动物
-     * @param currentRound 当前回合数
-     * @return 后代动物，繁殖失败返回 null
-     */
-    private Animal tryReproduce(Animal animal, int currentRound) {
-        // 密度检查：附近同种生物不能超过上限
-        int sameCount = countNearbySameSpecies(animal, 5);
-        if (sameCount >= MAX_NEARBY_SAME_SPECIES) return null;
+    // ═══════════════════════════════════════════════
+    // 死亡掉落
+    // ═══════════════════════════════════════════════
 
-        Animal offspring = animal.tryReproduce(currentRound, random);
-        if (offspring == null) return null;
-
-        // 尝试将后代放置在父母附近的可通行位置
-        boolean placed = placeNearby(offspring, animal.getTileX(), animal.getTileY());
-        if (!placed) return null;
-
-        GameLog.getInstance().log(String.format("一只%s繁殖了后代！",
-                animal.getDefinition().name));
-        return offspring;
-    }
-
-    /**
-     * 统计指定动物附近一定范围内的同种生物数量。
-     *
-     * @param center    中心动物
-     * @param maxDist   最大曼哈顿距离
-     * @return 同种存活生物数量（不含自身）
-     */
-    private int countNearbySameSpecies(Animal center, int maxDist) {
-        String speciesId = center.getDefinition().id;
-        int count = 0;
-        for (Creature c : creatures) {
-            if (!c.isAlive() || c == center) continue;
-            if (!(c instanceof Animal)) continue;
-            Animal other = (Animal) c;
-            if (!speciesId.equals(other.getDefinition().id)) continue;
-            int dist = Math.abs(c.getTileX() - center.getTileX())
-                     + Math.abs(c.getTileY() - center.getTileY());
-            if (dist <= maxDist) count++;
-        }
-        return count;
-    }
-
-    /**
-     * 将动物放置在指定位置附近（3x3 范围内找一个可通行位置）。
-     *
-     * @return true 如果成功放置
-     */
-    private boolean placeNearby(Animal animal, int centerX, int centerY) {
-        // 先尝试直接放置
-        TileType centerTile = chunkManager.getTile(centerX, centerY);
-        if (centerTile != null && centerTile.isPassable()) {
-            // 使用反射或直接设置（此处通过构造函数已设置，无需额外操作）
-            return true;
-        }
-
-        // 在 3x3 范围内找可通行位置
-        int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
-        int[] dy = {-1, -1, -1, 0, 0, 1, 1, 1};
-        for (int i = 0; i < dx.length; i++) {
-            int nx = centerX + dx[i];
-            int ny = centerY + dy[i];
-            TileType tile = chunkManager.getTile(nx, ny);
-            if (tile != null && tile.isPassable()) {
-                // 需要更新动物位置——通过 Creature 的 setter
-                animal.setTileX(nx);
-                animal.setTileY(ny);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 生物死亡时掉落战利品。
-     * 只有玩家杀死的生物才掉落物品，自然死亡不掉落（尸体分解）。
-     *
-     * @param creature 死亡的生物
-     */
     private void dropCreatureLoot(Creature creature) {
         if (groundItemManager == null) return;
         if (!(creature instanceof Animal)) return;
 
         Animal animal = (Animal) creature;
 
-        // 只有玩家杀死的才掉落
         if (animal.getDeathCause() != DeathCause.PLAYER_KILL) {
             return;
         }
@@ -625,8 +625,59 @@ public class CreatureManager {
         }
     }
 
+    // ═══════════════════════════════════════════════
+    // 查询（使用空间索引）
+    // ═══════════════════════════════════════════════
+
     /**
-     * 渲染所有生物。
+     * 获取指定瓦片位置的生物（O(1)）。
+     */
+    public Creature getCreatureAtTile(int tileX, int tileY) {
+        return creatureGrid.getAtTile(tileX, tileY);
+    }
+
+    /**
+     * 获取指定范围内的所有存活生物，按曼哈顿距离升序排序。
+     * 使用空间索引，仅查询相关区块。
+     */
+    public List<Creature> getVisibleCreatures(int centerTileX, int centerTileY, int maxDistance) {
+        List<Creature> result = creatureGrid.getInRadius(centerTileX, centerTileY, maxDistance);
+        result.sort((a, b) -> {
+            int distA = Math.abs(a.getTileX() - centerTileX) + Math.abs(a.getTileY() - centerTileY);
+            int distB = Math.abs(b.getTileX() - centerTileX) + Math.abs(b.getTileY() - centerTileY);
+            return Integer.compare(distA, distB);
+        });
+        return result;
+    }
+
+    public List<Creature> getCreatures() {
+        return creatures;
+    }
+
+    public int getCreatureCount() {
+        return creatureGrid.totalCreatureCount();
+    }
+
+    /**
+     * 获取所有存活动物（用于 AI 查询，避免迭代死亡个体）。
+     */
+    List<Animal> getAliveAnimals() {
+        List<Animal> result = new ArrayList<>();
+        for (Creature c : creatures) {
+            if (c.isAlive() && c instanceof Animal) {
+                result.add((Animal) c);
+            }
+        }
+        return result;
+    }
+
+    // ═══════════════════════════════════════════════
+    // 渲染（使用空间索引，仅渲染可见区域）
+    // ═══════════════════════════════════════════════
+
+    /**
+     * 渲染可见范围内的生物。
+     * 通过摄像机视口计算可见区块，仅遍历这些区块内的生物。
      *
      * @param renderer   渲染器
      * @param camera     摄像机
@@ -634,71 +685,40 @@ public class CreatureManager {
      * @param tileHeight 瓦片像素高度
      */
     public void renderCreatures(Renderer renderer, Camera camera, int tileWidth, int tileHeight) {
-        for (Creature creature : creatures) {
-            if (creature.isAlive()) {
-                creature.render(renderer, camera, tileWidth, tileHeight);
+        // 计算摄像机视口覆盖的瓦片范围
+        int viewStartX = camera.getX();
+        int viewStartY = camera.getY();
+        int viewWidth = camera.getViewportWidth();
+        int viewHeight = camera.getViewportHeight();
+
+        int startTileX = viewStartX / tileWidth;
+        int startTileY = viewStartY / tileHeight;
+        int endTileX = (viewStartX + viewWidth) / tileWidth;
+        int endTileY = (viewStartY + viewHeight) / tileHeight;
+
+        // 向外扩展一个区块，确保边界生物不遗漏
+        int startChunkX = Math.floorDiv(startTileX - Chunk.SIZE, Chunk.SIZE);
+        int startChunkY = Math.floorDiv(startTileY - Chunk.SIZE, Chunk.SIZE);
+        int endChunkX = Math.floorDiv(endTileX + Chunk.SIZE, Chunk.SIZE);
+        int endChunkY = Math.floorDiv(endTileY + Chunk.SIZE, Chunk.SIZE);
+
+        // 仅遍历可见区块
+        for (int cy = startChunkY; cy <= endChunkY; cy++) {
+            for (int cx = startChunkX; cx <= endChunkX; cx++) {
+                List<Creature> chunkCreatures = creatureGrid.getInChunk(cx, cy);
+                for (Creature creature : chunkCreatures) {
+                    if (creature.isAlive()) {
+                        creature.render(renderer, camera, tileWidth, tileHeight);
+                    }
+                }
             }
         }
     }
 
     /**
-     * 获取所有生物（只读）。
-     *
-     * @return 生物列表
+     * 关闭后台线程池（游戏退出时调用）。
      */
-    public List<Creature> getCreatures() {
-        return creatures;
-    }
-
-    /**
-     * 获取生物数量。
-     *
-     * @return 数量
-     */
-    public int getCreatureCount() {
-        return creatures.size();
-    }
-
-    /**
-     * 获取指定瓦片位置的生物。
-     * 用于 Look 模式查询。
-     *
-     * @param tileX 瓦片 X
-     * @param tileY 瓦片 Y
-     * @return 该位置的生物，无则返回 null
-     */
-    public Creature getCreatureAtTile(int tileX, int tileY) {
-        for (Creature creature : creatures) {
-            if (creature.isAlive() && creature.getTileX() == tileX && creature.getTileY() == tileY) {
-                return creature;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 获取指定范围内的所有存活生物，按曼哈顿距离升序排序。
-     *
-     * @param centerTileX 中心瓦片 X
-     * @param centerTileY 中心瓦片 Y
-     * @param maxDistance 最大曼哈顿距离（含）
-     * @return 排序后的生物列表（可能为空）
-     */
-    public List<Creature> getVisibleCreatures(int centerTileX, int centerTileY, int maxDistance) {
-        List<Creature> result = new ArrayList<>();
-        for (Creature creature : creatures) {
-            if (!creature.isAlive()) continue;
-            int dist = Math.abs(creature.getTileX() - centerTileX)
-                     + Math.abs(creature.getTileY() - centerTileY);
-            if (dist <= maxDistance) {
-                result.add(creature);
-            }
-        }
-        result.sort((a, b) -> {
-            int distA = Math.abs(a.getTileX() - centerTileX) + Math.abs(a.getTileY() - centerTileY);
-            int distB = Math.abs(b.getTileX() - centerTileX) + Math.abs(b.getTileY() - centerTileY);
-            return Integer.compare(distA, distB);
-        });
-        return result;
+    public void shutdown() {
+        turnExecutor.shutdownNow();
     }
 }

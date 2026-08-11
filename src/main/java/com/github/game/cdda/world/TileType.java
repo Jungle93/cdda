@@ -64,6 +64,14 @@ public class TileType {
     /** 泥土地 — 可通过（平原/沼泽的常见地面） */
     public static final TileType MUD = register(14, "mud", ':', new Color(120, 100, 70), true);
 
+    // ── 枯萎植物（肥力不足导致植物枯死后的残留） ────
+    /** 枯树 — 不可通过（枯萎的树木残留） */
+    public static final TileType WITHERED_TREE = register(15, "withered_tree", '†', new Color(139, 90, 43), false);
+    /** 枯灌木 — 可通过（枯萎的灌木残留） */
+    public static final TileType WITHERED_BUSH = register(16, "withered_bush", '·', new Color(128, 100, 60), true);
+    /** 枯草 — 可通过（干枯的草/花/苔藓） */
+    public static final TileType DEAD_GRASS = register(17, "dead_grass", ',', new Color(180, 160, 100), true);
+
     // ── 字段 ──────────────────────────────────────────
 
     /** 稳定数字标识 */

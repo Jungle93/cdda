@@ -537,14 +537,14 @@ public class Chunk {
     /**
      * 第三遍：放置水域（湖泊/河流/海洋）及过渡带。
      *
-     * <p>使用排水算法的梯度值（考虑过渡带衰减）：
+     * <p>使用 WorldMap 水域特征 + 高频扰动：
      * <ul>
-     *   <li><b>深水区</b>：梯度 ≥ 0.5 → WATER</li>
-     *   <li><b>浅水/沙滩过渡</b>：梯度 0.2~0.5 → SAND（海滩）</li>
-     *   <li><b>陆地</b>：梯度 &lt; 0.2 → 保留原地形（草地/森林等）</li>
+     *   <li><b>深水区</b>：梯度 ≥ 0.6 → WATER</li>
+     *   <li><b>浅水/沙滩过渡</b>：梯度 0.3~0.6 → SAND（海滩）</li>
+     *   <li><b>陆地</b>：梯度 &lt; 0.3 → 保留原地形（草地/森林等）</li>
      * </ul>
      *
-     * <p>这样水域边缘会有自然的沙滩过渡带，而不是硬切。
+     * <p>水边高频噪声扰动使边缘曲折自然，不是平滑直线。
      */
     private void carveWaterFeatures(WorldMap worldMap) {
         int waterCount = 0, sandCount = 0, grassCount = 0;
@@ -558,8 +558,18 @@ public class Chunk {
                 int globalX = chunkX * SIZE + col;
                 int globalY = chunkY * SIZE + row;
 
-                // 使用 WorldMap 水域特征
                 double waterGradient = worldMap.getWaterFeature(globalX, globalY);
+
+                // 水边高频扰动（让边界曲折，不是平滑直线）
+                // 仅在过渡区（0.15 ~ 0.65）施加扰动，深水区和纯陆地不变
+                if (waterGradient > 0.15 && waterGradient < 0.65) {
+                    double edgeJitter = tileHash(globalX * 7 + 31, globalY * 11 + 17) * 0.2 - 0.1;
+                    // 四邻接水体检查：邻居有水 → 提高当前瓦片水位倾向
+                    if (hasWaterNeighbor(row, col)) {
+                        edgeJitter += 0.08; // 邻水瓦片更易成水，形成曲折边缘
+                    }
+                    waterGradient += edgeJitter;
+                }
 
                 // 根据梯度值决定地形
                 if (waterGradient >= 0.6) {
@@ -577,6 +587,25 @@ public class Chunk {
             logger.debug("Chunk ({},{}) {}: WATER={} SAND={} GRASS={}",
                     chunkX, chunkY, biome.getName(), waterCount, sandCount, grassCount);
         }
+    }
+
+    /**
+     * 检查指定瓦片四邻接是否有水域。
+     */
+    private boolean hasWaterNeighbor(int row, int col) {
+        final int[] dx = {0, 0, -1, 1};
+        final int[] dy = {-1, 1, 0, 0};
+        for (int d = 0; d < 4; d++) {
+            int nr = row + dy[d];
+            int nc = col + dx[d];
+            if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) {
+                TileType t = tiles[nr][nc];
+                if (t == TileType.WATER || t == TileType.SAND) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -702,6 +731,9 @@ public class Chunk {
     public int getChunkX() { return chunkX; }
     public int getChunkY() { return chunkY; }
     public BiomeType getBiome() { return biome; }
+
+    /** 区块地形是否已生成 */
+    public boolean isGenerated() { return generated; }
 
     /**
      * 获取植被地图。

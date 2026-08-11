@@ -186,4 +186,9 @@ public class GameWorld {
     public GroundItemManager getGroundItemManager() { return groundItemManager; }
     public EnergyFlowManager getEnergyFlowManager() { return energyFlowManager; }
     public Player getPlayer() { return player; }
+
+    /** 清理资源（游戏退出时调用） */
+    public void dispose() {
+        chunkManager.shutdown();
+    }
 }

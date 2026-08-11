@@ -8,9 +8,12 @@ import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 区块管理器。负责区块的加载、缓存、预加载和卸载。
@@ -25,8 +28,9 @@ import java.util.Map;
  * <p>设计要点：
  * <ul>
  *   <li>仅在玩家跨越区块边界时触发加载/卸载（避免每帧重复操作）</li>
- *   <li>使用 HashMap 缓存已加载区块，O(1) 查找</li>
+ *   <li>使用 {@link ConcurrentHashMap} 缓存已加载区块，O(1) 查找</li>
  *   <li>区块生成由 {@link WorldMap} 的生物群落驱动（大地图→小地图分层架构）</li>
+ *   <li>区块地形在后台线程异步生成，不阻塞 EDT 渲染</li>
  * </ul>
  */
 public class ChunkManager {
@@ -45,8 +49,14 @@ public class ChunkManager {
     /** 生物管理器（新区块生成后通知其生成生物，可为 null） */
     private CreatureManager creatureManager;
 
-    /** 已加载区块缓存，key = chunkKey(cx, cy) */
-    private final Map<Long, Chunk> chunks;
+    /** 已加载区块缓存，key = chunkKey(cx, cy)。线程安全。 */
+    private final ConcurrentHashMap<Long, Chunk> chunks;
+
+    /** 后台区块生成线程池（单线程队列执行） */
+    private final ExecutorService generationExecutor;
+
+    /** 待生成区块数量（用于日志） */
+    private final AtomicInteger pendingGeneration = new AtomicInteger(0);
 
     /** 预加载半径（以区块为单位） */
     private int preloadRadius;
@@ -66,18 +76,24 @@ public class ChunkManager {
         this.worldSeed = worldSeed;
         this.noise = new PerlinNoise(worldSeed);
         this.worldMap = worldMap;
-        this.chunks = new HashMap<>();
+        this.chunks = new ConcurrentHashMap<>();
         this.preloadRadius = preloadRadius;
+        this.generationExecutor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "chunk-generator");
+            t.setDaemon(true);
+            return t;
+        });
         logger.info("区块管理器初始化 — 种子: {}, 预加载半径: {}", worldSeed, preloadRadius);
     }
 
     /**
      * 获取世界瓦片坐标处的地形类型。
      * 自动加载所在区块（如果尚未加载）。
+     * 如果区块已加载但未生成地形，会在 EDT 同步生成（异步队列来不及时）。
      *
      * @param worldTileX 世界瓦片 X 坐标
      * @param worldTileY 世界瓦片 Y 坐标
-     * @return 地形类型；区块未加载时返回 null
+     * @return 地形类型；区块未加载返回 null
      */
     public TileType getTile(int worldTileX, int worldTileY) {
         int cx = floorDiv(worldTileX, Chunk.SIZE);
@@ -85,8 +101,12 @@ public class ChunkManager {
 
         Chunk chunk = chunks.get(chunkKey(cx, cy));
         if (chunk == null) {
-            // 即时加载（通常不应发生，因为 updateChunks 会预加载）
             chunk = loadChunk(cx, cy);
+        }
+
+        // 如果区块还未生成地形，同步生成（异步队列来不及时回退）
+        if (!chunk.isGenerated()) {
+            generateChunkSync(chunk, cx, cy);
         }
 
         // 局部坐标
@@ -119,6 +139,7 @@ public class ChunkManager {
     /**
      * 根据玩家位置更新区块加载状态。
      * 仅在玩家跨越区块边界时触发实际加载/卸载。
+     * 区块地形生成提交到后台线程，不阻塞当前帧。
      *
      * @param playerWorldPixelX 玩家世界像素 X
      * @param playerWorldPixelY 玩家世界像素 Y
@@ -140,13 +161,13 @@ public class ChunkManager {
         lastPlayerChunkX = playerChunkX;
         lastPlayerChunkY = playerChunkY;
 
-        // 加载预加载范围内的所有区块（不生成瓦片）
+        // 1. 加载预加载范围内的所有区块（仅创建对象，很快）
         preloadAround(playerChunkX, playerChunkY);
 
-        // 计算排水并生成瓦片
-        computeDrainageAndGenerate(playerChunkX, playerChunkY);
+        // 2. 提交后台生成任务（异步，不阻塞 EDT）
+        submitGeneration(playerChunkX, playerChunkY);
 
-        // 卸载远离玩家的区块
+        // 3. 卸载远离玩家的区块
         unloadDistant(playerChunkX, playerChunkY);
     }
 
@@ -200,7 +221,6 @@ public class ChunkManager {
      * 从世界地图获取该位置的生物群落。
      */
     private Chunk loadChunk(int cx, int cy) {
-        // 从世界地图获取此区块的生物群落
         BiomeType biome = worldMap.getBiomeAtChunk(cx, cy);
         Chunk chunk = new Chunk(cx, cy, noise, biome);
         chunks.put(chunkKey(cx, cy), chunk);
@@ -208,17 +228,12 @@ public class ChunkManager {
     }
 
     /**
-     * 生成预加载区域内的所有区块。
+     * 提交预加载区域内所有区块的后台生成任务。
      *
-     * <p>流程：
-     * <ol>
-     *   <li>构建 5×5 邻居区块引用数组</li>
-     *   <li>对区域内每个区块调用 generate()，传入邻居引用</li>
-     * </ol>
-     *
-     * <p>注意：不再生成 DrainageMap（性能考虑），水域由 WorldMap 直接提供。
+     * <p>每个区块独立生成，互不依赖（邻居引用在提交时快照）。
+     * 生成完成后通知生物管理器生成生物。
      */
-    private void computeDrainageAndGenerate(int playerChunkX, int playerChunkY) {
+    private void submitGeneration(int playerChunkX, int playerChunkY) {
         // 构建 5×5 邻居区块引用（用于区块边界混合）
         Chunk[][] neighbors = new Chunk[5][5];
         for (int dy = -2; dy <= 2; dy++) {
@@ -229,26 +244,77 @@ public class ChunkManager {
             }
         }
 
-        // 生成预加载区域内的所有区块
+        // 收集待生成区块
+        int totalToGenerate = 0;
         for (int dy = -preloadRadius; dy <= preloadRadius; dy++) {
             for (int dx = -preloadRadius; dx <= preloadRadius; dx++) {
                 int cx = playerChunkX + dx;
                 int cy = playerChunkY + dy;
                 Chunk chunk = chunks.get(chunkKey(cx, cy));
-                if (chunk != null) {
-                    chunk.generate(noise, worldMap, neighbors);
+                if (chunk != null && !chunk.isGenerated()) {
+                    totalToGenerate++;
                 }
             }
         }
+        if (totalToGenerate == 0) return;
 
-        // 通知生物管理器在新生成的区块中按概率生成生物
-        if (creatureManager != null) {
-            int spawnMinX = playerChunkX - preloadRadius;
-            int spawnMinY = playerChunkY - preloadRadius;
-            int spawnMaxX = playerChunkX + preloadRadius;
-            int spawnMaxY = playerChunkY + preloadRadius;
-            creatureManager.onChunksGenerated(spawnMinX, spawnMinY, spawnMaxX, spawnMaxY);
+        pendingGeneration.set(totalToGenerate);
+        logger.debug("提交 {} 个区块后台生成", totalToGenerate);
+
+        // 提交到后台线程（单线程队列顺序执行，保证 neighbor 引用稳定）
+        generationExecutor.submit(() -> {
+            long start = System.currentTimeMillis();
+            int generated = 0;
+            for (int dy = -preloadRadius; dy <= preloadRadius; dy++) {
+                for (int dx = -preloadRadius; dx <= preloadRadius; dx++) {
+                    int cx = playerChunkX + dx;
+                    int cy = playerChunkY + dy;
+                    Chunk chunk = chunks.get(chunkKey(cx, cy));
+                    if (chunk != null && !chunk.isGenerated()) {
+                        // 重新快照邻居（因为异步时 neighbors 可能已过时）
+                        Chunk[][] currentNeighbors = snapshotNeighbors(cx, cy);
+                        chunk.generate(noise, worldMap, currentNeighbors);
+                        generated++;
+                    }
+                }
+            }
+            long elapsed = System.currentTimeMillis() - start;
+            logger.debug("区块生成完成：{}/{} 个，耗时 {}ms", generated, pendingGeneration.get(), elapsed);
+
+            // 通知生物管理器在新生成的区块中按概率生成生物
+            if (creatureManager != null) {
+                int spawnMinX = playerChunkX - preloadRadius;
+                int spawnMinY = playerChunkY - preloadRadius;
+                int spawnMaxX = playerChunkX + preloadRadius;
+                int spawnMaxY = playerChunkY + preloadRadius;
+                creatureManager.onChunksGenerated(spawnMinX, spawnMinY, spawnMaxX, spawnMaxY);
+            }
+            pendingGeneration.set(0);
+        });
+    }
+
+    /**
+     * 同步生成单个区块（EDT 回退路径 + 后台线程主路径）。
+     */
+    private void generateChunkSync(Chunk chunk, int cx, int cy) {
+        Chunk[][] neighbors = snapshotNeighbors(cx, cy);
+        chunk.generate(noise, worldMap, neighbors);
+    }
+
+    /**
+     * 快照指定区块周围的 5×5 邻居引用。
+     * 用于异步生成时获取最新的邻居状态。
+     */
+    private Chunk[][] snapshotNeighbors(int centerChunkX, int centerChunkY) {
+        Chunk[][] neighbors = new Chunk[5][5];
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -2; dx <= 2; dx++) {
+                int cx = centerChunkX + dx;
+                int cy = centerChunkY + dy;
+                neighbors[dy + 2][dx + 2] = chunks.get(chunkKey(cx, cy));
+            }
         }
+        return neighbors;
     }
 
     /**
@@ -272,6 +338,13 @@ public class ChunkManager {
      */
     public void setCreatureManager(CreatureManager creatureManager) {
         this.creatureManager = creatureManager;
+    }
+
+    /**
+     * 获取生物管理器。
+     */
+    public CreatureManager getCreatureManager() {
+        return creatureManager;
     }
 
     /**
@@ -341,6 +414,21 @@ public class ChunkManager {
      */
     public Chunk getChunk(int chunkX, int chunkY) {
         return chunks.get(chunkKey(chunkX, chunkY));
+    }
+
+    /**
+     * 获取待生成区块数（调试用）。
+     */
+    public int getPendingGenerationCount() {
+        return pendingGeneration.get();
+    }
+
+    /**
+     * 关闭后台生成线程池。
+     * 由 GameWorld 清理时调用。
+     */
+    public void shutdown() {
+        generationExecutor.shutdownNow();
     }
 
     // ── 整数除法工具（正确处理负数） ──────────────

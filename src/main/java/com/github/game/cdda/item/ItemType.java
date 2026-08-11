@@ -15,6 +15,8 @@ public class ItemType {
     // ── 字段 ──────────────────────────────────────────
     private final int id;
     private final String name;
+    /** 中文显示名（用于 UI 展示） */
+    private final String displayName;
     private final String description;
     /** 单件重量（克） */
     private final double weightGrams;
@@ -41,6 +43,7 @@ public class ItemType {
     private ItemType(Builder b) {
         this.id = b.id;
         this.name = b.name;
+        this.displayName = b.displayName != null ? b.displayName : b.name;
         this.description = b.description;
         this.weightGrams = b.weightGrams;
         this.volumeMl = b.volumeMl;
@@ -60,6 +63,8 @@ public class ItemType {
     // ── 访问器 ──────────────────────────────────────────
     public int getId() { return id; }
     public String getName() { return name; }
+    /** 获取中文显示名（用于 UI 展示） */
+    public String getDisplayName() { return displayName; }
     public String getDescription() { return description; }
     public double getWeightGrams() { return weightGrams; }
     public double getVolumeMl() { return volumeMl; }
@@ -121,6 +126,7 @@ public class ItemType {
     public static class Builder {
         private int id = -1;
         private String name = "";
+        private String displayName = "";
         private String description = "";
         private double weightGrams = 0;
         private double volumeMl = 0;
@@ -139,6 +145,8 @@ public class ItemType {
         }
 
         public Builder description(String desc) { this.description = desc; return this; }
+        /** 设置显示名（中文，用于 UI 展示） */
+        public Builder displayName(String name) { this.displayName = name; return this; }
         public Builder weight(double grams) { this.weightGrams = grams; return this; }
         public Builder volume(double ml) { this.volumeMl = ml; return this; }
         public Builder maxStackSize(int max) { this.maxStackSize = max; return this; }

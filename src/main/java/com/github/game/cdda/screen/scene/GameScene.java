@@ -746,14 +746,14 @@ public class GameScene extends Scene {
         ItemStack stack = groundItem.getItemStack();
         if (!player.getInventory().canCarry(stack)) {
             GameLog.getInstance().log(String.format("%s 太重了，无法携带",
-                    stack.getType().getName()));
+                    stack.getType().getDisplayName()));
             return;
         }
 
         if (player.getInventory().addItem(stack)) {
             groundItemManager.removeGroundItem(groundItem);
             GameLog.getInstance().log(String.format("拾取了 %s x%d",
-                    stack.getType().getName(), stack.getCount()));
+                    stack.getType().getDisplayName(), stack.getCount()));
         }
     }
 

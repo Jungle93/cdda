@@ -263,7 +263,7 @@ public class EatingScreen extends MenuScreen {
             renderer.setFont(new Font("Monospaced", Font.PLAIN, fontSize));
             String prefix = sel ? "▶ " : "  ";
 
-            String name = stack.getType().getName();
+            String name = stack.getType().getDisplayName();
             String nameStr = stackable
                     ? String.format("%s%s (共%d)", prefix, name, stack.getCount())
                     : String.format("%s%s", prefix, name);

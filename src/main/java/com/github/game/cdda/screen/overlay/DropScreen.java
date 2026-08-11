@@ -213,7 +213,7 @@ public class DropScreen extends MenuScreen {
 
             renderer.setFont(new Font("Monospaced", Font.PLAIN, fontSize));
             String prefix = sel ? "▶ " : "  ";
-            String name = stack.getType().getName();
+            String name = stack.getType().getDisplayName();
 
             String nameStr = stackable
                     ? String.format("%s%s (共%d)", prefix, name, totalCount)
@@ -275,7 +275,7 @@ public class DropScreen extends MenuScreen {
         if (dropped != null) {
             groundItemManager.dropItem(dropped, player.getTileX(), player.getTileY());
             GameLog.getInstance().log(String.format("丢弃了 %s x%d",
-                    dropped.getType().getName(), dropped.getCount()));
+                    dropped.getType().getDisplayName(), dropped.getCount()));
 
             refreshDropCounts();
             if (selectedIndex >= inventory.getItemCount() && selectedIndex > 0) {

@@ -32,8 +32,10 @@ public class ItemDefinition {
 
     /** 物品数字 ID（必填） */
     public int id;
-    /** 物品字符串名称（必填） */
+    /** 物品字符串名称（必填，英文技术标识符） */
     public String name;
+    /** 显示名称（可选，中文；未设置时从 description 自动派生） */
+    public String displayName = "";
     /** 物品描述 */
     public String description = "";
     /** 单件重量（克） */
@@ -63,6 +65,10 @@ public class ItemDefinition {
     public ItemType toItemType() {
         ItemType.Builder builder = new ItemType.Builder(id, name);
 
+        // 显示名：优先用 displayName，否则从 description 自动派生（取第一个中文标点前的内容）
+        String resolvedDisplayName = resolveDisplayName();
+        builder.displayName(resolvedDisplayName);
+
         builder.description(description);
         builder.weight(weightGrams);
         builder.volume(volumeMl);
@@ -87,5 +93,26 @@ public class ItemDefinition {
         }
 
         return builder.build();
+    }
+
+    /**
+     * 解析显示名称。
+     * 优先使用 JSON 中显式配置的 displayName；
+     * 若未配置，则从 description 中提取第一部分（以常见中文标点为分隔符）。
+     * 若 description 也为空，则回退到 name。
+     */
+    private String resolveDisplayName() {
+        if (displayName != null && !displayName.isBlank()) {
+            return displayName.trim();
+        }
+        if (description != null && !description.isBlank()) {
+            // 按中文标点切分：逗号、句号、分号、顿号、冒号、括号
+            String[] parts = description.split("[，。；、：（）,.;:\\(\\)]", 2);
+            String first = parts[0].trim();
+            if (!first.isEmpty()) {
+                return first;
+            }
+        }
+        return name;
     }
 }

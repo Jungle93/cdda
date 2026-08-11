@@ -103,7 +103,7 @@ public class PickupScreen extends MenuScreen {
             ItemStack stack = gi.getItemStack();
             boolean sel = (i == selectedIndex);
 
-            String name = stack.getType().getName();
+            String name = stack.getType().getDisplayName();
             int count = stack.getCount();
             int weight = (int) stack.getTotalWeightGrams();
             String line = String.format("%s%s x%d  (%dg)",
@@ -130,7 +130,7 @@ public class PickupScreen extends MenuScreen {
 
         if (!inventory.canCarry(stack)) {
             GameLog.getInstance().log(String.format("%s 太重了，无法携带（需 %dg，剩余 %dg）",
-                    stack.getType().getName(),
+                    stack.getType().getDisplayName(),
                     (int) stack.getTotalWeightGrams(),
                     (int) inventory.getRemainingCapacity()));
             return;
@@ -142,7 +142,7 @@ public class PickupScreen extends MenuScreen {
             groundItemManager.removeGroundItem(gi);
 
             GameLog.getInstance().log(String.format("拾取了 %s x%d",
-                    stack.getType().getName(), stack.getCount()));
+                    stack.getType().getDisplayName(), stack.getCount()));
 
             // 重新获取地面物品列表
             List<GroundItem> remaining = groundItemManager.getItemsAt(

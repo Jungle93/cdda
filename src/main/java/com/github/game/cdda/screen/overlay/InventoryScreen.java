@@ -94,7 +94,7 @@ public class InventoryScreen extends MenuScreen {
                 ItemStack stack = items.get(i);
                 boolean sel = (i == selectedIndex);
 
-                String name = stack.getType().getName();
+                String name = stack.getType().getDisplayName();
                 int count = stack.getCount();
                 int weight = (int) stack.getTotalWeightGrams();
                 String line = String.format("%s%s x%d  (%dg)",

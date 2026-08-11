@@ -254,7 +254,7 @@ public class ItemUseOverlay extends GameOverlay {
             String name = stack.getType().getDescription() != null
                     && !stack.getType().getDescription().isBlank()
                     ? stack.getType().getDescription()
-                    : stack.getType().getName();
+                    : stack.getType().getDisplayName();
             int maxNameWidth = panelW - 100; // 预留右侧动作提示空间
             while (renderer.getTextWidth(name) > maxNameWidth && name.length() > 4) {
                 name = name.substring(0, name.length() - 2) + "…";
@@ -297,7 +297,7 @@ public class ItemUseOverlay extends GameOverlay {
         String toolName = selectedTool.getType().getDescription() != null
                 && !selectedTool.getType().getDescription().isBlank()
                 ? selectedTool.getType().getDescription()
-                : selectedTool.getType().getName();
+                : selectedTool.getType().getDisplayName();
         renderer.setFont(new Font("Monospaced", Font.BOLD, 16));
         renderer.setColor(Color.WHITE);
         String title = "使用: " + toolName;

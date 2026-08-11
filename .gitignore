@@ -37,3 +37,5 @@ build/
 ### Runtime ###
 saves/
 dependency-reduced-pom.xml
+# Game logs
+logs/

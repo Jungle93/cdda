@@ -340,6 +340,10 @@ public class GameScene extends Scene {
         // 无生物 → 正常移动
         // 回合制：玩家行动后推进时间
         if (player.move(dx, dy)) {
+            // 播放行走音效
+            if (world.getAudioEngine() != null) {
+                world.getAudioEngine().playSFX("sounds/walk.mp3", false, 0.6f);
+            }
             turnManager.addAction(player, Constants.MOVE_BASE_TIME);
             metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);
             metabolismManager.update();
@@ -772,6 +776,7 @@ public class GameScene extends Scene {
         int tileH = tileMap.getTileHeight();
         CreatureActionContext context = new CreatureActionContext(player, chunkManager, tileW, tileH);
         context.setCreatureManager(creatureManager);
+        context.setCurrentGameSeconds(world.getGameTime().getTotalSeconds());
         creatureManager.requestTurnProcessing(context);
     }
 }

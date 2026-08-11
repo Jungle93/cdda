@@ -18,8 +18,8 @@
   "displayChar": "f",
   "displayColor": [200, 100, 30],
   "lifeStages": [
-    { "stage": "juvenile", "name": "小狐狸", "hp": 8, "growTurns": 500 },
-    { "stage": "adult", "name": "狐狸", "hp": 15, "growTurns": null }
+    { "stage": "juvenile", "name": "小狐狸", "hp": 8, "growSeconds": 7200 },
+    { "stage": "adult", "name": "狐狸", "hp": 15, "growSeconds": null }
   ],
   "lootTable": {
     "entries": [
@@ -40,12 +40,12 @@
     "scavengeGain": 10,
     "reproduceCost": 25,
     "reproduceThreshold": 55,
-    "starvationTurns": 200,
-    "lifespanTurns": 5000
+    "starvationSeconds": 14400,
+    "lifespanSeconds": 432000
   },
   "reproduction": {
-    "matureTurns": 800,
-    "cooldownTurns": 2000,
+    "matureSeconds": 28800,
+    "cooldownSeconds": 86400,
     "maxOffspring": 3,
     "chance": 0.05
   }

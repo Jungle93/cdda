@@ -99,6 +99,8 @@ public class WorldMap {
     private final PerlinNoise temperatureNoise;
     /** 河流噪声生成器（全局河道层，跨区块连续） */
     private final PerlinNoise riverNoise;
+    /** 海岸细节噪声（高频，用于在水域特征中产生瓦片级变化） */
+    private final PerlinNoise coastNoise;
 
     /** 生物群落缓存（chunkKey → BiomeType），避免重复计算 */
     private final java.util.Map<Long, BiomeType> biomeCache = new java.util.HashMap<>();
@@ -126,22 +128,77 @@ public class WorldMap {
         this.moistureNoise = new PerlinNoise(worldSeed + 0x9E3779B97F4A7C15L);
         this.temperatureNoise = new PerlinNoise(worldSeed + 0x517CC1B727220A95L);
         this.riverNoise = new PerlinNoise(worldSeed + 0x3C6EF372FE94F82BL);
+        this.coastNoise = new PerlinNoise(worldSeed + 0xBA5E0CAFE15BADL);
         logger.info("世界地图初始化 — 种子: {}, 梯度: {}", worldSeed, this.gradients);
     }
 
     /**
      * 获取世界瓦片坐标处的生物群落。
-     * 每个区块的所有瓦片返回相同的生物群落（区块级群落分配）。
+     *
+     * <p>基础群落由区块级平滑噪声决定（大尺度大陆/海洋），
+     * 但在群落边界附近会叠加多尺度分形扰动（3 层噪声），
+     * 使海岸线产生自然的水湾、半岛、岬角等分形结构。
      *
      * @param worldTileX 世界瓦片 X 坐标
      * @param worldTileY 世界瓦片 Y 坐标
      * @return 该位置所属的生物群落
      */
     public BiomeType getBiomeAt(int worldTileX, int worldTileY) {
-        // 转换为区块坐标（每个区块对应一个世界地图单元）
+        // 区块级基础群落（大尺度，平滑）
         int chunkX = Math.floorDiv(worldTileX, Chunk.SIZE);
         int chunkY = Math.floorDiv(worldTileY, Chunk.SIZE);
-        return getBiomeAtChunk(chunkX, chunkY);
+        BiomeType baseBiome = getBiomeAtChunk(chunkX, chunkY);
+
+        // 瓦片级分形扰动：在群落边界附近产生水陆交错
+        // 只在边界附近的瓦片生效（baseElevation 接近 OCEAN_THRESHOLD 的区域）
+        double wx = worldTileX * ELEVATION_FREQ;
+        double wy = worldTileY * ELEVATION_FREQ;
+        double baseElev = elevationNoise.fbm(wx, wy, OCTAVES, PERSISTENCE, LACUNARITY)
+                + gradients.getElevationOffset(chunkY);
+
+        // 距离海洋阈值的距离：越近扰动效果越强
+        double distToThreshold = baseElev - OCEAN_THRESHOLD;
+        // 影响范围：阈值上下 0.12 内的瓦片受扰动影响（只在边界附近）
+        double boundaryFactor = 1.0 - Math.min(1.0, Math.abs(distToThreshold) / 0.12);
+        if (boundaryFactor <= 0.001) {
+            return baseBiome; // 远离边界，直接返回基础群落
+        }
+
+        // 多尺度分形扰动（大弯 + 中弯 + 小锯齿）
+        // 振幅较小 → 只在边界处造成翻转，不影响海洋/陆地中心区域
+        double fractalPerturb =
+                coastNoise.noise(worldTileX * 0.01, worldTileY * 0.01) * 0.08
+              + coastNoise.noise(worldTileX * 0.03 + 100.0,
+                                 worldTileY * 0.03 + 100.0) * 0.05
+              + coastNoise.noise(worldTileX * 0.08 + 200.0,
+                                 worldTileY * 0.08 + 200.0) * 0.03;
+        // 仅边界附近生效
+        fractalPerturb *= boundaryFactor;
+
+        double effElev = baseElev + fractalPerturb;
+
+        // 用扰动后的高程重新判断海洋/非海洋
+        if (effElev < OCEAN_THRESHOLD) {
+            if (!baseBiome.isAquatic()) {
+                return BiomeType.OCEAN; // 陆地块被扰动成海洋 → 小海湾
+            }
+        } else {
+            if (baseBiome.isAquatic()) {
+                // 海洋块被扰动成陆地 → 半岛/岬角
+                // 根据高程和湿度决定陆地类型
+                double moistVal = moistureNoise.fbm(
+                        worldTileX * MOISTURE_FREQ + 500.0,
+                        worldTileY * MOISTURE_FREQ + 500.0,
+                        OCTAVES, PERSISTENCE, LACUNARITY)
+                        + gradients.getMoistureOffset(chunkX);
+                if (effElev < COAST_THRESHOLD) {
+                    return moistVal > WET_THRESHOLD ? BiomeType.SWAMP : BiomeType.PLAINS;
+                }
+                return BiomeType.PLAINS;
+            }
+        }
+
+        return baseBiome;
     }
 
     /**
@@ -299,15 +356,54 @@ public class WorldMap {
         double wx = worldTileX * ELEVATION_FREQ;
         double wy = worldTileY * ELEVATION_FREQ;
 
-        // ── 湖泊：低洼 + 高湿 ──
+        // ── 高程 + 湿度（含方向梯度偏移） ──
         double elevation = elevationNoise.fbm(wx, wy, OCTAVES, PERSISTENCE, LACUNARITY);
         double moisture = moistureNoise.fbm(
                 worldTileX * MOISTURE_FREQ + 500.0,
                 worldTileY * MOISTURE_FREQ + 500.0,
                 OCTAVES, PERSISTENCE, LACUNARITY);
 
+        int chunkX = Math.floorDiv(worldTileX, Chunk.SIZE);
+        int chunkY = Math.floorDiv(worldTileY, Chunk.SIZE);
+        elevation += gradients.getElevationOffset(chunkY);
+        moisture += gradients.getMoistureOffset(chunkX);
+
+        // ── 海洋/沼泽群落：直接基于高程返回水域强度 ──
+        // 使用多尺度分形噪声扰动高程，模拟真实海岸线的分形特征。
+        // 同时检查瓦片级和区块级群落：任一为水域 → 按水域处理。
+        // 确保海洋区块即使个别瓦片被扰动为陆地，仍保留水域。
+        BiomeType tileBiome = getBiomeAt(worldTileX, worldTileY);
+        BiomeType chunkBiome = getBiomeAtChunk(chunkX, chunkY);
+        boolean isAquatic = tileBiome.isAquatic() || chunkBiome.isAquatic();
+        boolean isSwamp = tileBiome == BiomeType.SWAMP || chunkBiome == BiomeType.SWAMP;
+
+        if (isAquatic) {
+            // 分形噪声扰动 → 自然海岸线（大弯 + 中弯 + 小锯齿）
+            double coastPerturb =
+                    coastNoise.noise(worldTileX * 0.01, worldTileY * 0.01) * 0.12
+                  + coastNoise.noise(worldTileX * 0.03 + 100.0,
+                                     worldTileY * 0.03 + 100.0) * 0.08
+                  + coastNoise.noise(worldTileX * 0.08 + 200.0,
+                                     worldTileY * 0.08 + 200.0) * 0.05;
+            double effElev = elevation + coastPerturb;
+            // 深海（<-0.40）→ 1.5，海岸边缘（~-0.15）→ 0.3
+            double t = (-0.15 - effElev) / 0.25;
+            t = Math.max(0.0, Math.min(1.0, t));
+            return 0.3 + t * 1.2;
+        }
+        if (isSwamp) {
+            double coastPerturb =
+                    coastNoise.noise(worldTileX * 0.01, worldTileY * 0.01) * 0.10
+                  + coastNoise.noise(worldTileX * 0.03 + 100.0,
+                                     worldTileY * 0.03 + 100.0) * 0.06;
+            double effElev = elevation + coastPerturb;
+            double t = (-0.05 - effElev) / 0.25;
+            t = Math.max(0.0, Math.min(1.0, t));
+            return 0.2 + t * 0.5;
+        }
+
+        // ── 湖泊：低洼 + 高湿 ──
         if (elevation < LAKE_ELEVATION && moisture > LAKE_MOISTURE) {
-            // 湖泊：中心更深，边缘渐浅
             double lakeDepth = 1.0 + (LAKE_ELEVATION - elevation) * 3.0;
             return Math.min(lakeDepth, 2.5);
         }
@@ -319,7 +415,6 @@ public class WorldMap {
             double riverVal = riverNoise.fbm(nx, ny, RIVER_OCTAVES, PERSISTENCE, LACUNARITY);
             double absNoise = Math.abs(riverVal);
             if (absNoise < RIVER_HALF_WIDTH) {
-                // 河道宽度：中心 ~1.0，边缘渐收至 0.3
                 return 0.3 + (1.0 - absNoise / RIVER_HALF_WIDTH) * 0.7;
             }
         }

@@ -46,6 +46,32 @@ No exec plugin or test framework is configured yet.
 - 外部文件基准目录由系统配置 `resource.base` 决定
 - 通过 `engine.getResourceManager()` 访问
 
+### Audio System
+- **AudioEngine** — 音频系统对外入口，由 `GameEngine` 创建，通过 `engine.getAudioEngine()` 访问
+- **核心概念**：
+  - **通道（Channel）** — 独立音量控制的混音通道：`BGM`（背景音乐）、`SFX`（音效）、`AMBIENT`（环境音）
+  - **音源（Source）** — `ClipSource`（短音效，整段加载）和 `StreamSource`（长音乐，流式解码）
+  - **缓存（Cache）** — 自动缓存已解码的 PCM 数据，避免重复解码
+- **常用 API**：
+  ```java
+  AudioEngine audio = engine.getAudioEngine();
+  audio.playBGM("music/background.mp3");              // 播放 BGM（默认：循环，音量 0.7，淡入 2s）
+  audio.playBGM("music/boss.mp3", true, 0.8f, 3000);  // 自定义：循环，音量 0.8，淡入 3 秒
+  audio.playSFX("audio/click.wav");                   // 播放一次性音效
+  audio.playSFX("audio/hit.wav", false, 0.6f);        // 自定义音量
+  audio.stopBGM(1500);                                // BGM 淡出 1.5 秒
+  audio.crossFade("music/night.mp3", 3000, 0.7f);     // BGM 交叉淡入切换
+  audio.setMasterVolume(0.5f);                        // 全局主音量
+  audio.toggleMute();                                 // 静音切换
+  audio.setChannelVolume("SFX", 0.8f);                // 单独调通道音量
+  ```
+- **资源路径**：使用相对路径（相对 `src/main/resources/`），如 `"music/background.mp3"`
+- **支持格式**：MP3（JLayer 解码）、WAV（javax.sound 原生支持）
+- **注意事项**：
+  - BGM 使用流式解码，适合长音乐文件；SFX 一次性加载到内存，适合短音效
+  - 同一时刻只能有一首 BGM；切换时旧 BGM 自动停止
+  - `AudioEngine.update(deltaTime)` 由 GameEngine 自动调用，处理淡入淡出和音源更新
+
 ## Package Layout
 
 项目分为两大主包：**引擎层** (`engine`) 和 **游戏层** (`cdda`)。
@@ -59,6 +85,7 @@ com.github.game.engine.core.scene   — Scene (抽象基类), Viewport (屏幕�
 com.github.game.engine.core.render  — Renderer (interface, pushClip/popClip), Graphics2DRenderer, RenderContext
 com.github.game.engine.core.input   — InputManager (event forwarding)
 com.github.game.engine.core.resource — ResourceManager (image loading + caching)
+com.github.game.engine.core.audio    — AudioEngine (对外入口), AudioManager (通道/缓存/淡入淡出), AudioSource/ClipSource/StreamSource (音源), AudioChannel (混音通道), AudioCache (缓存), FadeManager, AudioScheduler
 com.github.game.engine.core.time    — GameClock (通用游戏时钟，只有 totalSeconds + 时分秒)
 ```
 

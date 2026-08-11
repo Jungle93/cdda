@@ -177,8 +177,14 @@ public class Player extends Creature {
         int finalDamage = (int) Math.round(baseDamage * variance);
         finalDamage = Math.max(1, finalDamage);
 
-        // 应用伤害
-        target.takeDamage(finalDamage);
+        // 应用伤害：如果是 Animal 且本次伤害会致死，调用 killByPlayer()
+        // 确保死亡原因标记为 PLAYER_KILL → 触发掉落
+        if (target instanceof com.github.game.cdda.creature.Animal animal
+                && animal.getHp() <= finalDamage) {
+            animal.killByPlayer();
+        } else {
+            target.takeDamage(finalDamage);
+        }
 
         // 记录日志
         String targetName = getCreatureDisplayName(target);

@@ -1,6 +1,5 @@
 package com.github.game.cdda.creature.config;
 
-import com.github.game.cdda.creature.energy.DeathCause;
 import com.github.game.cdda.creature.energy.EnergyConfig;
 import com.github.game.cdda.creature.energy.TrophicLevel;
 import com.github.game.cdda.item.LootTable;
@@ -125,19 +124,20 @@ public class CreatureDefinition {
         public String name;
         /** 该阶段生命值 */
         public int hp;
-        /** 成长到此阶段所需回合数（null 表示最终阶段） */
-        public Integer growTurns;
+        /** 成长到此阶段所需游戏秒数（null 表示最终阶段） */
+        public Long growSeconds;
     }
 
     /**
      * 繁殖参数。
      * 控制生物的繁殖行为：成熟条件、冷却、概率、后代数量。
+     * 时间单位为游戏秒。
      */
     public static class Reproduction {
-        /** 成熟所需回合数（达到后才能繁殖） */
-        public int matureTurns = 1000;
-        /** 繁殖冷却（两次繁殖间隔的最小回合数） */
-        public int cooldownTurns = 2000;
+        /** 成熟所需游戏秒数（达到后才能繁殖） */
+        public long matureSeconds = 120000;
+        /** 繁殖冷却（两次繁殖间隔的最小游戏秒数） */
+        public long cooldownSeconds = 240000;
         /** 每次繁殖最大后代数 */
         public int maxOffspring = 2;
         /** 每次繁殖概率 (0-1) */

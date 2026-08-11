@@ -21,13 +21,13 @@
       "stage": "juvenile",
       "name": "鹿羔",
       "hp": 15,
-      "growTurns": 500
+      "growSeconds": 10800
     },
     {
       "stage": "adult",
       "name": "鹿",
       "hp": 30,
-      "growTurns": null
+      "growSeconds": null
     }
   ],
   "lootTable": {
@@ -49,12 +49,12 @@
     "scavengeGain": 0,
     "reproduceCost": 30,
     "reproduceThreshold": 60,
-    "starvationTurns": 200,
-    "lifespanTurns": 6000
+    "starvationSeconds": 21600,
+    "lifespanSeconds": 864000
   },
   "reproduction": {
-    "matureTurns": 1500,
-    "cooldownTurns": 3000,
+    "matureSeconds": 43200,
+    "cooldownSeconds": 172800,
     "maxOffspring": 1,
     "chance": 0.03
   }

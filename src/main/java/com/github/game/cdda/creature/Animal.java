@@ -34,11 +34,14 @@ public class Animal extends Creature {
     /** 当前生命阶段索引 */
     private int currentStageIndex = 0;
 
-    /** 已存活回合数 */
-    private int turnsLived = 0;
+    /** 出生时的游戏时间（游戏秒数，-1 表示尚未设置） */
+    private long birthTime = -1;
 
-    /** 上次繁殖的回合数（-9999 表示从未繁殖） */
-    private int lastReproductionTurn = -9999;
+    /** 当前游戏时间（每次 takeTurn 从 context 更新） */
+    private long currentGameSeconds = 0;
+
+    /** 上次繁殖的游戏时间（秒，-9999 表示从未繁殖） */
+    private long lastReproductionTime = -9999;
 
     // ── 能量系统 ──────────────────────────
 
@@ -50,6 +53,9 @@ public class Animal extends Creature {
 
     /** 死亡原因 */
     private DeathCause deathCause;
+
+    /** 是否已处理掉落（避免重复掉落） */
+    private boolean lootDropped = false;
 
     /** 能量流动管理器 */
     private transient EnergyFlowManager energyFlowManager;
@@ -137,11 +143,14 @@ public class Animal extends Creature {
     public void takeTurn(CreatureActionContext context) {
         if (!alive) return;
 
+        // 更新当前游戏时间（首次调用时初始化出生时间）
+        currentGameSeconds = context.getCurrentGameSeconds();
+        if (birthTime < 0) {
+            birthTime = currentGameSeconds;
+        }
+
         // AI 更新
         ai.update(this, context);
-
-        // 更新存活回合
-        turnsLived++;
 
         // 代谢消耗
         updateMetabolism();
@@ -157,14 +166,22 @@ public class Animal extends Creature {
     }
 
     /**
-     * 代谢更新：每 N 回合 -1 bodyEnergy。
+     * 获取存活时长（游戏秒数）。
+     */
+    public long getAgeSeconds() {
+        return birthTime >= 0 ? currentGameSeconds - birthTime : 0;
+    }
+
+    /**
+     * 代谢更新：每 N 游戏秒 -1 bodyEnergy。
      */
     private void updateMetabolism() {
         EnergyConfig ec = definition.getEnergyConfig();
         int interval = ec.getMetabolismInterval();
         if (interval <= 0) return;
 
-        if (turnsLived % interval == 0) {
+        long age = getAgeSeconds();
+        if (age > 0 && age % interval == 0) {
             bodyEnergy = Math.max(0, bodyEnergy - 1);
         }
     }
@@ -174,7 +191,7 @@ public class Animal extends Creature {
      */
     private void checkLifespan() {
         EnergyConfig ec = definition.getEnergyConfig();
-        if (turnsLived >= ec.getLifespanTurns()) {
+        if (getAgeSeconds() >= ec.getLifespanSeconds()) {
             deathCause = DeathCause.NATURAL_AGE;
             alive = false;
             onDeath();
@@ -188,7 +205,7 @@ public class Animal extends Creature {
         if (bodyEnergy == 0) {
             turnsStarving++;
             EnergyConfig ec = definition.getEnergyConfig();
-            if (turnsStarving >= ec.getStarvationTurns()) {
+            if (turnsStarving >= ec.getStarvationSeconds()) {
                 deathCause = DeathCause.STARVATION;
                 alive = false;
                 onDeath();
@@ -199,7 +216,7 @@ public class Animal extends Creature {
     }
 
     /**
-     * 检查是否成长到下一阶段。
+     * 检查是否成长到下一阶段（基于游戏时间）。
      */
     private void checkGrowth() {
         List<CreatureDefinition.LifeStage> stages = definition.lifeStages;
@@ -208,23 +225,23 @@ public class Animal extends Creature {
         }
 
         CreatureDefinition.LifeStage currentStage = stages.get(currentStageIndex);
-        if (currentStage.growTurns == null) {
+        if (currentStage.growSeconds == null) {
             return;  // 当前阶段无成长条件
         }
 
-        if (turnsLived >= currentStage.growTurns) {
+        if (getAgeSeconds() >= currentStage.growSeconds) {
             // 成长到下一阶段
             int nextStage = currentStageIndex + 1;
             applyLifeStage(nextStage);
-            // 可在此添加日志或事件通知
         }
     }
 
     /**
      * 尝试繁殖。
      * 检查成熟度、冷却时间、能量门槛、概率，成功时返回后代。
+     * 冷却判定基于游戏时间。
      *
-     * @param currentTurn 当前回合数
+     * @param currentTurn 当前回合数（未使用，保留兼容）
      * @param random      随机数生成器
      * @return 后代动物，繁殖失败返回 null
      */
@@ -232,11 +249,11 @@ public class Animal extends Creature {
         CreatureDefinition.Reproduction repro = definition.reproduction;
         if (repro == null) return null;
 
-        // 必须达到成熟期
-        if (turnsLived < repro.matureTurns) return null;
+        // 必须达到成熟期（基于游戏时间）
+        if (getAgeSeconds() < repro.matureSeconds) return null;
 
-        // 冷却检查
-        if (currentTurn - lastReproductionTurn < repro.cooldownTurns) return null;
+        // 冷却检查（基于游戏时间）
+        if (currentGameSeconds - lastReproductionTime < repro.cooldownSeconds) return null;
 
         // 能量门槛
         EnergyConfig ec = definition.getEnergyConfig();
@@ -246,21 +263,21 @@ public class Animal extends Creature {
         if (random.nextDouble() > repro.chance) return null;
 
         // 繁殖成功
-        lastReproductionTurn = currentTurn;
+        lastReproductionTime = currentGameSeconds;
         bodyEnergy -= ec.getReproduceCost();
 
         // 创建后代（同物种，幼年阶段）
-        // 后代初始位置与父母相同，实际偏移由 CreatureManager.placeNearby() 处理
+        // 后代的 birthTime 会在首次 takeTurn 时初始化为当前时间
         return new Animal(definition, tileX, tileY);
     }
 
     /**
-     * 获取上次繁殖的回合数。
+     * 获取上次繁殖的游戏时间。
      *
-     * @return 回合数
+     * @return 游戏秒数
      */
-    public int getLastReproductionTurn() {
-        return lastReproductionTurn;
+    public long getLastReproductionTime() {
+        return lastReproductionTime;
     }
 
     /**
@@ -271,7 +288,7 @@ public class Animal extends Creature {
     public boolean isMature() {
         CreatureDefinition.Reproduction repro = definition.reproduction;
         if (repro == null) return true; // 无繁殖参数的视为成熟
-        return turnsLived >= repro.matureTurns;
+        return getAgeSeconds() >= repro.matureSeconds;
     }
 
     @Override
@@ -379,12 +396,13 @@ public class Animal extends Creature {
     }
 
     /**
-     * 获取已存活回合数。
+    /**
+     * 获取已存活游戏秒数。
      *
-     * @return 回合数
+     * @return 存活秒数
      */
-    public int getTurnsLived() {
-        return turnsLived;
+    public long getAgeInSeconds() {
+        return getAgeSeconds();
     }
 
     /**
@@ -419,6 +437,16 @@ public class Animal extends Creature {
     /** 获取死亡原因 */
     public DeathCause getDeathCause() {
         return deathCause;
+    }
+
+    /** 是否已处理掉落 */
+    public boolean isLootDropped() {
+        return lootDropped;
+    }
+
+    /** 标记掉落已处理（避免重复掉落） */
+    public void setLootDropped(boolean dropped) {
+        this.lootDropped = dropped;
     }
 
     /** 获取饥饿回合数 */

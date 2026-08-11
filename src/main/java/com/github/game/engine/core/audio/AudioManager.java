@@ -42,14 +42,17 @@ public class AudioManager {
     /** 音效对象池 */
     private final ObjectPool<ClipSource> sfxPool;
 
+    /** 音效节流：clipId → 冷却结束时间戳（ms）。同一音效在冷却期内不重复播放 */
+    private final java.util.Map<String, Long> sfxCooldowns = new java.util.concurrent.ConcurrentHashMap<>();
+
     /** 淡入淡出调度器 */
     private final FadeManager fadeManager = new FadeManager();
 
     /** 延迟播放调度器 */
     private final AudioScheduler scheduler;
 
-    /** 当前 BGM 音源 */
-    private StreamSource currentBgm;
+    /** 当前 BGM 音源（可能是 ClipSource 或 StreamSource） */
+    private AudioSource currentBgm;
 
     /**
      * 创建音频管理器。
@@ -109,8 +112,16 @@ public class AudioManager {
 
     /**
      * 播放音效到指定通道。
+     * 同一音效在上一次播放完成前不会重复触发（节流）。
      */
     private void playSound(String clipId, String channelName, boolean loop, float volume) {
+        // 节流：检查是否还在冷却中
+        long now = System.currentTimeMillis();
+        Long cooldownEnd = sfxCooldowns.get(clipId);
+        if (cooldownEnd != null && now < cooldownEnd) {
+            return; // 仍在冷却，跳过
+        }
+
         AudioChannel channel = channels.get(channelName);
         if (channel == null) {
             logger.warn("通道不存在: {}", channelName);
@@ -123,6 +134,9 @@ public class AudioManager {
             logger.warn("音效加载失败: {}", clipId);
             return;
         }
+
+        // 设置冷却时间 = 当前时间 + 音频时长
+        sfxCooldowns.put(clipId, now + cached.getDurationMs());
 
         // 从对象池获取音源
         ClipSource source = sfxPool.acquire();
@@ -164,33 +178,21 @@ public class AudioManager {
         AudioChannel channel = channels.get(CHANNEL_BGM);
         if (channel == null) return;
 
-        String ext = getExtension(clipId).toLowerCase();
-        boolean isMp3 = ext.equals("mp3");
-
-        StreamSource bgm = new StreamSource(
-                null, // format 会在首次加载时确定
-                clipId,
-                0, // duration 会在加载时确定
-                isMp3,
-                resourceLoader
-        );
-
-        // 先加载一次获取格式和时长
+        // 先加载音频获取格式和 PCM 数据，使用 ClipSource 直接播放（更可靠，支持所有 JavaSound 解码器）
+        AudioSource bgm;
         AudioCache.CachedAudio cached = cache.loadSync(clipId);
         if (cached != null) {
-            // 对于 MP3 文件，如果已缓存，使用缓存的 PCM 创建
-            bgm = createStreamSource(clipId, cached.getFormat(),
-                    cached.getPcmData(), cached.getDurationMs(), isMp3);
+            // 缓存命中：直接用缓存的 PCM 数据创建 ClipSource
+            bgm = new ClipSource(cached);
         } else {
-            // 尝试从流式信息创建
+            // 缓存未命中：解码文件，再创建 ClipSource
             try (InputStream in = resourceLoader.apply(clipId)) {
                 if (in == null) {
                     logger.warn("BGM 文件不存在: {}", clipId);
                     return;
                 }
                 AudioFormatDecoder.DecodeResult result = AudioFormatDecoder.decode(in, clipId);
-                bgm = createStreamSource(clipId, result.getFormat(),
-                        result.getPcmData(), result.getDurationMs(), isMp3);
+                bgm = new ClipSource(result.getFormat(), result.getPcmData(), result.getDurationMs());
             } catch (Exception e) {
                 logger.error("BGM 加载失败: {}: {}", clipId, e.getMessage());
                 return;
@@ -363,24 +365,6 @@ public class AudioManager {
     }
 
     // ── 辅助方法 ──────────────────────────────────
-
-    private StreamSource createStreamSource(String clipId, javax.sound.sampled.AudioFormat format,
-                                             byte[] pcmData, long durationMs, boolean isMp3) {
-        // 对于流式播放，如果是 MP3，我们使用 StreamSource 的流式解码
-        // 如果是已缓存的完整 PCM，我们可以直接播放
-        // 这里为了统一，大文件用流式，小文件用 ClipSource
-        if (pcmData.length < 512 * 1024) { // < 512KB 用 Clip
-            // 实际上这里应该返回 ClipSource，但为了 API 统一，
-            // 我们让 playBGM 内部处理
-            return new StreamSource(format, clipId, durationMs, isMp3, resourceLoader);
-        }
-        return new StreamSource(format, clipId, durationMs, isMp3, resourceLoader);
-    }
-
-    private String getExtension(String path) {
-        int dot = path.lastIndexOf('.');
-        return dot >= 0 ? path.substring(dot + 1) : "";
-    }
 
     /** 播放请求（供 Scheduler 使用） */
     static class PlayRequest {

@@ -151,7 +151,7 @@ public class Chunk {
 
                 tiles[row][col] = classifyTerrain(
                         elevation, temperature, humidity, tileMoisture,
-                        biome, rockThreshold);
+                        biome, rockThreshold, biome.getWaterLevel());
             }
         }
 
@@ -182,22 +182,30 @@ public class Chunk {
      *   <li>高海拔 + 低温 → 石头（高原冻土）</li>
      *   <li>默认 → 草地</li>
      * </ol>
+     *
+     * <p>群落 waterLevel 会降低低地阈值，使海洋/沼泽群落产生更多泥地，
+     * 便于后续 {@link #carveWaterFeatures} 在这些区域放置水域。
      */
     private TileType classifyTerrain(double elevation, double temperature,
                                       double humidity, double moisture,
-                                      BiomeType biome, double rockThreshold) {
+                                      BiomeType biome, double rockThreshold,
+                                      float waterLevel) {
         // 岩石优先（高海拔 + 群落岩石率）
         if (elevation > rockThreshold) {
             return TileType.STONE;
         }
 
-        // 低海拔 + 高湿度 → 泥地（沼泽边缘）
-        if (elevation < -0.10 && humidity > 0.6) {
+        // waterLevel 越高，低地阈值越宽松（海洋 waterLevel=1.0 → 阈值 +0.30）
+        // 使海洋/沼泽群落更容易产生泥地，便于后续水域雕刻
+        double waterBonus = waterLevel * 0.30;
+
+        // 低海拔 + 高湿度 → 泥地（沼泽边缘/海底）
+        if (elevation < -0.10 + waterBonus && humidity > 0.6) {
             return TileType.MUD;
         }
 
         // 低海拔 + 中等湿度 → 泥土地
-        if (elevation < -0.05 && humidity > 0.3) {
+        if (elevation < -0.05 + waterBonus && humidity > 0.3) {
             return humidity > 0.5 ? TileType.MUD : TileType.DIRT;
         }
 
@@ -543,8 +551,10 @@ public class Chunk {
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 TileType base = tiles[row][col];
-                // 只在草地/沙地上放置水域（不覆盖已有水域、岩石、植被）
-                if (base != TileType.GRASS && base != TileType.SAND) {
+                // 允许在草地/沙地/泥地/泥土上放置水域（不覆盖岩石、植被）
+                // MUD 是海洋/沼泽群落的主要地面类型，必须允许水域覆盖
+                if (base != TileType.GRASS && base != TileType.SAND
+                        && base != TileType.MUD && base != TileType.DIRT) {
                     continue;
                 }
                 int globalX = chunkX * SIZE + col;

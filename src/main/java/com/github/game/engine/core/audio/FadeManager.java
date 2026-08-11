@@ -16,6 +16,7 @@ public class FadeManager {
 
     /**
      * 对指定音源执行淡入（从 0 到目标音量）。
+     * 音源会立即开始播放，音量在 durationMs 内从 0 渐增到 targetVolume。
      *
      * @param source        音源
      * @param targetVolume  目标音量 (0~1)
@@ -23,6 +24,7 @@ public class FadeManager {
      */
     public void fadeIn(AudioSource source, float targetVolume, long durationMs) {
         source.setVolume(0f);
+        source.play();  // 开始播放（音量 0 启动，由渐变控制音量增长）
         addFade(source, 0f, targetVolume, durationMs, null);
     }
 

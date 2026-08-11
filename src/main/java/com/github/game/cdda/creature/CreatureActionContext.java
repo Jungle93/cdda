@@ -30,6 +30,9 @@ public class CreatureActionContext {
     /** 瓦片像素高度 */
     private final int tileHeight;
 
+    /** 当前游戏时间（游戏秒数，由 GameScene 在请求回合处理时注入） */
+    private long currentGameSeconds;
+
     /**
      * 创建行动上下文。
      *
@@ -91,5 +94,15 @@ public class CreatureActionContext {
 
     public int getTileHeight() {
         return tileHeight;
+    }
+
+    /** 设置当前游戏时间（游戏秒数） */
+    public void setCurrentGameSeconds(long seconds) {
+        this.currentGameSeconds = seconds;
+    }
+
+    /** 获取当前游戏时间（游戏秒数） */
+    public long getCurrentGameSeconds() {
+        return currentGameSeconds;
     }
 }

@@ -98,6 +98,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
 
         // ── 创建游戏世界（逻辑层） ──
         gameWorld = new GameWorld(worldSettings, Month.MARCH, 8);
+        gameWorld.setAudioEngine(getEngine().getAudioEngine());
 
         // ── 游戏场景（显示层，左侧） ──
         gameScene = new GameScene(
@@ -142,6 +143,9 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         addScene(gameScene);
         addScene(hudScene);
         addScene(worldMapScene);
+
+        // 播放游戏背景音乐（循环，淡入 3 秒）
+        getEngine().getAudioEngine().playBGM("music/background.mp3", true, 0.7f, 3000);
 
         initialized = true;
     }
@@ -257,6 +261,8 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
 
     @Override
     public void dispose() {
+        // 停止游戏背景音乐（淡出 1 秒）
+        getEngine().getAudioEngine().stopBGM(1000);
         super.dispose();
     }
 

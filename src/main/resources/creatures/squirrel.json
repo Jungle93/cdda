@@ -17,8 +17,8 @@
   "displayChar": "s",
   "displayColor": [160, 100, 50],
   "lifeStages": [
-    { "stage": "juvenile", "name": "小松鼠", "hp": 3, "growTurns": 300 },
-    { "stage": "adult", "name": "松鼠", "hp": 5, "growTurns": null }
+    { "stage": "juvenile", "name": "小松鼠", "hp": 3, "growSeconds": 3600 },
+    { "stage": "adult", "name": "松鼠", "hp": 5, "growSeconds": null }
   ],
   "lootTable": {
     "entries": [
@@ -39,12 +39,12 @@
     "scavengeGain": 0,
     "reproduceCost": 20,
     "reproduceThreshold": 45,
-    "starvationTurns": 80,
-    "lifespanTurns": 2000
+    "starvationSeconds": 7200,
+    "lifespanSeconds": 115200
   },
   "reproduction": {
-    "matureTurns": 500,
-    "cooldownTurns": 1000,
+    "matureSeconds": 14400,
+    "cooldownSeconds": 28800,
     "maxOffspring": 4,
     "chance": 0.08
   }

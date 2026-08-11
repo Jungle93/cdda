@@ -1,7 +1,6 @@
 package com.github.game.cdda.creature.ai;
 
 import com.github.game.cdda.creature.Animal;
-import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureActionContext;
 import com.github.game.cdda.creature.energy.TrophicLevel;
 import com.github.game.cdda.world.TileType;
@@ -211,7 +210,7 @@ public class AnimalAI {
                     int dx = random.nextInt(3) - 1;  // -1, 0, 1
                     int dy = random.nextInt(3) - 1;
                     if (dx != 0 || dy != 0) {
-                        tryMove(animal, dx, dy, context.getChunkManager());
+                        tryMove(animal, dx, dy, context);
                     }
                 }
                 break;
@@ -224,7 +223,7 @@ public class AnimalAI {
                     int dx = random.nextInt(3) - 1;
                     int dy = random.nextInt(3) - 1;
                     if (dx != 0 || dy != 0) {
-                        tryMove(animal, dx, dy, context.getChunkManager());
+                        tryMove(animal, dx, dy, context);
                     }
                 }
                 break;
@@ -247,7 +246,7 @@ public class AnimalAI {
                     int dx = random.nextInt(3) - 1;
                     int dy = random.nextInt(3) - 1;
                     if (dx != 0 || dy != 0) {
-                        tryMove(animal, dx, dy, context.getChunkManager());
+                        tryMove(animal, dx, dy, context);
                     }
                 }
                 break;
@@ -291,7 +290,7 @@ public class AnimalAI {
                     int dx = random.nextInt(3) - 1;
                     int dy = random.nextInt(3) - 1;
                     if (dx != 0 || dy != 0) {
-                        tryMove(animal, dx, dy, context.getChunkManager());
+                        tryMove(animal, dx, dy, context);
                     }
                 }
                 return;
@@ -305,17 +304,17 @@ public class AnimalAI {
         int dy = Integer.compare(targetY, animal.getTileY());
 
         // 尝试直接向目标移动
-        if (!tryMove(animal, dx, dy, context.getChunkManager())) {
+        if (!tryMove(animal, dx, dy, context)) {
             // 对角线尝试
             if (dx != 0 && dy != 0) {
-                if (!tryMove(animal, dx, 0, context.getChunkManager())) {
-                    tryMove(animal, 0, dy, context.getChunkManager());
+                if (!tryMove(animal, dx, 0, context)) {
+                    tryMove(animal, 0, dy, context);
                 }
             } else if (dx != 0) {
                 // 尝试侧向移动绕过障碍
-                tryMove(animal, dx, random.nextBoolean() ? 1 : -1, context.getChunkManager());
+                tryMove(animal, dx, random.nextBoolean() ? 1 : -1, context);
             } else {
-                tryMove(animal, random.nextBoolean() ? 1 : -1, dy, context.getChunkManager());
+                tryMove(animal, random.nextBoolean() ? 1 : -1, dy, context);
             }
         }
     }
@@ -388,29 +387,30 @@ public class AnimalAI {
 
         // 优先移动距离较大的方向
         if (Math.abs(dx) >= Math.abs(dy)) {
-            if (tryMove(animal, dx, 0, context.getChunkManager())) {
+            if (tryMove(animal, dx, 0, context)) {
                 return;
             }
-            if (tryMove(animal, 0, dy, context.getChunkManager())) {
+            if (tryMove(animal, 0, dy, context)) {
                 return;
             }
         } else {
-            if (tryMove(animal, 0, dy, context.getChunkManager())) {
+            if (tryMove(animal, 0, dy, context)) {
                 return;
             }
-            if (tryMove(animal, dx, 0, context.getChunkManager())) {
+            if (tryMove(animal, dx, 0, context)) {
                 return;
             }
         }
 
         // 对角线逃跑
         if (dx != 0 && dy != 0) {
-            tryMove(animal, dx, dy, context.getChunkManager());
+            tryMove(animal, dx, dy, context);
         }
     }
 
     /**
      * 尝试移动动物。
+     * 移动成功后更新空间索引（跨区块时切换索引桶）。
      *
      * @param animal       动物实例
      * @param dx           水平方向（-1, 0, 1）
@@ -418,19 +418,31 @@ public class AnimalAI {
      * @param chunkManager 地图管理器
      * @return 是否成功移动
      */
-    private boolean tryMove(Animal animal, int dx, int dy, ChunkManager chunkManager) {
+    private boolean tryMove(Animal animal, int dx, int dy, CreatureActionContext context) {
         int newX = animal.getTileX() + dx;
         int newY = animal.getTileY() + dy;
 
         // 检查目标瓦片是否可通行
+        ChunkManager chunkManager = context.getChunkManager();
         TileType tile = chunkManager.getTile(newX, newY);
         if (tile == null || !tile.isPassable()) {
             return false;
         }
 
+        // 记录旧位置，用于更新空间索引
+        int oldX = animal.getTileX();
+        int oldY = animal.getTileY();
+
         // 移动
         animal.setTileX(newX);
         animal.setTileY(newY);
+
+        // 更新空间索引（跨区块时移动索引桶，防止动物跨区块后"消失"）
+        if (context.getCreatureManager() != null) {
+            context.getCreatureManager().getCreatureGrid()
+                    .move(animal, oldX, oldY, newX, newY);
+        }
+
         return true;
     }
 

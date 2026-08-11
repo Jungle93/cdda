@@ -21,13 +21,13 @@
       "stage": "juvenile",
       "name": "幼兔",
       "hp": 5,
-      "growTurns": 300
+      "growSeconds": 3600
     },
     {
       "stage": "adult",
       "name": "兔子",
       "hp": 10,
-      "growTurns": null
+      "growSeconds": null
     }
   ],
   "lootTable": {
@@ -49,12 +49,12 @@
     "scavengeGain": 0,
     "reproduceCost": 25,
     "reproduceThreshold": 50,
-    "starvationTurns": 100,
-    "lifespanTurns": 3000
+    "starvationSeconds": 7200,
+    "lifespanSeconds": 172800
   },
   "reproduction": {
-    "matureTurns": 500,
-    "cooldownTurns": 1000,
+    "matureSeconds": 14400,
+    "cooldownSeconds": 28800,
     "maxOffspring": 3,
     "chance": 0.08
   }

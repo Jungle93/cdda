@@ -126,8 +126,65 @@ public class AudioFormatDecoder {
     // ── MP3 解码 ──────────────────────────────────
 
     private static DecodeResult decodeMp3(InputStream in) throws IOException {
+        // 优先使用 JavaSound + MP3SPI（更稳定，支持所有 MPEG 版本）
+        // 回退到 JLayer（如果 MP3SPI 未安装）
         try {
-            Bitstream bitstream = new Bitstream(in);
+            return decodeMp3JavaSound(in);
+        } catch (Exception e) {
+            logger.debug("JavaSound MP3 解码失败，回退到 JLayer: {}", e.getMessage());
+            try {
+                return decodeMp3JLayer(in);
+            } catch (Exception e2) {
+                throw new IOException("MP3 解码失败 (JavaSound: " + e.getMessage()
+                        + ", JLayer: " + e2.getMessage() + ")", e2);
+            }
+        }
+    }
+
+    /**
+     * MP3 解码：JavaSound（依赖 MP3SPI）。
+     * MP3SPI 注册为 AudioSystem 的 SPI，可直接用 AudioSystem.getAudioInputStream 解码 MP3。
+     */
+    private static DecodeResult decodeMp3JavaSound(InputStream in) throws IOException {
+        try {
+            javax.sound.sampled.AudioInputStream ais = AudioSystem.getAudioInputStream(in);
+            AudioFormat srcFormat = ais.getFormat();
+
+            // 确保输出是 PCM_SIGNED（MP3SPI 可能返回 PCM_UNSIGNED 或其他）
+            AudioFormat targetFormat;
+            if (srcFormat.getEncoding() != AudioFormat.Encoding.PCM_SIGNED) {
+                targetFormat = new AudioFormat(
+                        AudioFormat.Encoding.PCM_SIGNED,
+                        srcFormat.getSampleRate(),
+                        16,
+                        srcFormat.getChannels(),
+                        srcFormat.getChannels() * 2,
+                        srcFormat.getSampleRate(),
+                        false);
+                ais = AudioSystem.getAudioInputStream(targetFormat, ais);
+            } else {
+                targetFormat = srcFormat;
+            }
+
+            DecodeResult result = readAllPcm(ais, targetFormat);
+            logger.debug("JavaSound MP3 解码完成: {}Hz, {}ch, {}ms",
+                    (int) targetFormat.getSampleRate(), targetFormat.getChannels(),
+                    result.getDurationMs());
+            return result;
+        } catch (javax.sound.sampled.UnsupportedAudioFileException e) {
+            throw new IOException("JavaSound 不支持此 MP3: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * MP3 解码：JLayer（回退方案）。
+     * 注意：JLayer 对某些 MPEG-2 / MPEG-2.5 格式的 MP3 存在兼容问题。
+     */
+    private static DecodeResult decodeMp3JLayer(InputStream in) throws IOException {
+        try {
+            // JLayer 的 Bitstream 需要支持 mark/reset 的流（否则无法正确跳过 ID3 标签）
+            java.io.InputStream buffered = in.markSupported() ? in : new java.io.BufferedInputStream(in, 8192);
+            Bitstream bitstream = new Bitstream(buffered);
             Decoder decoder = new Decoder();
 
             // 读取第一帧获取格式信息
@@ -138,6 +195,18 @@ public class AudioFormatDecoder {
 
             int sampleRate = firstHeader.sample_frequency();
             int channels = firstHeader.mode() == Header.SINGLE_CHANNEL ? 1 : 2;
+
+            // 兼容 JLayer 对某些 MPEG 版本（特别是 MPEG-2）的 sample_frequency() 返回错误值
+            // 当返回异常值时，从 sample_frequency_string() 解析（如 "24 kHz" → 24000）
+            if (sampleRate <= 1) {
+                int corrected = parseSampleRateString(firstHeader);
+                if (corrected > 0) {
+                    logger.info("MP3 采样率修正: {} → {} Hz (从字符串解析)", sampleRate, corrected);
+                    sampleRate = corrected;
+                } else {
+                    throw new IOException("无法识别的 MP3 采样率: " + sampleRate);
+                }
+            }
 
             AudioFormat format = new AudioFormat(
                     AudioFormat.Encoding.PCM_SIGNED,
@@ -188,6 +257,49 @@ public class AudioFormatDecoder {
     private static String getExtension(String path) {
         int dot = path.lastIndexOf('.');
         return dot >= 0 ? path.substring(dot + 1) : "";
+    }
+
+    /**
+     * 从 JLayer Header 的 sample_frequency_string() 解析采样率。
+     *
+     * <p>JLayer 对某些 MPEG 版本（如 MPEG-2）的 sample_frequency() 返回错误值（如 1），
+     * 但 sample_frequency_string() 通常返回正确字符串（如 "24 kHz"）。
+     *
+     * @param header JLayer 的 MP3 帧头
+     * @return 解析出的采样率（Hz），解析失败返回 0
+     */
+    private static int parseSampleRateString(Header header) {
+        String freqStr = header.sample_frequency_string();
+        if (freqStr == null) return 0;
+
+        try {
+            // 格式通常为 "24 kHz"、"44 kHz" 或 "22.05 kHz"
+            // 提取数字部分（支持小数）
+            StringBuilder numBuf = new StringBuilder();
+            boolean hasDecimal = false;
+            for (char c : freqStr.toCharArray()) {
+                if (Character.isDigit(c)) {
+                    numBuf.append(c);
+                } else if (c == '.' && !hasDecimal) {
+                    numBuf.append(c);
+                    hasDecimal = true;
+                } else if (numBuf.length() > 0) {
+                    break; // 已读完数字部分
+                }
+            }
+            if (numBuf.length() == 0) return 0;
+
+            double value = Double.parseDouble(numBuf.toString());
+
+            // 判断单位：字符串中通常带 "kHz" 或 "Hz"
+            if (freqStr.toLowerCase().contains("khz")) {
+                return (int) (value * 1000);
+            } else {
+                return (int) value;
+            }
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     // ── 结果类 ──────────────────────────────────

@@ -22,6 +22,11 @@ public abstract class GameApplication {
     public GameApplication() {
         logger.info("初始化游戏应用...");
 
+        // 安装全局未捕获异常处理器：将异常写入日志文件（否则只输出到 stderr，进不了日志）
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            logger.error("未捕获异常 [{}]: {}", thread.getName(), throwable.getMessage(), throwable);
+        });
+
         // 由子类提供配置
         EngineConfig config = createConfig();
 

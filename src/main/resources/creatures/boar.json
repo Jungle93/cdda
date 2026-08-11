@@ -17,8 +17,8 @@
   "displayChar": "b",
   "displayColor": [120, 80, 50],
   "lifeStages": [
-    { "stage": "juvenile", "name": "小猪崽", "hp": 20, "growTurns": 800 },
-    { "stage": "adult", "name": "野猪", "hp": 40, "growTurns": null }
+    { "stage": "juvenile", "name": "小猪崽", "hp": 20, "growSeconds": 14400 },
+    { "stage": "adult", "name": "野猪", "hp": 40, "growSeconds": null }
   ],
   "lootTable": {
     "entries": [
@@ -39,12 +39,12 @@
     "scavengeGain": 0,
     "reproduceCost": 30,
     "reproduceThreshold": 55,
-    "starvationTurns": 150,
-    "lifespanTurns": 5000
+    "starvationSeconds": 21600,
+    "lifespanSeconds": 576000
   },
   "reproduction": {
-    "matureTurns": 1200,
-    "cooldownTurns": 2500,
+    "matureSeconds": 43200,
+    "cooldownSeconds": 144000,
     "maxOffspring": 3,
     "chance": 0.04
   }

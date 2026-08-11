@@ -18,8 +18,8 @@
   "displayChar": "B",
   "displayColor": [160, 160, 160],
   "lifeStages": [
-    { "stage": "juvenile", "name": "小獾", "hp": 10, "growTurns": 600 },
-    { "stage": "adult", "name": "獾", "hp": 20, "growTurns": null }
+    { "stage": "juvenile", "name": "小獾", "hp": 10, "growSeconds": 10800 },
+    { "stage": "adult", "name": "獾", "hp": 20, "growSeconds": null }
   ],
   "lootTable": {
     "entries": [
@@ -40,12 +40,12 @@
     "scavengeGain": 15,
     "reproduceCost": 25,
     "reproduceThreshold": 55,
-    "starvationTurns": 150,
-    "lifespanTurns": 4500
+    "starvationSeconds": 18000,
+    "lifespanSeconds": 518400
   },
   "reproduction": {
-    "matureTurns": 1000,
-    "cooldownTurns": 2500,
+    "matureSeconds": 36000,
+    "cooldownSeconds": 144000,
     "maxOffspring": 2,
     "chance": 0.04
   }

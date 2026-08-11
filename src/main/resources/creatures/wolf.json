@@ -18,8 +18,8 @@
   "displayChar": "w",
   "displayColor": [130, 130, 130],
   "lifeStages": [
-    { "stage": "juvenile", "name": "狼崽", "hp": 12, "growTurns": 600 },
-    { "stage": "adult", "name": "狼", "hp": 25, "growTurns": null }
+    { "stage": "juvenile", "name": "狼崽", "hp": 12, "growSeconds": 10800 },
+    { "stage": "adult", "name": "狼", "hp": 25, "growSeconds": null }
   ],
   "lootTable": {
     "entries": [
@@ -40,12 +40,12 @@
     "scavengeGain": 10,
     "reproduceCost": 30,
     "reproduceThreshold": 60,
-    "starvationTurns": 300,
-    "lifespanTurns": 8000
+    "starvationSeconds": 28800,
+    "lifespanSeconds": 1152000
   },
   "reproduction": {
-    "matureTurns": 1000,
-    "cooldownTurns": 3000,
+    "matureSeconds": 36000,
+    "cooldownSeconds": 172800,
     "maxOffspring": 2,
     "chance": 0.03
   }

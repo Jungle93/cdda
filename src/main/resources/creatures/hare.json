@@ -17,8 +17,8 @@
   "displayChar": "h",
   "displayColor": [170, 140, 110],
   "lifeStages": [
-    { "stage": "juvenile", "name": "幼野兔", "hp": 4, "growTurns": 400 },
-    { "stage": "adult", "name": "野兔", "hp": 8, "growTurns": null }
+    { "stage": "juvenile", "name": "幼野兔", "hp": 4, "growSeconds": 5400 },
+    { "stage": "adult", "name": "野兔", "hp": 8, "growSeconds": null }
   ],
   "lootTable": {
     "entries": [
@@ -39,12 +39,12 @@
     "scavengeGain": 0,
     "reproduceCost": 20,
     "reproduceThreshold": 45,
-    "starvationTurns": 100,
-    "lifespanTurns": 2500
+    "starvationSeconds": 10800,
+    "lifespanSeconds": 216000
   },
   "reproduction": {
-    "matureTurns": 600,
-    "cooldownTurns": 1200,
+    "matureSeconds": 21600,
+    "cooldownSeconds": 43200,
     "maxOffspring": 4,
     "chance": 0.08
   }

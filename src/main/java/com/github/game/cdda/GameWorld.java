@@ -49,6 +49,9 @@ public class GameWorld {
     private final EnergyFlowManager energyFlowManager;
     private final PlantGrowthSystem plantGrowthSystem;
 
+    /** 音频引擎（可选，用于播放音效；由外部在初始化后注入） */
+    private com.github.game.engine.core.audio.AudioEngine audioEngine;
+
     // ── 玩家 ──────────────────────────────────
     private final Player player;
 
@@ -192,6 +195,16 @@ public class GameWorld {
     public EnergyFlowManager getEnergyFlowManager() { return energyFlowManager; }
     public PlantGrowthSystem getPlantGrowthSystem() { return plantGrowthSystem; }
     public Player getPlayer() { return player; }
+
+    /** 设置音频引擎（由外部在初始化后注入） */
+    public void setAudioEngine(com.github.game.engine.core.audio.AudioEngine audioEngine) {
+        this.audioEngine = audioEngine;
+    }
+
+    /** 获取音频引擎（可能为 null） */
+    public com.github.game.engine.core.audio.AudioEngine getAudioEngine() {
+        return audioEngine;
+    }
 
     /**
      * 请求更新植物生长系统（异步，立即返回）。

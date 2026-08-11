@@ -399,9 +399,12 @@ public class CreatureManager {
             mutationQueue.add(CreatureMutation.birth(baby));
         }
 
-        // 死亡变更 + 掉落
-        for (Animal animal : animals) {
-            if (!animal.isAlive()) {
+        // 死亡变更 + 掉落（遍历完整列表，不仅是快照）
+        // 快照只包含计算开始时的存活动物，被玩家中途击杀的动物不在快照中，
+        // 但它们已经在主线程标记为死亡 → 需要扫描完整列表才能发现并触发掉落。
+        // 使用 lootDropped 标记避免重复处理（后台线程可能在 mutationQueue 处理前多次扫到同一尸体）。
+        for (Creature c : creatures) {
+            if (!c.isAlive() && c instanceof Animal animal && !animal.isLootDropped()) {
                 dropCreatureLoot(animal);
                 mutationQueue.add(CreatureMutation.death(animal));
             }
@@ -606,9 +609,15 @@ public class CreatureManager {
 
         Animal animal = (Animal) creature;
 
+        // 避免重复掉落（后台线程可能在 mutationQueue 处理前再次扫描到同一尸体）
+        if (animal.isLootDropped()) return;
+
         if (animal.getDeathCause() != DeathCause.PLAYER_KILL) {
             return;
         }
+
+        // 立即标记，防止后续回合重复掉落
+        animal.setLootDropped(true);
 
         CreatureDefinition def = animal.getDefinition();
         LootTable lootTable = def.getKillLootTable();
@@ -656,6 +665,11 @@ public class CreatureManager {
 
     public int getCreatureCount() {
         return creatureGrid.totalCreatureCount();
+    }
+
+    /** 获取生物空间索引（供 AI 移动时更新位置） */
+    public CreatureGrid getCreatureGrid() {
+        return creatureGrid;
     }
 
     /**

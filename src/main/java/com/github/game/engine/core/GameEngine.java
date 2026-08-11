@@ -1,5 +1,6 @@
 package com.github.game.engine.core;
 
+import com.github.game.engine.core.audio.AudioEngine;
 import com.github.game.engine.core.input.InputManager;
 import com.github.game.engine.core.resource.ResourceManager;
 import com.github.game.engine.core.screen.ScreenManager;
@@ -7,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import java.io.InputStream;
 
 /**
  * 游戏引擎核心，管理游戏循环、子系统和窗口。
@@ -26,6 +28,7 @@ public class GameEngine {
     private final ScreenManager screenManager;
     private final InputManager inputManager;
     private final ResourceManager resourceManager;
+    private final AudioEngine audioEngine;
     private final Timer timer;
 
     private long lastFrameTime;
@@ -50,6 +53,7 @@ public class GameEngine {
         this.screenManager = new ScreenManager(this);
         this.inputManager = new InputManager(this);
         this.resourceManager = new ResourceManager(config.getResourceBase());
+        this.audioEngine = new AudioEngine(this::loadAudioStream);
         this.gamePanel = new GamePanel(this);
 
         // 将 GamePanel 加入窗口
@@ -87,6 +91,7 @@ public class GameEngine {
     public void stop() {
         running = false;
         timer.stop();
+        audioEngine.dispose();
         frame.dispose();
         logger.info("游戏引擎停止");
     }
@@ -109,6 +114,9 @@ public class GameEngine {
         long now = System.currentTimeMillis();
         long deltaTime = now - lastFrameTime;
         lastFrameTime = now;
+
+        // 音频更新
+        audioEngine.update(deltaTime);
 
         // 逻辑更新
         if (screenManager.getCurrentScreen() != null) {
@@ -145,7 +153,51 @@ public class GameEngine {
         return resourceManager;
     }
 
+    public AudioEngine getAudioEngine() {
+        return audioEngine;
+    }
+
     public boolean isRunning() {
         return running;
+    }
+
+    // ── 音频资源加载 ──────────────────────────────────────
+
+    /**
+     * 加载音频资源流。
+     * 与 ResourceManager 类似，支持 classpath: 和 file: 前缀。
+     */
+    private InputStream loadAudioStream(String path) {
+        // 处理 classpath: 前缀
+        if (path.startsWith("classpath:")) {
+            String resourcePath = path.substring("classpath:".length());
+            if (!resourcePath.startsWith("/")) {
+                resourcePath = "/" + resourcePath;
+            }
+            return getClass().getResourceAsStream(resourcePath);
+        }
+
+        // 处理 file: 前缀
+        if (path.startsWith("file:")) {
+            String filePath = path.substring("file:".length());
+            try {
+                return new java.io.FileInputStream(filePath);
+            } catch (java.io.FileNotFoundException e) {
+                return null;
+            }
+        }
+
+        // 无前缀：先尝试 classpath，再尝试外部文件
+        String resourcePath = path.startsWith("/") ? path : "/" + path;
+        InputStream in = getClass().getResourceAsStream(resourcePath);
+        if (in != null) return in;
+
+        // 尝试外部文件
+        String filePath = config.getResourceBase() + java.io.File.separator + path;
+        try {
+            return new java.io.FileInputStream(filePath);
+        } catch (java.io.FileNotFoundException e) {
+            return null;
+        }
     }
 }

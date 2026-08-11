@@ -760,6 +760,7 @@ public class GameScene extends Scene {
         int tileW = tileMap.getTileWidth();
         int tileH = tileMap.getTileHeight();
         CreatureActionContext context = new CreatureActionContext(player, chunkManager, tileW, tileH);
+        context.setCreatureManager(creatureManager);
         creatureManager.processCreatureTurns(context);
     }
 }

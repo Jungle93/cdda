@@ -16,5 +16,11 @@ public enum AIState {
     GRAZE,
 
     /** 逃跑 — 远离威胁（玩家） */
-    FLEE
+    FLEE,
+
+    /** 狩猎 — 主动追击猎物 */
+    HUNT,
+
+    /** 食腐 — 寻找尸体 */
+    SCAVENGE
 }

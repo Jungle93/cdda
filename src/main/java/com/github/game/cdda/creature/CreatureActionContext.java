@@ -15,6 +15,9 @@ public class CreatureActionContext {
     /** 地图管理器（碰撞检测） */
     private final ChunkManager chunkManager;
 
+    /** 生物管理器（用于 AI 寻找猎物） */
+    private CreatureManager creatureManager;
+
     /** 瓦片像素宽度 */
     private final int tileWidth;
 
@@ -61,6 +64,26 @@ public class CreatureActionContext {
      */
     public ChunkManager getChunkManager() {
         return chunkManager;
+    }
+
+    /**
+     * 设置生物管理器。
+     * 由 GameScene 在构造 CreatureActionContext 后调用。
+     *
+     * @param creatureManager 生物管理器
+     */
+    public void setCreatureManager(CreatureManager creatureManager) {
+        this.creatureManager = creatureManager;
+    }
+
+    /**
+     * 获取生物管理器。
+     * 用于 AI 寻找猎物等查询。
+     *
+     * @return CreatureManager
+     */
+    public CreatureManager getCreatureManager() {
+        return creatureManager;
     }
 
     /**

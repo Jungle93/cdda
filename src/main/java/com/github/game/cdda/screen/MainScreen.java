@@ -149,12 +149,12 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     @Override
     public void render(Renderer renderer) {
         // 首次渲染时初始化 GameScene（需要 FontMetrics）
-        if (!gameScene.isInitialized()) {
+        if (gameScene != null && !gameScene.isInitialized()) {
             gameScene.ensureInitialized(renderer);
         }
 
         // 同步代谢数据到角色信息面板（从 GameWorld 获取）
-        if (charPanel != null) {
+        if (gameWorld != null && charPanel != null) {
             charPanel.setHunger(gameWorld.getMetabolismManager().getHungerPercent(), 100);
             charPanel.setTemperatureLevel(gameWorld.getMetabolismManager().getBodyTempLevel());
             charPanel.setThirst(gameWorld.getHydrationManager().getWaterPercent(), 100);

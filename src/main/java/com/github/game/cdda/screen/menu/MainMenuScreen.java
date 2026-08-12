@@ -1,5 +1,6 @@
 package com.github.game.cdda.screen.menu;
 
+import com.github.game.cdda.log.GameLog;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
 
@@ -58,7 +59,8 @@ public class MainMenuScreen extends MenuScreen {
                 engine.getScreenManager().switchScreen(new GameSetupScreen(engine));
                 break;
             case ITEM_LOAD_GAME:
-                // TODO: 加载存档功能待实现
+                // 存档系统尚未实现，提示玩家
+                GameLog.getInstance().log("加载存档功能尚未实现");
                 break;
             case ITEM_SETTINGS:
                 engine.getScreenManager().switchScreen(new SettingsScreen(engine));

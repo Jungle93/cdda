@@ -1,8 +1,10 @@
-package com.github.game.cdda;
+package com.github.game.cdda.creature;
+
+import com.github.game.cdda.Constants;
 
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureActionContext;
-import com.github.game.cdda.item.PlayerInventory;
+import com.github.game.cdda.item.world.PlayerInventory;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;

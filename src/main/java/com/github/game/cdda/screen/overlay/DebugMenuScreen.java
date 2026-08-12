@@ -2,7 +2,7 @@ package com.github.game.cdda.screen.overlay;
 
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.GameWorld;
-import com.github.game.cdda.Player;
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.screen.menu.MenuScreen;
 import com.github.game.engine.core.GameEngine;

@@ -92,32 +92,42 @@ com.github.game.engine.core.time    — GameClock (通用游戏时钟，只有 t
 ### 游戏层 — `com.github.game.cdda`（CDDA 游戏特定代码）
 
 ```
-com.github.game.cdda                — CddaGame (extends GameApplication, 入口), Constants, Player (extends Creature), Entity, GameWorld, GameCalendar
-com.github.game.cdda                — Month, Season (日历枚举)
-com.github.game.cdda                — TurnManager (回合调度), TemperatureManager (环境温度)
-com.github.game.cdda                — MetabolismManager (能量/体温), HydrationManager (口渴/水分)
-com.github.game.cdda.screen         — MainScreen (主游戏屏幕，Scene 系统 + 全局按键路由)
-com.github.game.cdda.screen.menu    — MenuScreen (抽象基类), MainMenuScreen, SettingsScreen, GameSetupScreen
-com.github.game.cdda.screen.scene   — GameScene (游戏世界场景，含检查模式), HudScene (HUD 面板场景)
-com.github.game.cdda.screen.hud     — StatusPanel (接口), CharacterInfoPanel, GameLogPanel, TimePanel
-com.github.game.cdda.screen.overlay — InGameMenuScreen (游戏内菜单), InventoryScreen (物品栏占位)
-com.github.game.cdda.log            — GameLog (游戏日志单例)
-com.github.game.cdda.item           — ItemType, ItemStack, ItemRegistry（物品系统，支持 mod 扩展）
-com.github.game.cdda.game           — WorldSettings, CharacterSettings (游戏数据模型)
-com.github.game.cdda.config         — ConfigManager, GameConfig (配置管理)
-com.github.game.cdda.creature       — Creature (抽象基类), Animal, CreatureManager, CreatureActionContext
+com.github.game.cdda                — CddaGame (入口), Constants, Entity, GameWorld (全局实例 + 子系统工厂)
+com.github.game.cdda.creature       — Creature (抽象基类), Player, Animal, CreatureManager, CreatureActionContext
 com.github.game.cdda.creature.ai    — AIState (状态枚举), AnimalAI (动物 AI 状态机)
 com.github.game.cdda.creature.config — CreatureDefinition (JSON 数据结构), CreatureRegistry (注册表)
+com.github.game.cdda.creature.energy — EnergyFlowManager, DeathCause (能量/死亡系统)
+com.github.game.cdda.game           — WorldSettings, CharacterSettings, TurnManager, TemperatureManager, MetabolismManager, HydrationManager
+com.github.game.cdda.game.time      — GameCalendar, Month, Season (日历/时间系统)
+com.github.game.cdda.item           — ItemAction (物品动作接口)
+com.github.game.cdda.item.model     — ItemType, ItemStack, ItemDefinition, ConsumableType, DisplayUnit (物品数据模型)
+com.github.game.cdda.item.registry  — ItemRegistry, ItemActionRegistry, LootTable (物品注册表)
+com.github.game.cdda.item.world     — GroundItem, GroundItemManager, PlayerInventory (物品世界交互)
+com.github.game.cdda.item.action    — ButcherAction, ChopTreeAction, ProcessItemAction (具体物品动作)
+com.github.game.cdda.screen         — MainScreen (主游戏屏幕，Scene 系统 + 全局按键路由)
+com.github.game.cdda.screen.menu    — MenuScreen (抽象基类), MainMenuScreen, SettingsScreen, GameSetupScreen
+com.github.game.cdda.screen.scene   — GameScene (游戏世界场景，含检查模式), HudScene (HUD 面板场景), WorldMapScene
+com.github.game.cdda.screen.hud     — StatusPanel (接口), CharacterInfoPanel, GameLogPanel, TimePanel
+com.github.game.cdda.screen.overlay — InGameMenuScreen, InventoryScreen, EatingScreen, DropScreen, PickupScreen 等覆盖层
+com.github.game.cdda.npc            — Npc, NpcManager, NpcRegistry, NpcDefinition, NpcInventory, NpcSocial 等 NPC 系统
+com.github.game.cdda.npc.ai         — NpcAI, NpcAIState (NPC AI 状态机)
 com.github.game.cdda.world          — TileMap, TileType（地图渲染层 + 地形类型注册表）
+com.github.game.cdda.world.biome    — BiomeType, WorldMap (生物群落)
 com.github.game.cdda.world.noise    — PerlinNoise (Perlin 噪声生成器)
 com.github.game.cdda.world.chunk    — Chunk, ChunkManager (区块管理)
 com.github.game.cdda.world.region   — Region, RegionManager (区域管理)
+com.github.game.cdda.world.vegetation — VegetationRegistry, PlantGrowthSystem (植被系统)
+com.github.game.cdda.crafting       — RecipeRegistry (合成系统)
+com.github.game.cdda.log            — GameLog (游戏日志单例)
+com.github.game.cdda.config         — ConfigManager, GameConfig (配置管理)
+com.github.game.cdda.input          — InputStateMachine (输入状态机)
+com.github.game.cdda.mod            — ModLoader (Mod 加载器)
 ```
 
 ### GameClock vs GameCalendar
 
-- **GameClock**（引擎层）— 纯时钟，跟踪 totalSeconds，提供 getHour/Minute/Second。任何游戏通用。
-- **GameCalendar**（游戏层）— 继承 GameClock，添加 CDDA 日历规则（30天/月、12月/年、季节）。
+- **GameClock**（引擎层 `engine.core.time`）— 纯时钟，跟踪 totalSeconds，提供 getHour/Minute/Second。任何游戏通用。
+- **GameCalendar**（游戏层 `cdda.game.time`）— 继承 GameClock，添加 CDDA 日历规则（30天/月、12月/年、季节）。
 
 ## Conventions
 

@@ -1,6 +1,6 @@
 package com.github.game.cdda.config;
 
-import com.github.game.cdda.item.DisplayUnit;
+import com.github.game.cdda.item.model.DisplayUnit;
 
 /**
  * 游戏配置封装。

@@ -2,13 +2,14 @@ package com.github.game.cdda.screen.overlay;
 
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.GameWorld;
-import com.github.game.cdda.HydrationManager;
-import com.github.game.cdda.MetabolismManager;
-import com.github.game.cdda.Player;
-import com.github.game.cdda.TurnManager;
-import com.github.game.cdda.item.ConsumableType;
-import com.github.game.cdda.item.ItemStack;
-import com.github.game.cdda.item.PlayerInventory;
+import com.github.game.cdda.game.HydrationManager;
+import com.github.game.cdda.game.MetabolismManager;
+import com.github.game.cdda.creature.Player;
+import com.github.game.cdda.game.TurnManager;
+import com.github.game.cdda.item.model.ConsumableType;
+import com.github.game.cdda.item.model.ItemType;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.world.PlayerInventory;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.screen.menu.MenuScreen;
 import com.github.game.engine.core.GameEngine;
@@ -192,7 +193,7 @@ public class EatingScreen extends MenuScreen {
         drawHintBar(renderer, "↑↓ 选择 | ←→ 增减数量 | Enter 食用 | Esc 返回");
     }
 
-    private String buildEffectString(com.github.game.cdda.item.ItemType type, int count) {
+    private String buildEffectString(ItemType type, int count) {
         StringBuilder sb = new StringBuilder();
         var types = type.getConsumableTypes();
 
@@ -230,7 +231,7 @@ public class EatingScreen extends MenuScreen {
         ItemStack stack = inventory.getItem(consumableIndices[index]);
         if (stack == null) return;
 
-        com.github.game.cdda.item.ItemType type = stack.getType();
+        ItemType type = stack.getType();
 
         StringBuilder effectLog = new StringBuilder();
 

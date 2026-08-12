@@ -1,4 +1,4 @@
-package com.github.game.cdda;
+package com.github.game.cdda.game.time;
 
 /**
  * 月份枚举。定义12个月份的中文名及所属季节。
@@ -46,13 +46,25 @@ public enum Month {
         this.season = season;
     }
 
-    /** 获取月份编号（1-12） */
+    /**
+     * 获取月份编号（1-12）。
+     *
+     * @return 月份编号
+     */
     public int getMonthNumber() { return monthNumber; }
 
-    /** 获取中文名 */
+    /**
+     * 获取中文名。
+     *
+     * @return 中文月份名（如"一月"）
+     */
     public String getChineseName() { return chineseName; }
 
-    /** 获取所属季节 */
+    /**
+     * 获取所属季节。
+     *
+     * @return 所属季节
+     */
     public Season getSeason() { return season; }
 
     /**
@@ -67,6 +79,8 @@ public enum Month {
 
     /**
      * 获取下一个月份。
+     *
+     * @return 下一个月（十二月→一月）
      */
     public Month next() {
         return values()[(ordinal() + 1) % 12];

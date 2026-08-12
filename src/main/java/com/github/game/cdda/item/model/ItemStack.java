@@ -1,4 +1,4 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.model;
 
 /**
  * 物品堆叠实例。
@@ -28,7 +28,12 @@ public class ItemStack {
         this.count = count;
     }
 
-    /** 创建单个物品堆叠 */
+    /**
+     * 创建单个物品的便捷工厂方法。
+     *
+     * @param type 物品类型（不能为 null）
+     * @return 数量为 1 的物品堆
+     */
     public static ItemStack single(ItemType type) {
         return new ItemStack(type, 1);
     }

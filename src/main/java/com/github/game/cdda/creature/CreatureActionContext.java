@@ -1,6 +1,6 @@
 package com.github.game.cdda.creature;
 
-import com.github.game.cdda.Player;
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.world.chunk.ChunkManager;
 
 import java.util.Collections;

@@ -1,12 +1,12 @@
 package com.github.game.cdda.screen.overlay;
 
 import com.github.game.cdda.GameWorld;
-import com.github.game.cdda.Player;
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.input.InputStateMachine;
 import com.github.game.cdda.item.ItemAction;
-import com.github.game.cdda.item.ItemActionRegistry;
-import com.github.game.cdda.item.ItemStack;
-import com.github.game.cdda.item.PlayerInventory;
+import com.github.game.cdda.item.registry.ItemActionRegistry;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.world.PlayerInventory;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.GameOverlay;
 import com.github.game.engine.core.scene.Viewport;

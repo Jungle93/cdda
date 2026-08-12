@@ -2,7 +2,7 @@ package com.github.game.cdda.creature.config;
 
 import com.github.game.cdda.creature.energy.EnergyConfig;
 import com.github.game.cdda.creature.energy.TrophicLevel;
-import com.github.game.cdda.item.LootTable;
+import com.github.game.cdda.item.registry.LootTable;
 
 import java.util.List;
 import java.util.Set;

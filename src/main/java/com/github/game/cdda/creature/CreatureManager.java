@@ -5,9 +5,9 @@ import com.github.game.cdda.creature.config.CreatureRegistry;
 import com.github.game.cdda.creature.energy.DeathCause;
 import com.github.game.cdda.creature.energy.EnergyFlowManager;
 import com.github.game.cdda.creature.energy.TrophicLevel;
-import com.github.game.cdda.item.GroundItemManager;
-import com.github.game.cdda.item.ItemStack;
-import com.github.game.cdda.item.LootTable;
+import com.github.game.cdda.item.world.GroundItemManager;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.registry.LootTable;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.Chunk;
@@ -54,7 +54,7 @@ public class CreatureManager {
     private final ChunkManager chunkManager;
 
     /** 回合管理器 */
-    private final com.github.game.cdda.TurnManager turnManager;
+    private final com.github.game.cdda.game.TurnManager turnManager;
 
     /** 随机数生成器 */
     private final Random random = new Random();
@@ -117,7 +117,7 @@ public class CreatureManager {
      * @param chunkManager 地图管理器
      * @param turnManager  回合管理器
      */
-    public CreatureManager(ChunkManager chunkManager, com.github.game.cdda.TurnManager turnManager) {
+    public CreatureManager(ChunkManager chunkManager, com.github.game.cdda.game.TurnManager turnManager) {
         this.chunkManager = chunkManager;
         this.turnManager = turnManager;
         this.turnExecutor = Executors.newSingleThreadExecutor(r -> {
@@ -382,7 +382,7 @@ public class CreatureManager {
                 // 气泡内：检查能量并执行 AI（while 循环，用完所有积攒的能量）
                 while (turnManager.canAct(animal)) {
                     animal.takeTurn(context);
-                    animal.spendEnergy(com.github.game.cdda.TurnManager.ENERGY_PER_ACTION);
+                    animal.spendEnergy(com.github.game.cdda.game.TurnManager.ENERGY_PER_ACTION);
                 }
                 // 繁殖检查
                 Animal baby = tryReproduce(animal, currentRound);

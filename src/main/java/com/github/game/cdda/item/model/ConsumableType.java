@@ -1,4 +1,4 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.model;
 
 import java.util.EnumSet;
 import java.util.Set;

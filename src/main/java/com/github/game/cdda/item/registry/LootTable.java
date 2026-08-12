@@ -1,4 +1,7 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.registry;
+
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.model.ItemType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,7 +10,7 @@ import java.util.Random;
 /**
  * 战利品表。
  * 定义生物死亡时可能掉落的物品及其概率。
- * 通过 Gson 从 JSON 加载，与 {@link CreatureDefinition} 配合使用。
+ * 通过 Gson 从 JSON 加载，与 {@link com.github.game.cdda.creature.config.CreatureDefinition} 配合使用。
  *
  * <p>JSON 格式示例：
  * <pre>

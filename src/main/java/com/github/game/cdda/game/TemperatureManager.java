@@ -1,4 +1,8 @@
-package com.github.game.cdda;
+package com.github.game.cdda.game;
+
+import com.github.game.cdda.Constants;
+import com.github.game.cdda.game.time.GameCalendar;
+import com.github.game.cdda.game.time.Month;
 
 import java.awt.*;
 import java.util.Random;
@@ -75,6 +79,8 @@ public class TemperatureManager {
     /**
      * 获取当前环境温度（°C）。
      * 每次调用时自动更新漂移状态。
+     *
+     * @return 当前温度（摄氏度）
      */
     public double getTemperature() {
         updateDriftIfNeeded();
@@ -84,7 +90,7 @@ public class TemperatureManager {
     /**
      * 获取温度中文描述。
      *
-     * @return 如 "严寒", "寒冷", "凉爽", "舒适", "温暖", "炎热", "酷热"
+     * @return 如 "严寒", "寒冷", "凉爽", "微凉", "舒适", "温暖", "炎热", "酷热"
      */
     public String getTemperatureDescriptor() {
         double temp = getTemperature();
@@ -100,6 +106,8 @@ public class TemperatureManager {
 
     /**
      * 获取温度对应的颜色（蓝→青→绿→黄→橙→红渐变）。
+     *
+     * @return 温度对应的 RGB 颜色
      */
     public Color getTemperatureColor() {
         double temp = getTemperature();

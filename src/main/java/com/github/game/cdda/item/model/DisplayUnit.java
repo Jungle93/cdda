@@ -1,4 +1,4 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.model;
 
 /**
  * 显示单位枚举。

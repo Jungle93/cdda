@@ -58,9 +58,38 @@ public class NpcSocial {
 
     // ── 访问器 ──────────────────────────────────
 
+    /**
+     * 获取对玩家的态度值。
+     *
+     * @return 态度值（0~100，50 为中立）
+     */
     public int getAttitudeToPlayer() { return attitudeToPlayer; }
+
+    /**
+     * 是否已被玩家攻击过。
+     *
+     * @return 如果曾被玩家攻击返回 {@code true}
+     */
     public boolean isAttackedByPlayer() { return attackedByPlayer; }
+
+    /**
+     * 获取上次交互的游戏时间。
+     *
+     * @return 游戏时间（秒），-1 表示从未交互
+     */
     public long getLastInteractionTime() { return lastInteractionTime; }
+
+    /**
+     * 获取所属阵营。
+     *
+     * @return 阵营标识，{@code null} 表示无阵营
+     */
     public String getFaction() { return faction; }
+
+    /**
+     * 设置所属阵营。
+     *
+     * @param faction 阵营标识，{@code null} 表示清除阵营
+     */
     public void setFaction(String faction) { this.faction = faction; }
 }

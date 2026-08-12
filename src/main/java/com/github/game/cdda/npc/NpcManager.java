@@ -1,6 +1,6 @@
 package com.github.game.cdda.npc;
 
-import com.github.game.cdda.Player;
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureActionContext;
 import com.github.game.cdda.creature.CreatureManager;
@@ -12,7 +12,11 @@ import com.github.game.engine.core.render.Renderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
 
 /**
  * NPC 管理器。
@@ -35,7 +39,7 @@ public class NpcManager {
     private final ChunkManager chunkManager;
 
     /** 回合管理器 */
-    private final com.github.game.cdda.TurnManager turnManager;
+    private final com.github.game.cdda.game.TurnManager turnManager;
 
     /** 随机数生成器 */
     private final Random random = new Random();
@@ -55,7 +59,7 @@ public class NpcManager {
      */
     public NpcManager(CreatureManager creatureManager,
                       ChunkManager chunkManager,
-                      com.github.game.cdda.TurnManager turnManager) {
+                      com.github.game.cdda.game.TurnManager turnManager) {
         this.creatureManager = creatureManager;
         this.chunkManager = chunkManager;
         this.turnManager = turnManager;

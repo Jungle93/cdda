@@ -1,12 +1,14 @@
 package com.github.game.cdda.npc;
 
 import com.github.game.cdda.Constants;
-import com.github.game.cdda.Player;
+import com.github.game.cdda.GameWorld;
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureActionContext;
-import com.github.game.cdda.creature.energy.DeathCause;
-import com.github.game.cdda.item.GroundItemManager;
-import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.item.world.GroundItemManager;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.model.ItemType;
+import com.github.game.cdda.item.registry.ItemRegistry;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.npc.ai.NpcAI;
 import com.github.game.cdda.npc.ai.NpcAIState;
@@ -132,10 +134,19 @@ public class Npc extends Creature {
 
     /**
      * 加载起始装备。
+     * 从物品注册表查找装备并放入背包（忽略重量限制）。
      */
     private void loadEquipment(List<NpcDefinition.EquipmentSlot> equipment) {
-        // TODO: 实现装备系统（需要物品注册表支持）
-        // 当前阶段简单跳过，后续完善物品系统后实现
+        for (NpcDefinition.EquipmentSlot slot : equipment) {
+            if (slot.itemId == null || slot.itemId.isEmpty()) continue;
+            ItemType itemType = ItemRegistry.getByName(slot.itemId);
+            if (itemType != null) {
+                inventory.addItemUnchecked(new ItemStack(itemType, 1));
+            } else {
+                com.github.game.cdda.log.GameLog.getInstance().log(
+                        String.format("警告: NPC %s 装备物品 '%s' 未找到", name, slot.itemId));
+            }
+        }
     }
 
     // ── 回合行动 ──────────────────────────────────
@@ -206,13 +217,11 @@ public class Npc extends Creature {
     }
 
     /**
-     * 获取地面物品管理器（通过 GameWorld 静态访问）。
-     * TODO: 更好的方式是传入 context
+     * 获取地面物品管理器（通过 GameWorld 全局实例访问）。
      */
     private GroundItemManager getGroundItemManager() {
-        // 当前阶段暂不掉落，返回 null
-        // 后续 GameWorld 完善后可通过全局访问获取
-        return null;
+        GameWorld world = GameWorld.getInstance();
+        return world != null ? world.getGroundItemManager() : null;
     }
 
     // ── 交互 ──────────────────────────────────
@@ -351,10 +360,11 @@ public class Npc extends Creature {
 
     /**
      * 获取当前游戏时间（秒）。
-     * TODO: 通过 context 注入，当前返回 -1
+     * 通过 GameWorld 全局实例获取。
      */
     private long getCurrentGameSeconds() {
-        return -1;
+        GameWorld world = GameWorld.getInstance();
+        return world != null ? world.getGameTime().getTotalSeconds() : -1;
     }
 
     // ── 访问器 ──────────────────────────────────

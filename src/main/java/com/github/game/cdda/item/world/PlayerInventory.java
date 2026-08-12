@@ -1,6 +1,11 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.world;
 
-import com.github.game.cdda.Player;
+import com.github.game.cdda.Constants;
+import com.github.game.cdda.creature.Player;
+import com.github.game.cdda.item.model.ConsumableType;
+import com.github.game.cdda.item.model.DisplayUnit;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.model.ItemType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -2,12 +2,12 @@ package com.github.game.cdda.item.action;
 
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.GameWorld;
-import com.github.game.cdda.Player;
-import com.github.game.cdda.item.GroundItemManager;
+import com.github.game.cdda.creature.Player;
+import com.github.game.cdda.item.world.GroundItemManager;
 import com.github.game.cdda.item.ItemAction;
-import com.github.game.cdda.item.ItemRegistry;
-import com.github.game.cdda.item.ItemStack;
-import com.github.game.cdda.item.ItemType;
+import com.github.game.cdda.item.registry.ItemRegistry;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.model.ItemType;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.ChunkManager;

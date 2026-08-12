@@ -1,11 +1,14 @@
 package com.github.game.cdda.npc;
 
-import com.github.game.cdda.item.ItemStack;
-import com.github.game.cdda.item.ItemRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * NPC 模板注册表。

@@ -1,13 +1,20 @@
 package com.github.game.cdda;
 
 import com.github.game.cdda.creature.CreatureManager;
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.creature.config.CreatureRegistry;
 import com.github.game.cdda.creature.energy.EnergyFlowManager;
+import com.github.game.cdda.game.HydrationManager;
+import com.github.game.cdda.game.MetabolismManager;
+import com.github.game.cdda.game.TemperatureManager;
+import com.github.game.cdda.game.TurnManager;
 import com.github.game.cdda.game.WorldSettings;
-import com.github.game.cdda.item.GroundItemManager;
-import com.github.game.cdda.item.ItemRegistry;
-import com.github.game.cdda.item.ItemStack;
-import com.github.game.cdda.item.ItemType;
+import com.github.game.cdda.game.time.GameCalendar;
+import com.github.game.cdda.game.time.Month;
+import com.github.game.cdda.item.world.GroundItemManager;
+import com.github.game.cdda.item.registry.ItemRegistry;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.model.ItemType;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.npc.NpcManager;
 import com.github.game.cdda.npc.NpcRegistry;
@@ -40,6 +47,14 @@ import com.github.game.cdda.world.vegetation.PlantGrowthSystem;
  */
 public class GameWorld {
 
+    /** 全局实例（单例，创建时自动赋值，dispose 时清空） */
+    private static GameWorld instance;
+
+    /** 获取当前活跃的游戏世界实例 */
+    public static GameWorld getInstance() {
+        return instance;
+    }
+
     // ── 游戏子系统 ──────────────────────────────────
     private final WorldMap worldMap;
     private final ChunkManager chunkManager;
@@ -65,6 +80,8 @@ public class GameWorld {
      * @param startHour  起始小时（0-23）
      */
     public GameWorld(WorldSettings settings, Month startMonth, int startHour) {
+        instance = this;
+
         // 0) 世界地图（大地图 — 生物群落分布）
         worldMap = new WorldMap(settings.getSeed(), settings.getGradients());
 
@@ -263,6 +280,7 @@ public class GameWorld {
 
     /** 清理资源（游戏退出时调用） */
     public void dispose() {
+        instance = null;
         creatureManager.shutdown();
         plantGrowthSystem.shutdown();
         chunkManager.shutdown();

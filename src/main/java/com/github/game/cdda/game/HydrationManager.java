@@ -1,4 +1,7 @@
-package com.github.game.cdda;
+package com.github.game.cdda.game;
+
+import com.github.game.cdda.Constants;
+import com.github.game.cdda.game.time.GameCalendar;
 
 /**
  * 口渴/水分管理系统。模拟人体水分收支平衡：
@@ -187,15 +190,25 @@ public class HydrationManager {
 
     // ── 状态查询 ──────────────────────────────────
 
-    /** 获取当前水分值 */
+    /**
+     * 获取当前水分值。
+     *
+     * @return 当前水分值
+     */
     public double getWaterLevel() { return waterLevel; }
 
-    /** 获取最大水分值 */
+    /**
+     * 获取最大水分值。
+     *
+     * @return 最大水分值
+     */
     public double getMaxWater() { return maxWater; }
 
     /**
      * 获取口渴百分比（0-100），100=水分充足，0=严重脱水。
      * 用于 HUD 显示 THR 数值。
+     *
+     * @return 水分百分比（0-100）
      */
     public int getWaterPercent() {
         return (int) (waterLevel / maxWater * 100);
@@ -212,6 +225,8 @@ public class HydrationManager {
      * 4 = 重度脱水  (10~25%)   — 橙
      * 5 = 极度脱水  (<10%)     — 红
      * </pre>
+     *
+     * @return 脱水等级（0-5）
      */
     public int getThirstLevel() {
         int percent = getWaterPercent();
@@ -225,6 +240,8 @@ public class HydrationManager {
 
     /**
      * 获取脱水状态中文描述。
+     *
+     * @return 如 "水合充足", "正常", "轻度脱水", "中度脱水", "重度脱水", "极度脱水"
      */
     public String getThirstDescriptor() {
         String[] descriptors = {
@@ -236,6 +253,8 @@ public class HydrationManager {
     /**
      * 获取脱水状态对应的颜色。
      * 蓝（充足）→ 白（正常）→ 黄（轻）→ 橙（中）→ 红（重/极）
+     *
+     * @return 脱水状态对应的 RGB 颜色
      */
     public java.awt.Color getThirstColor() {
         java.awt.Color[] colors = {
@@ -251,6 +270,8 @@ public class HydrationManager {
 
     /**
      * 是否有严重脱水（需要警告）。
+     *
+     * @return 水分低于10%时返回 {@code true}
      */
     public boolean hasCriticalThirst() {
         return waterLevel < maxWater * 0.1;
@@ -258,6 +279,8 @@ public class HydrationManager {
 
     /**
      * 是否处于脱水状态（水分低于40%）。
+     *
+     * @return 水分低于40%时返回 {@code true}
      */
     public boolean isDehydrated() {
         return waterLevel < maxWater * 0.4;

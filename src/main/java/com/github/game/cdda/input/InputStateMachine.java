@@ -1,8 +1,8 @@
 package com.github.game.cdda.input;
 
-import com.github.game.cdda.item.GroundItem;
+import com.github.game.cdda.item.world.GroundItem;
 import com.github.game.cdda.item.ItemAction;
-import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.item.model.ItemStack;
 import com.github.game.cdda.screen.hud.GameLogPanel;
 import com.github.game.cdda.screen.scene.GameScene;
 import com.github.game.cdda.screen.scene.WorldMapScene;

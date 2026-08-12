@@ -1,6 +1,6 @@
 package com.github.game.cdda.screen.scene;
 
-import com.github.game.cdda.Player;
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.world.biome.BiomeType;

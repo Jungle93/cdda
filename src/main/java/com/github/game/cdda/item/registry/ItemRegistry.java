@@ -1,4 +1,7 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.registry;
+
+import com.github.game.cdda.item.model.ItemDefinition;
+import com.github.game.cdda.item.model.ItemType;
 
 import com.github.game.engine.core.data.DataScanner;
 import com.google.gson.Gson;
@@ -126,22 +129,40 @@ public final class ItemRegistry {
 
     // ── 查询 API ──────────────────────────────────────────
 
-    /** 根据数字 ID 查找物品类型 */
+    /**
+     * 根据数字 ID 查找物品类型。
+     *
+     * @param id 物品数字 ID
+     * @return 对应的 ItemType，未找到返回 null
+     */
     public static ItemType getById(int id) {
         return REGISTRY.get(id);
     }
 
-    /** 根据字符串 name 查找物品类型 */
+    /**
+     * 根据字符串 name 查找物品类型。
+     *
+     * @param name 物品字符串名称（英文技术标识符）
+     * @return 对应的 ItemType，未找到返回 null
+     */
     public static ItemType getByName(String name) {
         return NAME_REGISTRY.get(name);
     }
 
-    /** 获取所有已注册的物品类型（有序、不可变） */
+    /**
+     * 获取所有已注册的物品类型（有序、不可变）。
+     *
+     * @return 所有 ItemType 的不可变集合
+     */
     public static Collection<ItemType> getAll() {
         return Collections.unmodifiableCollection(REGISTRY.values());
     }
 
-    /** 获取已注册数量（便于调试 / UI 分页） */
+    /**
+     * 获取已注册数量（便于调试 / UI 分页）。
+     *
+     * @return 已注册的物品类型总数
+     */
     public static int size() {
         return REGISTRY.size();
     }

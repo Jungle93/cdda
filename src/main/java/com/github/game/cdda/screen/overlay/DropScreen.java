@@ -1,9 +1,10 @@
 package com.github.game.cdda.screen.overlay;
 
-import com.github.game.cdda.Player;
-import com.github.game.cdda.item.GroundItemManager;
-import com.github.game.cdda.item.ItemStack;
-import com.github.game.cdda.item.PlayerInventory;
+import com.github.game.cdda.creature.Player;
+import com.github.game.cdda.item.world.GroundItemManager;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.model.ItemType;
+import com.github.game.cdda.item.world.PlayerInventory;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.screen.menu.MenuScreen;
 import com.github.game.engine.core.GameEngine;
@@ -63,7 +64,7 @@ public class DropScreen extends MenuScreen {
         return stack != null && isStackable(stack.getType());
     }
 
-    private boolean isStackable(com.github.game.cdda.item.ItemType type) {
+    private boolean isStackable(ItemType type) {
         return type.getMaxStackSize() > 1 && !type.isUnique();
     }
 

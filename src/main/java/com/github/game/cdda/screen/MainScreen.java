@@ -2,8 +2,15 @@ package com.github.game.cdda.screen;
 
 import com.github.game.cdda.config.ConfigManager;
 import com.github.game.cdda.input.InputStateMachine;
-import com.github.game.cdda.item.GroundItem;
-import com.github.game.cdda.screen.overlay.*;
+import com.github.game.cdda.item.world.GroundItem;
+import com.github.game.cdda.screen.overlay.DebugMenuScreen;
+import com.github.game.cdda.screen.overlay.DropScreen;
+import com.github.game.cdda.screen.overlay.EatingScreen;
+import com.github.game.cdda.screen.overlay.InGameMenuScreen;
+import com.github.game.cdda.screen.overlay.InventoryScreen;
+import com.github.game.cdda.screen.overlay.ItemUseOverlay;
+import com.github.game.cdda.screen.overlay.NpcInteractionScreen;
+import com.github.game.cdda.screen.overlay.PickupScreen;
 import com.github.game.engine.core.EngineServices;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
@@ -19,7 +26,7 @@ import com.github.game.cdda.screen.scene.GameScene;
 import com.github.game.cdda.screen.scene.HudScene;
 import com.github.game.cdda.screen.scene.WorldMapScene;
 import com.github.game.cdda.GameWorld;
-import com.github.game.cdda.Month;
+import com.github.game.cdda.game.time.Month;
 
 import java.util.List;
 
@@ -256,8 +263,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     @Override
     public void pushNpcInteractionScreen() {
         engine.getScreenManager().pushScreen(
-                new com.github.game.cdda.screen.overlay.NpcInteractionScreen(
-                        engine, gameWorld));
+                new NpcInteractionScreen(engine, gameWorld));
     }
 
     @Override

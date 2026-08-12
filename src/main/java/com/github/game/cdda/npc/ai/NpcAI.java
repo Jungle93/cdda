@@ -1,6 +1,6 @@
 package com.github.game.cdda.npc.ai;
 
-import com.github.game.cdda.Player;
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.creature.CreatureActionContext;
 import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.npc.Npc;
@@ -147,6 +147,8 @@ public class NpcAI {
 
     /**
      * 根据 NPC 类型和状态选择下一个状态。
+     *
+     * @param npc NPC 实例
      */
     private void enterNextState(Npc npc) {
         // 低血量时可能进入睡眠
@@ -205,6 +207,9 @@ public class NpcAI {
 
     /**
      * 执行当前状态的行为。
+     *
+     * @param npc     NPC 实例
+     * @param context 行动上下文
      */
     private void execute(Npc npc, CreatureActionContext context) {
         switch (currentState) {
@@ -263,6 +268,9 @@ public class NpcAI {
 
     /**
      * 追击玩家 — 向玩家方向移动。
+     *
+     * @param npc     NPC 实例
+     * @param context 行动上下文
      */
     private void huntPlayer(Npc npc, CreatureActionContext context) {
         int targetX = context.getPlayerTileX();
@@ -287,6 +295,9 @@ public class NpcAI {
 
     /**
      * 攻击玩家 — 近战攻击。
+     *
+     * @param npc     NPC 实例
+     * @param context 行动上下文
      */
     private void attackPlayer(Npc npc, CreatureActionContext context) {
         Player player = context.getPlayer();
@@ -314,6 +325,9 @@ public class NpcAI {
 
     /**
      * 远离玩家方向移动。
+     *
+     * @param npc     NPC 实例
+     * @param context 行动上下文
      */
     private void fleeFromPlayer(Npc npc, CreatureActionContext context) {
         int dx = Integer.compare(npc.getTileX(), context.getPlayerTileX());
@@ -337,6 +351,12 @@ public class NpcAI {
     /**
      * 尝试移动 NPC。
      * 移动成功后更新空间索引。
+     *
+     * @param npc     NPC 实例
+     * @param dx      X 方向移动量（-1/0/1）
+     * @param dy      Y 方向移动量（-1/0/1）
+     * @param context 行动上下文
+     * @return 移动成功返回 {@code true}，目标不可通行或被占用返回 {@code false}
      */
     private boolean tryMove(Npc npc, int dx, int dy, CreatureActionContext context) {
         int newX = npc.getTileX() + dx;
@@ -376,6 +396,8 @@ public class NpcAI {
 
     /**
      * 进入交互状态（由玩家输入触发）。
+     *
+     * @param state 交互状态（如 {@link NpcAIState#TALK} 或 {@link NpcAIState#TRADE}）
      */
     public void enterStateForInteraction(NpcAIState state) {
         currentState = state;
@@ -392,6 +414,8 @@ public class NpcAI {
 
     /**
      * 获取当前 AI 状态（调试用）。
+     *
+     * @return 当前 AI 状态枚举值
      */
     public NpcAIState getCurrentState() {
         return currentState;

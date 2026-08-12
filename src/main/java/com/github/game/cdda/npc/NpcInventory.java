@@ -1,7 +1,7 @@
 package com.github.game.cdda.npc;
 
 import com.github.game.cdda.Constants;
-import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.item.model.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +15,7 @@ import java.util.List;
  *
  * <p>携带上限 = NPC 力量 × {@link Constants#CARRY_PER_STRENGTH}
  *
- * <p>与 {@link com.github.game.cdda.item.PlayerInventory} 类似，
+ * <p>与 {@link com.github.game.cdda.item.world.PlayerInventory} 类似，
  * 但简化了部分功能（不支持玩家那样的手动管理）。
  * NPC 死亡时，所有物品通过此背包掉落。
  */

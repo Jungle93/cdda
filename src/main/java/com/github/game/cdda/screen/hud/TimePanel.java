@@ -1,7 +1,7 @@
 package com.github.game.cdda.screen.hud;
 
 import com.github.game.engine.core.render.Renderer;
-import com.github.game.cdda.GameCalendar;
+import com.github.game.cdda.game.time.GameCalendar;
 
 import java.awt.*;
 

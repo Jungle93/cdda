@@ -1,4 +1,4 @@
-package com.github.game.cdda;
+package com.github.game.cdda.game.time;
 
 /**
  * CDDA 游戏日历。继承通用 {@link com.github.game.engine.core.time.GameClock}，
@@ -53,12 +53,18 @@ public class GameCalendar extends com.github.game.engine.core.time.GameClock {
     /**
      * 获取当前月份。
      * 从起始月份开始，按月偏移计算。
+     *
+     * @return 当前月份
      */
     public Month getMonth() {
         return Month.fromIndex(startMonth.ordinal() + (int) (getTotalDays() / DAYS_PER_MONTH));
     }
 
-    /** 获取当前季节（由月份决定） */
+    /**
+     * 获取当前季节（由月份决定）。
+     *
+     * @return 当前季节
+     */
     public Season getSeason() {
         return getMonth().getSeason();
     }
@@ -66,6 +72,8 @@ public class GameCalendar extends com.github.game.engine.core.time.GameClock {
     /**
      * 获取当前年份（从1开始）。
      * 每年360天（12月×30天）。
+     *
+     * @return 当前年份（≥1）
      */
     public int getYear() {
         long totalMonths = startMonth.ordinal() + getTotalDays() / DAYS_PER_MONTH;
@@ -74,6 +82,8 @@ public class GameCalendar extends com.github.game.engine.core.time.GameClock {
 
     /**
      * 获取当前月份中的日期（1-30）。
+     *
+     * @return 月内日期（1-30）
      */
     public int getDayOfMonth() {
         return (int) (getTotalDays() % DAYS_PER_MONTH) + 1;
@@ -82,6 +92,8 @@ public class GameCalendar extends com.github.game.engine.core.time.GameClock {
     /**
      * 获取当前是第几天（从起始日算起，从1开始）。
      * 兼容旧接口。
+     *
+     * @return 天数（≥1）
      */
     public int getDay() {
         return (int) getTotalDays() + 1;
@@ -89,10 +101,18 @@ public class GameCalendar extends com.github.game.engine.core.time.GameClock {
 
     // ── 访问器 ──────────────────────────────────
 
-    /** 获取起始月份 */
+    /**
+     * 获取起始月份。
+     *
+     * @return 起始月份
+     */
     public Month getStartMonth() { return startMonth; }
 
-    /** 获取起始小时 */
+    /**
+     * 获取起始小时。
+     *
+     * @return 起始小时（0-23）
+     */
     public int getStartHour() { return startHour; }
 
     // ── 格式化 ──────────────────────────────────
@@ -100,6 +120,8 @@ public class GameCalendar extends com.github.game.engine.core.time.GameClock {
     /**
      * 格式化当前日期为 "第N年 季节 月份 第N天" 格式。
      * 示例："第1年 春季 三月 第15天"
+     *
+     * @return 格式化后的日期字符串
      */
     public String formatDate() {
         return String.format("第%d年 %s %s 第%d天",
@@ -110,6 +132,8 @@ public class GameCalendar extends com.github.game.engine.core.time.GameClock {
     /**
      * 格式化完整日期时间。
      * 示例："第1年 春季 三月 第15天 08:30"
+     *
+     * @return 格式化后的日期时间字符串
      */
     public String formatDateTime() {
         return formatDate() + " " + formatTime();

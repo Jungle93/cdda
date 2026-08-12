@@ -34,6 +34,19 @@ build/
 ### Mac OS ###
 .DS_Store
 
+### Windows ###
+Thumbs.db
+ehthumbs.db
+
+### Java ###
+*.class
+*.war
+*.ear
+hs_err_pid*
+
+### Claude Code ###
+.claude/
+
 ### Runtime ###
 saves/
 dependency-reduced-pom.xml

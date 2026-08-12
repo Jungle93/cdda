@@ -67,6 +67,9 @@ public enum NpcRegion {
     /**
      * 根据 NPC 类型计算最终显示颜色。
      * 在基础颜色上叠加类型修正。
+     *
+     * @param type NPC 类型
+     * @return 叠加类型修正后的显示颜色
      */
     public Color getColorForType(NpcType type) {
         return switch (type) {

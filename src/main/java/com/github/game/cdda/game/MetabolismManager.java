@@ -1,4 +1,7 @@
-package com.github.game.cdda;
+package com.github.game.cdda.game;
+
+import com.github.game.cdda.Constants;
+import com.github.game.cdda.game.time.GameCalendar;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -229,21 +232,41 @@ public class MetabolismManager {
 
     // ── 状态查询 ──────────────────────────────────
 
-    /** 获取当前能量储备 */
+    /**
+     * 获取当前能量储备。
+     *
+     * @return 当前能量储备（cal）
+     */
     public double getEnergyPool() { return energyPool; }
 
-    /** 获取最大能量储备 */
+    /**
+     * 获取最大能量储备。
+     *
+     * @return 最大能量储备（cal）
+     */
     public double getMaxEnergy() { return maxEnergy; }
 
-    /** 获取饥饿百分比（0-100），100=满，0=极饿 */
+    /**
+     * 获取饥饿百分比（0-100），100=满，0=极饿。
+     *
+     * @return 能量百分比（0-100）
+     */
     public int getHungerPercent() {
         return (int) (energyPool / maxEnergy * 100);
     }
 
-    /** 获取当前核心体温（°C） */
+    /**
+     * 获取当前核心体温（°C）。
+     *
+     * @return 核心体温（摄氏度）
+     */
     public double getBodyTemperature() { return bodyTemperature; }
 
-    /** 获取体温缓冲值 */
+    /**
+     * 获取体温缓冲值。
+     *
+     * @return 体温缓冲值
+     */
     public double getTemperatureBuffer() { return temperatureBuffer; }
 
     /**
@@ -256,6 +279,8 @@ public class MetabolismManager {
      * 3 = 微凉 (35.5~36.5°C) 8 = 极热 (>42°C)
      * 4 = 正常 (36.5~37.5°C)
      * </pre>
+     *
+     * @return 体温等级（0-8）
      */
     public int getBodyTempLevel() {
         double temp = bodyTemperature;
@@ -272,6 +297,8 @@ public class MetabolismManager {
 
     /**
      * 获取体温状态描述。
+     *
+     * @return 如 "极寒", "严寒", ..., "正常", ..., "酷热", "极热"
      */
     public String getBodyTempDescriptor() {
         String[] descriptors = {
@@ -283,6 +310,8 @@ public class MetabolismManager {
 
     /**
      * 是否有严重体温异常（需要警告）。
+     *
+     * @return 体温低于34°C或高于39°C时返回 {@code true}
      */
     public boolean hasCriticalTemperature() {
         return bodyTemperature < 34 || bodyTemperature > 39;
@@ -290,6 +319,8 @@ public class MetabolismManager {
 
     /**
      * 是否处于饥饿状态（能量低于20%）。
+     *
+     * @return 能量储备低于20%时返回 {@code true}
      */
     public boolean isStarving() {
         return energyPool < maxEnergy * 0.2;

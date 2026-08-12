@@ -1,4 +1,7 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.registry;
+
+import com.github.game.cdda.item.ItemAction;
+import com.github.game.cdda.item.model.ItemStack;
 
 import com.github.game.cdda.item.action.ButcherAction;
 import com.github.game.cdda.item.action.ChopTreeAction;

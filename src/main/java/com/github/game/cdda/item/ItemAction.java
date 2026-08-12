@@ -1,16 +1,20 @@
 package com.github.game.cdda.item;
 
+import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.GameWorld;
-import com.github.game.cdda.Player;
+import com.github.game.cdda.item.model.ItemStack;
+
+import com.github.game.cdda.GameWorld;
+import com.github.game.cdda.creature.Player;
 
 /**
  * 物品动作接口。
  *
  * <p>每个动作代表物品可以执行的一种功能（如砍树、挖掘、生火等）。
- * 通过 {@link ItemActionRegistry} 将动作注册到特定的功能标签上，
+ * 通过 {@link com.github.game.cdda.item.registry.ItemActionRegistry} 将动作注册到特定的功能标签上，
  * 当玩家使用带有对应标签的物品时，可执行该动作。
  *
- * @see ItemActionRegistry
+ * @see com.github.game.cdda.item.registry.ItemActionRegistry
  */
 public interface ItemAction {
 

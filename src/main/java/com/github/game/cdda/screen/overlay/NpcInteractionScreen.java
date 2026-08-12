@@ -1,8 +1,8 @@
 package com.github.game.cdda.screen.overlay;
 
 import com.github.game.cdda.GameWorld;
-import com.github.game.cdda.Player;
-import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.creature.Player;
+import com.github.game.cdda.item.model.ItemStack;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.npc.Npc;
 import com.github.game.cdda.npc.NpcManager;

@@ -1,6 +1,6 @@
 package com.github.game.cdda.npc;
 
-import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.item.model.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;

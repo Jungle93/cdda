@@ -6,7 +6,7 @@ import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.i18n.I18nManager;
 import com.github.game.engine.core.render.Renderer;
 
-import javax.swing.*;
+import javax.swing.JFileChooser;
 import java.io.File;
 import java.util.List;
 

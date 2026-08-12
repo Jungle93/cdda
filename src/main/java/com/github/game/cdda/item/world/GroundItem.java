@@ -1,4 +1,6 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.world;
+
+import com.github.game.cdda.item.model.ItemStack;
 
 /**
  * 地面物品。

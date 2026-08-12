@@ -1,4 +1,7 @@
-package com.github.game.cdda;
+package com.github.game.cdda.game;
+
+import com.github.game.cdda.game.time.GameCalendar;
+import com.github.game.cdda.Entity;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,19 +59,32 @@ public class TurnManager {
 
     // ── 实体管理 ──────────────────────────────────
 
-    /** 添加实体到回合系统 */
+    /**
+     * 添加实体到回合系统。
+     * 重复添加同一实体将被忽略。
+     *
+     * @param entity 要添加的实体（null 将被忽略）
+     */
     public void addEntity(Entity entity) {
         if (entity != null && !entities.contains(entity)) {
             entities.add(entity);
         }
     }
 
-    /** 移除实体 */
+    /**
+     * 移除实体。
+     *
+     * @param entity 要移除的实体
+     */
     public void removeEntity(Entity entity) {
         entities.remove(entity);
     }
 
-    /** 获取实体列表（只读） */
+    /**
+     * 获取实体列表（只读）。
+     *
+     * @return 不可修改的实体列表
+     */
     public List<Entity> getEntities() {
         return Collections.unmodifiableList(entities);
     }
@@ -115,12 +131,20 @@ public class TurnManager {
 
     // ── 访问器 ──────────────────────────────────
 
-    /** 获取游戏时钟 */
+    /**
+     * 获取游戏时钟。
+     *
+     * @return 游戏日历实例
+     */
     public GameCalendar getGameTime() {
         return gameTime;
     }
 
-    /** 获取当前回合数 */
+    /**
+     * 获取当前回合数。
+     *
+     * @return 回合数（从0开始）
+     */
     public int getCurrentRound() {
         return currentRound;
     }

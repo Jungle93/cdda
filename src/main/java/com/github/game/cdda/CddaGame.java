@@ -8,7 +8,7 @@ import com.github.game.engine.core.GameApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.*;
+import javax.swing.SwingUtilities;
 
 /**
  * CDDA 游戏入口。

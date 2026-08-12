@@ -1,4 +1,4 @@
-package com.github.game.cdda;
+package com.github.game.cdda.game.time;
 
 import java.awt.*;
 
@@ -33,17 +33,31 @@ public enum Season {
         this.color = color;
     }
 
-    /** 获取单字名 */
+    /**
+     * 获取单字名。
+     *
+     * @return 单字名（春/夏/秋/冬）
+     */
     public String getShortName() { return shortName; }
 
-    /** 获取全名 */
+    /**
+     * 获取全名。
+     *
+     * @return 全名（春季/夏季/秋季/冬季）
+     */
     public String getFullName() { return fullName; }
 
-    /** 获取代表色 */
+    /**
+     * 获取代表色。
+     *
+     * @return UI 渲染用的代表色
+     */
     public Color getColor() { return color; }
 
     /**
      * 获取下一个季节（春→夏→秋→冬→春...）。
+     *
+     * @return 下一个季节
      */
     public Season next() {
         return values()[(ordinal() + 1) % values().length];
@@ -51,6 +65,8 @@ public enum Season {
 
     /**
      * 获取上一个季节。
+     *
+     * @return 上一个季节
      */
     public Season previous() {
         return values()[(ordinal() + 3) % values().length];

@@ -5,9 +5,15 @@ import com.github.game.engine.core.render.RenderContext;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.screen.Screen;
 
-import javax.swing.*;
+import javax.swing.JPanel;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 
 /**
  * 游戏渲染面板，同时作为输入事件入口。

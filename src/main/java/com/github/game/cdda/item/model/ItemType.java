@@ -1,4 +1,6 @@
-package com.github.game.cdda.item;
+package com.github.game.cdda.item.model;
+
+import com.github.game.cdda.item.registry.ItemRegistry;
 
 import com.github.game.engine.core.i18n.I18nManager;
 
@@ -181,11 +183,38 @@ public class ItemType {
             this.name = name;
         }
 
+        /**
+         * 设置物品描述。
+         *
+         * @param desc 描述文本
+         * @return 当前 Builder 实例（链式调用）
+         */
         public Builder description(String desc) { this.description = desc; return this; }
         /** 设置显示名（中文，用于 UI 展示） */
         public Builder displayName(String name) { this.displayName = name; return this; }
+
+        /**
+         * 设置单件重量。
+         *
+         * @param grams 重量（克）
+         * @return 当前 Builder 实例（链式调用）
+         */
         public Builder weight(double grams) { this.weightGrams = grams; return this; }
+
+        /**
+         * 设置单件体积。
+         *
+         * @param ml 体积（毫升）
+         * @return 当前 Builder 实例（链式调用）
+         */
         public Builder volume(double ml) { this.volumeMl = ml; return this; }
+
+        /**
+         * 设置最大堆叠数。
+         *
+         * @param max 堆叠上限（至少为 1）
+         * @return 当前 Builder 实例（链式调用）
+         */
         public Builder maxStackSize(int max) { this.maxStackSize = max; return this; }
 
         /** 标记为唯一物品（不可堆叠） */
@@ -197,6 +226,12 @@ public class ItemType {
             return this;
         }
 
+        /**
+         * 设置可消耗类型（多标签）。
+         *
+         * @param types 可消耗类型集合
+         * @return 当前 Builder 实例（链式调用）
+         */
         public Builder consumables(Set<ConsumableType> types) {
             this.consumableTypes = EnumSet.copyOf(types);
             return this;

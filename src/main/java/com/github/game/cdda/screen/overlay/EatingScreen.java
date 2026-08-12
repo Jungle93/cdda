@@ -61,6 +61,15 @@ public class EatingScreen extends MenuScreen {
             }
         }
         consumableIndices = indices.stream().mapToInt(Integer::intValue).toArray();
+        // 同步 consumeCounts 数组大小，保留已有的数量选择
+        int[] newCounts = new int[consumableIndices.length];
+        int copyLen = Math.min(newCounts.length, consumeCounts.length);
+        System.arraycopy(consumeCounts, 0, newCounts, 0, copyLen);
+        // 新增项默认为 1
+        for (int i = copyLen; i < newCounts.length; i++) {
+            newCounts[i] = 1;
+        }
+        consumeCounts = newCounts;
         if (selectedIndex >= consumableIndices.length) {
             selectedIndex = Math.max(0, consumableIndices.length - 1);
         }

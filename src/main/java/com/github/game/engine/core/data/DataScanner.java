@@ -35,9 +35,11 @@ public final class DataScanner {
     public static List<String> scanClasspathJson(String basePath) {
         List<String> result = new ArrayList<>();
         scanClasspathDir(basePath, result);
-        Collections.sort(result);
-        logger.debug("扫描 classpath 目录: {} → {} 个 JSON 文件", basePath, result.size());
-        return result;
+        // 去重：JAR 和文件系统扫描可能产生重复路径
+        List<String> unique = new ArrayList<>(new java.util.LinkedHashSet<>(result));
+        Collections.sort(unique);
+        logger.debug("扫描 classpath 目录: {} → {} 个 JSON 文件", basePath, unique.size());
+        return unique;
     }
 
     /**
@@ -132,6 +134,10 @@ public final class DataScanner {
 
     /**
      * 扫描 JAR 内的目录（递归）。
+     *
+     * @param uri     JAR 内目录 URI（如 jar:file:/path/to/app.jar!/data/core/creatures）
+     * @param dirPath classpath 相对路径（如 data/core/creatures），用于生成结果路径
+     * @param result  结果列表（追加 classpath 相对路径）
      */
     private static void scanJarDirectory(URI uri, String dirPath, List<String> result) {
         String[] parts = uri.toString().split("!");
@@ -146,7 +152,15 @@ public final class DataScanner {
             try (Stream<Path> walk = Files.walk(root)) {
                 walk.filter(p -> p.toString().endsWith(".json"))
                         .filter(Files::isRegularFile)
-                        .forEach(p -> result.add(p.toString().replace('\\', '/')));
+                        .forEach(p -> {
+                            // 将 JAR 内绝对路径转为 classpath 相对路径
+                            String relative = root.relativize(p).toString().replace('\\', '/');
+                            String normalized = dirPath.replace('\\', '/');
+                            if (normalized.startsWith("/")) {
+                                normalized = normalized.substring(1);
+                            }
+                            result.add(normalized + "/" + relative);
+                        });
             }
         } catch (IOException e) {
             logger.error("扫描 JAR 目录失败: {}", uri, e);
@@ -155,6 +169,10 @@ public final class DataScanner {
 
     /**
      * 扫描文件系统目录（开发模式，classpath 指向 target/classes）。
+     *
+     * @param dir    文件系统绝对路径（如 /path/to/target/classes/data/core/creatures）
+     * @param dirPath classpath 相对路径（如 data/core/creatures），用于生成结果路径
+     * @param result 结果列表（追加 classpath 相对路径）
      */
     private static void scanFsDirectory(Path dir, String dirPath, List<String> result) {
         if (!Files.isDirectory(dir)) {
@@ -164,7 +182,17 @@ public final class DataScanner {
         try (Stream<Path> walk = Files.walk(dir)) {
             walk.filter(p -> p.toString().endsWith(".json"))
                     .filter(Files::isRegularFile)
-                    .forEach(p -> result.add(p.toString().replace('\\', '/')));
+                    .forEach(p -> {
+                        // 将绝对路径转为 classpath 相对路径
+                        // 例如: /path/to/target/classes/data/core/creatures/animal/rabbit.json
+                        //   → data/core/creatures/animal/rabbit.json
+                        String relative = dir.relativize(p).toString().replace('\\', '/');
+                        String normalized = dirPath.replace('\\', '/');
+                        if (normalized.startsWith("/")) {
+                            normalized = normalized.substring(1);
+                        }
+                        result.add(normalized + "/" + relative);
+                    });
         } catch (IOException e) {
             logger.error("扫描目录失败: {}", dir, e);
         }

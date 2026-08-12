@@ -379,8 +379,8 @@ public class CreatureManager {
             }
 
             if (inBubble) {
-                // 气泡内：检查能量并执行 AI
-                if (turnManager.canAct(animal)) {
+                // 气泡内：检查能量并执行 AI（while 循环，用完所有积攒的能量）
+                while (turnManager.canAct(animal)) {
                     animal.takeTurn(context);
                     animal.spendEnergy(com.github.game.cdda.TurnManager.ENERGY_PER_ACTION);
                 }
@@ -443,7 +443,7 @@ public class CreatureManager {
                 injectEnergyFlowManager(baby);
                 addCreature(baby);
                 GameLog.getInstance().log(String.format("一只%s繁殖了后代！",
-                        baby.getDefinition().name));
+                        baby.getLocalizedName()));
             }
             case DEATH -> {
                 removeCreature(m.creature);
@@ -453,7 +453,7 @@ public class CreatureManager {
                 injectEnergyFlowManager(migrant);
                 addCreature(migrant);
                 GameLog.getInstance().log(String.format("迁徙触发: 一只%s来到了这个区域！",
-                        migrant.getDefinition().name));
+                        migrant.getLocalizedName()));
                 logger.info("迁徙生成: {} at ({},{})", migrant.getDefinition().name,
                         migrant.getTileX(), migrant.getTileY());
             }
@@ -630,7 +630,7 @@ public class CreatureManager {
         }
         if (!drops.isEmpty()) {
             GameLog.getInstance().log(String.format("%s 掉落了 %d 件物品",
-                    def.name, drops.size()));
+                    animal.getLocalizedName(), drops.size()));
         }
     }
 

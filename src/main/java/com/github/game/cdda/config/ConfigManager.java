@@ -84,7 +84,7 @@ public class ConfigManager {
         gameProps.setProperty(KEY_INFO_PANEL_WIDTH, "180");
         gameProps.setProperty(KEY_UNIT_MASS, "GRAM");
         gameProps.setProperty(KEY_UNIT_VOLUME, "MILLILITER");
-        gameProps.setProperty(KEY_LOCALE, "en");
+        gameProps.setProperty(KEY_LOCALE, "zh");
     }
 
     // ── 加载 ──────────────────────────────────────────

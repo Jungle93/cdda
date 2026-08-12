@@ -49,6 +49,11 @@ public class CddaGame extends GameApplication {
     protected void init() {
         // 初始化服务门面（一次性注册 GameEngine，暴露所有子系统）
         EngineServices.init(engine);
+
+        // 从配置中读取语言设置并应用到 I18nManager
+        ConfigManager cm = ConfigManager.getInstance();
+        String locale = cm.getLocale();
+        EngineServices.i18n.setLocale(locale);
         logger.info("服务门面初始化完成，当前语言: {} ({})",
                 EngineServices.i18n.getLocale(), EngineServices.i18n.getLocaleDisplayName(EngineServices.i18n.getLocale()));
 

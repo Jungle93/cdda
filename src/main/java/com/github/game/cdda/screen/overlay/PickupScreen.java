@@ -11,16 +11,22 @@ import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
 
 import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 拾取界面。
- * 显示玩家脚下的所有地面物品，选择后拾取到背包。
+ * 显示玩家脚下的所有地面物品，支持多选后批量拾取。
  *
  * <p>操作：
  * <ul>
- *   <li>↑/↓ — 选择物品</li>
- *   <li>Enter — 拾取选中物品</li>
+ *   <li>↑/↓ — 移动光标</li>
+ *   <li>Space — 切换当前项选中状态</li>
+ *   <li>+ — 全选 / 全不选（切换）</li>
+ *   <li>Enter — 拾取所有选中物品</li>
  *   <li>Esc — 关闭</li>
  * </ul>
  *
@@ -38,6 +44,9 @@ public class PickupScreen extends MenuScreen {
 
     /** 脚下地面物品列表（快照） */
     private final List<GroundItem> groundItems;
+
+    /** 已选中的物品索引集合 */
+    private final Set<Integer> selectedItems = new HashSet<>();
 
     /**
      * 创建拾取界面。
@@ -101,68 +110,160 @@ public class PickupScreen extends MenuScreen {
 
             GroundItem gi = groundItems.get(i);
             ItemStack stack = gi.getItemStack();
-            boolean sel = (i == selectedIndex);
+            boolean cursor = (i == selectedIndex);
+            boolean checked = selectedItems.contains(i);
 
             String name = stack.getType().getDisplayName();
             int count = stack.getCount();
             int weight = (int) stack.getTotalWeightGrams();
-            String line = String.format("%s%s x%d  (%dg)",
-                    sel ? "> " : "  ", name, count, weight);
+            // 光标 '>' + 选中 '[✓]'
+            String prefix = cursor ? ">" : " ";
+            String check = checked ? "[✓]" : "[ ]";
+            String line = String.format("%s %s %s x%d  (%dg)",
+                    prefix, check, name, count, weight);
 
             renderer.setFont(new Font("Monospaced", Font.PLAIN, fontSize));
-            renderer.setColor(sel ? Color.YELLOW : Color.WHITE);
+            // 颜色优先级：光标(黄) > 选中(绿) > 默认(白)
+            if (cursor) {
+                renderer.setColor(Color.YELLOW);
+            } else if (checked) {
+                renderer.setColor(Color.GREEN);
+            } else {
+                renderer.setColor(Color.WHITE);
+            }
             int lineX = (width - renderer.getTextWidth(line)) / 2;
             int lineY = listStartY + visibleIndex * itemHeight;
             renderer.drawText(line, lineX, lineY);
         }
 
         // 底部提示
-        drawHintBar(renderer, "Enter 拾取 | Esc 取消");
+        String hint = "Space 切换选中 | + 全选  Enter 拾取 | Esc 取消";
+        drawHintBar(renderer, hint);
     }
 
     @Override
-    protected void onSelect(int index) {
-        if (index < 0 || index >= groundItems.size()) return;
-
-        GroundItem gi = groundItems.get(index);
-        ItemStack stack = gi.getItemStack();
-        PlayerInventory inventory = player.getInventory();
-
-        if (!inventory.canCarry(stack)) {
-            GameLog.getInstance().log(String.format("%s 太重了，无法携带（需 %dg，剩余 %dg）",
-                    stack.getType().getDisplayName(),
-                    (int) stack.getTotalWeightGrams(),
-                    (int) inventory.getRemainingCapacity()));
+    public void onKeyPressed(int keyCode) {
+        if (groundItems.isEmpty()) {
+            if (keyCode == KeyEvent.VK_ESCAPE || keyCode == KeyEvent.VK_ENTER) {
+                close();
+            }
             return;
         }
 
-        // 拾取到背包
-        if (inventory.addItem(stack)) {
-            // 从地面管理器移除
-            groundItemManager.removeGroundItem(gi);
+        switch (keyCode) {
+            case KeyEvent.VK_UP:
+                selectedIndex--;
+                if (selectedIndex < 0) selectedIndex = groundItems.size() - 1;
+                break;
+            case KeyEvent.VK_DOWN:
+                selectedIndex++;
+                if (selectedIndex >= groundItems.size()) selectedIndex = 0;
+                break;
+            case KeyEvent.VK_SPACE:
+                // 空格切换当前项选中状态
+                if (selectedItems.contains(selectedIndex)) {
+                    selectedItems.remove(selectedIndex);
+                } else {
+                    selectedItems.add(selectedIndex);
+                }
+                break;
+            case KeyEvent.VK_PLUS:      // 小键盘 +
+            case KeyEvent.VK_EQUALS:    // = 也兼容
+                toggleSelectAll();
+                break;
+            case KeyEvent.VK_ENTER:
+                pickupSelected();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                close();
+                break;
+            default:
+                break;
+        }
+    }
 
-            GameLog.getInstance().log(String.format("拾取了 %s x%d",
-                    stack.getType().getDisplayName(), stack.getCount()));
+    @Override
+    public void onKeyTyped(int charCode) {
+        char c = (char) charCode;
+        // 主键盘 + 通过 charCode 捕获（Shift+= 产生 '+' 字符）
+        if (c == '+') {
+            toggleSelectAll();
+        }
+    }
 
-            // 重新获取地面物品列表
-            List<GroundItem> remaining = groundItemManager.getItemsAt(
-                    player.getTileX(), player.getTileY());
-
-            if (remaining.isEmpty()) {
-                // 没有物品了，关闭界面
-                engine.getScreenManager().popScreen();
-            } else {
-                // 更新列表并调整索引
-                // 注意：groundItems 是 final 的，不能重新赋值
-                // 所以通过 pop + re-push 或者让 GameScene 处理
-                // 简化：直接 pop，让下次按 G 重新打开
-                engine.getScreenManager().popScreen();
+    /** 全选/全不选切换 */
+    private void toggleSelectAll() {
+        if (selectedItems.size() == groundItems.size()) {
+            // 已全部选中 → 清空
+            selectedItems.clear();
+        } else {
+            // 选中所有
+            for (int i = 0; i < groundItems.size(); i++) {
+                selectedItems.add(i);
             }
         }
     }
 
+    /** 批量拾取所有选中物品 */
+    private void pickupSelected() {
+        if (selectedItems.isEmpty()) {
+            GameLog.getInstance().log("没有选中任何物品");
+            return;
+        }
+
+        PlayerInventory inventory = player.getInventory();
+
+        // 按索引倒序收集要移除的项（避免正序删除时索引偏移）
+        List<Integer> sorted = new ArrayList<>(selectedItems);
+        sorted.sort((a, b) -> b - a);
+
+        int pickedCount = 0;
+        for (int idx : sorted) {
+            GroundItem gi = groundItems.get(idx);
+            ItemStack stack = gi.getItemStack();
+
+            if (!inventory.canCarry(stack)) {
+                GameLog.getInstance().log(String.format("%s 太重了，跳过（需 %dg，剩余 %dg）",
+                        stack.getType().getDisplayName(),
+                        (int) stack.getTotalWeightGrams(),
+                        (int) inventory.getRemainingCapacity()));
+                continue;
+            }
+
+            if (inventory.addItem(stack)) {
+                groundItemManager.removeGroundItem(gi);
+                pickedCount++;
+            }
+        }
+
+        if (pickedCount > 0) {
+            GameLog.getInstance().log(String.format("拾取了 %d 件物品", pickedCount));
+        }
+
+        // 重新获取地面物品列表
+        List<GroundItem> remaining = groundItemManager.getItemsAt(
+                player.getTileX(), player.getTileY());
+
+        if (remaining.isEmpty()) {
+            engine.getScreenManager().popScreen();
+        } else {
+            // 还有剩余物品，关闭当前界面让下次 G 重新打开
+            engine.getScreenManager().popScreen();
+        }
+    }
+
+    @Override
+    protected void onSelect(int index) {
+        // 不使用基类的 Enter→onSelect 流程，已在 onKeyPressed 中处理
+    }
+
     @Override
     protected void onCancel() {
+        engine.getScreenManager().popScreen();
+    }
+
+    /** 关闭界面 */
+    private void close() {
         engine.getScreenManager().popScreen();
     }
 }

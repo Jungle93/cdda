@@ -2,7 +2,7 @@
   "id": "fox",
   "name": "fox",
   "hp": 15,
-  "speed": 140,
+  "speed": 275,
   "trophicLevel": "SECONDARY_CONSUMER",
   "preyLevels": [
     "PRIMARY_CONSUMER"
@@ -11,7 +11,7 @@
   "stats": {
     "strength": 5,
     "agility": 16,
-    "endurance": 8
+    "endurance": 24
   },
   "perception": {
     "vision": 7,

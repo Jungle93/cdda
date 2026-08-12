@@ -2,16 +2,16 @@
   "id": "squirrel",
   "name": "squirrel",
   "hp": 5,
-  "speed": 160,
+  "speed": 275,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 8,
   "stats": {
     "strength": 2,
     "agility": 18,
-    "endurance": 4
+    "endurance": 12
   },
   "perception": {
-    "vision": 6,
+    "vision": 12,
     "hearing": 8
   },
   "displayChar": "s",

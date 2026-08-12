@@ -2,7 +2,7 @@
   "id": "badger",
   "name": "badger",
   "hp": 20,
-  "speed": 90,
+  "speed": 175,
   "trophicLevel": "SECONDARY_CONSUMER",
   "preyLevels": [
     "PRIMARY_CONSUMER"
@@ -11,10 +11,10 @@
   "stats": {
     "strength": 10,
     "agility": 8,
-    "endurance": 14
+    "endurance": 20
   },
   "perception": {
-    "vision": 4,
+    "vision": 8,
     "hearing": 6
   },
   "displayChar": "B",

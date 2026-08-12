@@ -2,7 +2,7 @@
   "id": "wolf",
   "name": "wolf",
   "hp": 25,
-  "speed": 130,
+  "speed": 350,
   "trophicLevel": "APEX_PREDATOR",
   "preyLevels": [
     "PRIMARY_CONSUMER",
@@ -12,7 +12,7 @@
   "stats": {
     "strength": 12,
     "agility": 14,
-    "endurance": 12
+    "endurance": 40
   },
   "perception": {
     "vision": 8,

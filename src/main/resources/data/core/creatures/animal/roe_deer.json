@@ -2,16 +2,16 @@
   "id": "roe_deer",
   "name": "roe_deer",
   "hp": 25,
-  "speed": 120,
+  "speed": 325,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 25,
   "stats": {
     "strength": 6,
     "agility": 15,
-    "endurance": 10
+    "endurance": 28
   },
   "perception": {
-    "vision": 8,
+    "vision": 16,
     "hearing": 7
   },
   "displayChar": "r",

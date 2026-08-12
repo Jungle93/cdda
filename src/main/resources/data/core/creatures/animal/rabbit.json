@@ -2,16 +2,16 @@
   "id": "rabbit",
   "name": "rabbit",
   "hp": 10,
-  "speed": 130,
+  "speed": 300,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 15,
   "stats": {
     "strength": 3,
     "agility": 16,
-    "endurance": 6
+    "endurance": 18
   },
   "perception": {
-    "vision": 6,
+    "vision": 12,
     "hearing": 10
   },
   "displayChar": "r",

@@ -2,16 +2,16 @@
   "id": "boar",
   "name": "boar",
   "hp": 40,
-  "speed": 100,
+  "speed": 275,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 35,
   "stats": {
     "strength": 14,
     "agility": 8,
-    "endurance": 16
+    "endurance": 28
   },
   "perception": {
-    "vision": 5,
+    "vision": 10,
     "hearing": 7
   },
   "displayChar": "b",

@@ -2,16 +2,16 @@
   "id": "hare",
   "name": "hare",
   "hp": 8,
-  "speed": 150,
+  "speed": 375,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 12,
   "stats": {
     "strength": 3,
     "agility": 18,
-    "endurance": 6
+    "endurance": 22
   },
   "perception": {
-    "vision": 7,
+    "vision": 14,
     "hearing": 10
   },
   "displayChar": "h",

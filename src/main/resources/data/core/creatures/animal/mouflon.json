@@ -2,16 +2,16 @@
   "id": "mouflon",
   "name": "mouflon",
   "hp": 35,
-  "speed": 105,
+  "speed": 275,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 28,
   "stats": {
     "strength": 12,
     "agility": 12,
-    "endurance": 14
+    "endurance": 35
   },
   "perception": {
-    "vision": 7,
+    "vision": 14,
     "hearing": 6
   },
   "displayChar": "m",

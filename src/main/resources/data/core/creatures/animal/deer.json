@@ -2,16 +2,16 @@
   "id": "deer",
   "name": "deer",
   "hp": 30,
-  "speed": 110,
+  "speed": 375,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 30,
   "stats": {
     "strength": 8,
     "agility": 14,
-    "endurance": 10
+    "endurance": 32
   },
   "perception": {
-    "vision": 8,
+    "vision": 16,
     "hearing": 6
   },
   "displayChar": "d",

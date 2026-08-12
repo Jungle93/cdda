@@ -68,7 +68,7 @@ public class Animal extends Creature {
     private int maxFleeStamina = 0;
 
     /** 逃跑初始耐力基数（每点 endurance 对应的逃跑步数） */
-    private static final int FLEE_STAMINA_PER_ENDURANCE = 3;
+    private static final int FLEE_STAMINA_PER_ENDURANCE = 30;
 
     /** 每逃一步消耗的耐力 */
     private static final int FLEE_STAMINA_COST = 2;
@@ -544,6 +544,22 @@ public class Animal extends Creature {
     public double getFleeStaminaRatio() {
         if (fleeStamina < 0 || maxFleeStamina <= 0) return 1.0;
         return (double) fleeStamina / maxFleeStamina;
+    }
+
+    /**
+     * 重写行动时间计算：逃跑时根据剩余耐力获得速度加成。
+     * 耐力充足时，行动耗时最多缩短为原来的 2/3（速度 +50%）；
+     * 耐力耗尽时，加成消失（疲惫的逃跑者）。
+     */
+    @Override
+    public int getActionTime(int baseTime) {
+        int effectiveSpeed = speed;
+        if (fleeStamina > 0 && maxFleeStamina > 0) {
+            double ratio = getFleeStaminaRatio();
+            effectiveSpeed = (int) (speed * (1.0 + FLEE_SPEED_BOOST_FACTOR * ratio));
+        }
+        if (effectiveSpeed <= 0) return baseTime;
+        return baseTime * 100 / effectiveSpeed;
     }
 
     /**

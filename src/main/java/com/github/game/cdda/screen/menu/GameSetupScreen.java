@@ -36,11 +36,9 @@ public class GameSetupScreen extends MenuScreen {
 
     /** 布局参数 */
     private static final int TITLE_Y = 40;
-    private static final int SECTION1_Y = 85;
-    private static final int ITEMS_START_Y = 115;
-    private static final int SECTION2_Y = 185;
-    private static final int ACTION_START_Y = 270;
+    private static final int ITEMS_START_Y = 90;
     private static final int LINE_SPACING = 36;
+    private static final int ACTION_START_Y = ITEMS_START_Y + LINE_SPACING * 3 + 20;
 
     private final WorldSettings worldSettings;
     private final CharacterSettings characterSettings;
@@ -75,22 +73,12 @@ public class GameSetupScreen extends MenuScreen {
         // ── 标题 ──
         drawTitle(renderer, "新游戏", 24, TITLE_Y);
 
-        // ── 世界设置段落 ──
-        renderer.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        renderer.setColor(Color.GRAY);
-        drawCentered(renderer, "── 世界设置 ──", SECTION1_Y);
-
         // 种子：编辑中显示缓冲区+光标，否则显示当前值
         String seedDisplay = (editingItem == ITEM_SEED)
                 ? editBuffer + "_"
                 : String.valueOf(worldSettings.getSeed());
         renderMenuItem(renderer, ITEM_SEED, "世界种子", seedDisplay,
                 ITEMS_START_Y, 16);
-
-        // ── 角色设置段落 ──
-        renderer.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        renderer.setColor(Color.GRAY);
-        drawCentered(renderer, "── 角色设置 ──", SECTION2_Y);
 
         // 名称：编辑中显示缓冲区+光标
         String nameDisplay = (editingItem == ITEM_NAME)

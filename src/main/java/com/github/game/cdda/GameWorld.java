@@ -6,6 +6,8 @@ import com.github.game.cdda.creature.energy.EnergyFlowManager;
 import com.github.game.cdda.game.WorldSettings;
 import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.item.ItemRegistry;
+import com.github.game.cdda.item.ItemStack;
+import com.github.game.cdda.item.ItemType;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.npc.NpcManager;
 import com.github.game.cdda.npc.NpcRegistry;
@@ -110,6 +112,24 @@ public class GameWorld {
         // 8) 玩家（在可通行的出生点创建）
         int[] spawn = findPassableSpawn();
         player = new Player(spawn[0], spawn[1]);
+
+        // 9) 初始物品（开局自带一把刀和一把斧头）
+        giveStartingItems();
+    }
+
+    /**
+     * 给玩家发放初始物品：一把生锈小刀、一把石斧。
+     * 须在 ItemRegistry.loadAll() 之后调用。
+     */
+    private void giveStartingItems() {
+        ItemType knife = ItemRegistry.getByName("rusty_knife");
+        ItemType axe = ItemRegistry.getByName("stone_axe");
+        if (knife != null) {
+            player.getInventory().addItem(new ItemStack(knife, 1));
+        }
+        if (axe != null) {
+            player.getInventory().addItem(new ItemStack(axe, 1));
+        }
     }
 
     // ── 延迟初始化 ──────────────────────────────────

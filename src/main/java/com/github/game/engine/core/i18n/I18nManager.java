@@ -19,7 +19,7 @@ import java.util.Map;
  * 国际化（i18n）管理器。
  * <p>
  * 引擎级单例，负责加载和管理多语言翻译资源。
- * 翻译文件存储在 classpath:/config/i18n/{locale}/ 目录下，采用 JSON 格式。
+ * 翻译文件存储在 classpath:/i18n/{locale}/ 目录下，采用 JSON 格式。
  * <p>
  * 使用方式：
  * <pre>
@@ -47,7 +47,7 @@ public class I18nManager {
 
     private static final Logger logger = LoggerFactory.getLogger(I18nManager.class);
 
-    private static final String I18N_BASE_PATH = "config/i18n/";
+    private static final String I18N_BASE_PATH = "i18n/";
     private static final String SUPPORTED_LOCALES_FILE = I18N_BASE_PATH + "supported_locales.json";
 
     private final Gson gson = new Gson();
@@ -101,7 +101,7 @@ public class I18nManager {
 
     /**
      * 加载指定语言的翻译文件。
-     * 扫描 classpath:/config/i18n/{locale}/ 目录下所有 JSON 文件并合并。
+     * 扫描 classpath:/i18n/{locale}/ 目录下所有 JSON 文件并合并。
      */
     private Map<String, String> loadLocale(String locale) {
         if (localeCache.containsKey(locale)) {

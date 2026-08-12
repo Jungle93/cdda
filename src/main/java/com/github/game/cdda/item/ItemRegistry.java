@@ -1,11 +1,11 @@
 package com.github.game.cdda.item;
 
+import com.github.game.engine.core.data.DataScanner;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
@@ -13,14 +13,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 物品类型注册表（遵循 TileType 注册模式）。
+ * 物品类型注册表。
  * <p>
- * 所有物品从 {@code resources/items/} 目录下的 JSON 文件加载。
+ * 所有物品从 {@code data/core/items/} 目录下自动扫描加载。
  * Mod 可通过 {@link #registerMod} 在运行时注册新类型。
  * <p>
  * ID 分配约定：
  * <ul>
- *   <li>0–999：内置物品（Base game，通过 JSON 配置）</li>
+ *   <li>0–999：内置物品（Base game）</li>
  *   <li>1000+：Mod 物品</li>
  * </ul>
  */
@@ -48,124 +48,51 @@ public final class ItemRegistry {
     // ── 从 JSON 加载 ────────────────────────────────────
 
     /**
-     * 从 classpath 加载所有物品定义。
-     * 扫描 items/ 目录下的 JSON 文件。
+     * 扫描 data/core/items/ 目录下所有 JSON 文件并加载。
      */
     public static synchronized void loadAll() {
         if (loaded) {
             return;
         }
 
-        // 饮品
-        loadFromClasspath("items/water_bottle.json");
-        loadFromClasspath("items/dirty_water.json");
-        // 食物
-        loadFromClasspath("items/bread.json");
-        loadFromClasspath("items/canned_food.json");
-        // 药物
-        loadFromClasspath("items/bandage.json");
-        loadFromClasspath("items/painkiller.json");
-        // 复合消耗类型
-        loadFromClasspath("items/herbal_tea.json");
-        // 唯一物品
-        loadFromClasspath("items/rusty_knife.json");
-        loadFromClasspath("items/stone_axe.json");
-        // 动物掉落物 — 肉类
-        loadFromClasspath("items/venison_raw.json");
-        loadFromClasspath("items/rabbit_meat_raw.json");
-        loadFromClasspath("items/boar_meat_raw.json");
-        loadFromClasspath("items/wolf_meat_raw.json");
-        loadFromClasspath("items/badger_meat_raw.json");
-        loadFromClasspath("items/roe_venison_raw.json");
-        loadFromClasspath("items/hare_meat_raw.json");
-        loadFromClasspath("items/mouflon_meat_raw.json");
-        loadFromClasspath("items/squirrel_meat_raw.json");
-        // 动物掉落物 — 毛皮
-        loadFromClasspath("items/deer_hide.json");
-        loadFromClasspath("items/rabbit_pelt.json");
-        loadFromClasspath("items/fox_pelt.json");
-        loadFromClasspath("items/boar_hide.json");
-        loadFromClasspath("items/wolf_pelt.json");
-        loadFromClasspath("items/badger_fur.json");
-        loadFromClasspath("items/hare_pelt.json");
-        loadFromClasspath("items/mouflon_hide.json");
-        // 动物掉落物 — 特殊材料
-        loadFromClasspath("items/antler.json");
-        loadFromClasspath("items/bone.json");
-        loadFromClasspath("items/boar_tusk.json");
-        loadFromClasspath("items/wolf_fang.json");
-        // 植物掉落物 — 木材
-        loadFromClasspath("items/oak_log.json");
-        loadFromClasspath("items/birch_log.json");
-        loadFromClasspath("items/pine_log.json");
-        loadFromClasspath("items/fir_log.json");
-        loadFromClasspath("items/beech_log.json");
-        // 植物掉落物 — 植物材料
-        loadFromClasspath("items/small_branch.json");
-        loadFromClasspath("items/birch_bark.json");
-        loadFromClasspath("items/dried_branch.json");
-        loadFromClasspath("items/bracken_fern.json");
-        loadFromClasspath("items/heather_flower.json");
-        loadFromClasspath("items/gorse_branch.json");
-        loadFromClasspath("items/blackberry.json");
-        loadFromClasspath("items/acorn.json");
-        loadFromClasspath("items/pine_cone.json");
-        loadFromClasspath("items/grass_bundle.json");
-        loadFromClasspath("items/reed_bundle.json");
-        loadFromClasspath("items/green_moss.json");
-        loadFromClasspath("items/sphagnum_moss.json");
-        loadFromClasspath("items/lichen.json");
-        loadFromClasspath("items/peat.json");
-        // 木材加工品 — 木板
-        loadFromClasspath("items/oak_plank.json");
-        loadFromClasspath("items/birch_plank.json");
-        loadFromClasspath("items/pine_plank.json");
-        loadFromClasspath("items/fir_plank.json");
-        loadFromClasspath("items/beech_plank.json");
-        // 木材加工品 — 木柴
-        loadFromClasspath("items/oak_firewood.json");
-        loadFromClasspath("items/birch_firewood.json");
-        loadFromClasspath("items/pine_firewood.json");
-        // 动物尸体
-        loadFromClasspath("items/deer_corpse.json");
-        loadFromClasspath("items/rabbit_corpse.json");
-        loadFromClasspath("items/boar_corpse.json");
-        loadFromClasspath("items/wolf_corpse.json");
-        loadFromClasspath("items/fox_corpse.json");
-        loadFromClasspath("items/badger_corpse.json");
-        loadFromClasspath("items/hare_corpse.json");
-        loadFromClasspath("items/roe_deer_corpse.json");
-        loadFromClasspath("items/mouflon_corpse.json");
-        loadFromClasspath("items/squirrel_corpse.json");
+        // 扫描并加载所有物品定义（递归扫描子目录）
+        int count = 0;
+        for (String path : DataScanner.scanClasspathJson("data/core/items")) {
+            if (loadFromClasspath(path)) {
+                count++;
+            }
+        }
 
         loaded = true;
-        logger.info("物品注册表加载完成，共 {} 种物品", REGISTRY.size());
+        logger.info("物品注册表加载完成，共 {} 种物品", count);
     }
 
     /**
      * 从 classpath 加载单个物品定义。
      *
      * @param path classpath 路径
+     * @return 是否加载成功
      */
-    private static void loadFromClasspath(String path) {
-        try (InputStream is = ItemRegistry.class.getClassLoader().getResourceAsStream(path)) {
+    private static boolean loadFromClasspath(String path) {
+        try (InputStream is = DataScanner.openClasspathStream(path)) {
             if (is == null) {
-                logger.warn("物品定义文件未找到: {}", path);
-                return;
+                return false;
             }
             ItemDefinition def = GSON.fromJson(
-                    new InputStreamReader(is, StandardCharsets.UTF_8),
+                    new java.io.InputStreamReader(is, StandardCharsets.UTF_8),
                     ItemDefinition.class
             );
             if (def == null || def.name == null || def.name.isBlank()) {
                 logger.warn("物品定义无效: {}", path);
-                return;
+                return false;
             }
             ItemType type = def.toItemType();
             validateAndPut(type);
-            logger.debug("注册物品定义: {} (id={})", def.name, def.id);
+            logger.debug("注册物品: {} (id={})", def.name, def.id);
+            return true;
         } catch (Exception e) {
             logger.error("加载物品定义失败: {}", path, e);
+            return false;
         }
     }
 

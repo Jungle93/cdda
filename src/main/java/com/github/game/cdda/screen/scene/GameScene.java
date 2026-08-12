@@ -344,7 +344,7 @@ public class GameScene extends Scene {
             // 播放行走音效
             var audio = EngineServices.audio;
             if (audio != null) {
-                audio.playSFX("sounds/walk.mp3", false, 0.6f);
+                audio.playSFX("audio/sfx/walk.mp3", false, 0.6f);
             }
             turnManager.addAction(player, Constants.MOVE_BASE_TIME);
             metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);

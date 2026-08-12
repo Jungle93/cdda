@@ -1,22 +1,22 @@
 package com.github.game.cdda.world.vegetation;
 
+import com.github.game.engine.core.data.DataScanner;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
  * 植被定义注册表。
- * 管理所有已加载的植被模板，支持从 JSON 文件加载。
+ * 管理所有已加载的植被模板，从 data/core/vegetation/ 自动扫描加载。
  *
  * <p>与 CreatureRegistry 采用相同模式：
  * <ul>
  *   <li>按 ID 注册查询</li>
- *   <li>支持 {@code loadAll()} 从 classpath JSON 加载</li>
+ *   <li>支持 {@code loadAll()} 从 classpath JSON 自动扫描加载</li>
  *   <li>支持环境适配查询 {@code getForEnvironment()}</li>
  * </ul>
  */
@@ -37,7 +37,7 @@ public class VegetationRegistry {
     private static boolean loaded = false;
 
     /**
-     * 加载所有植被定义。
+     * 扫描 data/core/vegetation/ 目录下所有 JSON 文件并加载。
      */
     public static synchronized void loadAll() {
         if (loaded) {
@@ -49,52 +49,42 @@ public class VegetationRegistry {
             BY_TYPE.put(type, new ArrayList<>());
         }
 
-        // ── 树木 ──
-        loadFromClasspath("vegetation/oak.json");
-        loadFromClasspath("vegetation/birch.json");
-        loadFromClasspath("vegetation/pine.json");
-        loadFromClasspath("vegetation/fir.json");
-        loadFromClasspath("vegetation/beech.json");
-        loadFromClasspath("vegetation/willow.json");
-
-        // ── 灌木 ──
-        loadFromClasspath("vegetation/hazel.json");
-        loadFromClasspath("vegetation/holly.json");
-        loadFromClasspath("vegetation/gorse.json");
-        loadFromClasspath("vegetation/heather.json");
-
-        // ── 草 ──
-        loadFromClasspath("vegetation/tall_grass.json");
-        loadFromClasspath("vegetation/meadow_grass.json");
-
-        // ── 苔藓 ──
-        loadFromClasspath("vegetation/green_moss.json");
-        loadFromClasspath("vegetation/sphagnum.json");
-
-        // ── 水生 ──
-        loadFromClasspath("vegetation/reed.json");
-        loadFromClasspath("vegetation/cattail.json");
+        // 扫描并加载所有植被定义（递归扫描子目录）
+        int count = 0;
+        for (String path : DataScanner.scanClasspathJson("data/core/vegetation")) {
+            if (loadFromClasspath(path)) {
+                count++;
+            }
+        }
 
         loaded = true;
-        logger.info("植被注册表加载完成，共 {} 种植被", BY_ID.size());
+        logger.info("植被注册表加载完成，共 {} 种植被", count);
     }
 
     /**
      * 从 classpath 加载植被定义。
+     *
+     * @param path classpath 路径
+     * @return 是否加载成功
      */
-    private static void loadFromClasspath(String path) {
-        try (InputStream is = VegetationRegistry.class.getClassLoader().getResourceAsStream(path)) {
+    private static boolean loadFromClasspath(String path) {
+        try (InputStream is = DataScanner.openClasspathStream(path)) {
             if (is == null) {
-                logger.warn("植被定义文件未找到: {}", path);
-                return;
+                return false;
             }
             VegetationDefinition def = GSON.fromJson(
-                    new InputStreamReader(is, StandardCharsets.UTF_8),
+                    new java.io.InputStreamReader(is, StandardCharsets.UTF_8),
                     VegetationDefinition.class
             );
+            if (def == null || def.id == null) {
+                logger.warn("植被定义无效: {}", path);
+                return false;
+            }
             register(def);
+            return true;
         } catch (Exception e) {
             logger.error("加载植被定义失败: {}", path, e);
+            return false;
         }
     }
 

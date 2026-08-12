@@ -1,11 +1,11 @@
 package com.github.game.cdda.creature.config;
 
+import com.github.game.engine.core.data.DataScanner;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * 生物定义注册表。
- * 管理所有已加载的生物模板，支持从 JSON 文件加载。
+ * 管理所有已加载的生物模板，支持从 JSON 文件自动扫描加载。
  * 采用双注册表模式（按 ID 和按名称），与 TileType/ItemRegistry 一致。
  */
 public class CreatureRegistry {
@@ -82,52 +82,49 @@ public class CreatureRegistry {
     }
 
     /**
-     * 从 classpath 加载所有生物定义。
-     * 扫描 creatures/ 目录下的所有 JSON 文件。
+     * 扫描 data/core/creatures/ 目录下所有 JSON 文件并加载。
      */
     public static synchronized void loadAll() {
         if (loaded) {
             return;
         }
 
-        // 加载内置生物
-        loadFromClasspath("creatures/deer.json");
-        loadFromClasspath("creatures/rabbit.json");
-        loadFromClasspath("creatures/boar.json");
-        loadFromClasspath("creatures/wolf.json");
-        loadFromClasspath("creatures/fox.json");
-        loadFromClasspath("creatures/badger.json");
-        loadFromClasspath("creatures/hare.json");
-        loadFromClasspath("creatures/roe_deer.json");
-        loadFromClasspath("creatures/mouflon.json");
-        loadFromClasspath("creatures/squirrel.json");
+        // 扫描并加载所有生物定义（递归扫描子目录）
+        int count = 0;
+        for (String path : DataScanner.scanClasspathJson("data/core/creatures")) {
+            if (loadFromClasspath(path)) {
+                count++;
+            }
+        }
 
         loaded = true;
-        logger.info("生物注册表加载完成，共 {} 种生物", BY_ID.size());
+        logger.info("生物注册表加载完成，共 {} 种生物", count);
     }
 
     /**
      * 从 classpath 加载单个生物定义。
      *
      * @param path classpath 路径
+     * @return 是否加载成功
      */
-    private static void loadFromClasspath(String path) {
-        try (InputStream is = CreatureRegistry.class.getClassLoader().getResourceAsStream(path)) {
+    private static boolean loadFromClasspath(String path) {
+        try (InputStream is = DataScanner.openClasspathStream(path)) {
             if (is == null) {
-                logger.warn("生物定义文件未找到: {}", path);
-                return;
+                return false;
             }
             CreatureDefinition def = GSON.fromJson(
-                    new InputStreamReader(is, StandardCharsets.UTF_8),
+                    new java.io.InputStreamReader(is, StandardCharsets.UTF_8),
                     CreatureDefinition.class
             );
-            // 调试：打印加载的定义
-            logger.info("加载生物定义: id={}, name={}, lootTable={}",
-                    def.id, def.name,
-                    def.lootTable != null ? (def.lootTable.entries != null ? def.lootTable.entries.size() + " entries" : "null entries") : "null");
+            if (def == null || def.id == null) {
+                logger.warn("生物定义无效: {}", path);
+                return false;
+            }
             register(def);
+            return true;
         } catch (Exception e) {
             logger.error("加载生物定义失败: {}", path, e);
+            return false;
         }
     }
 

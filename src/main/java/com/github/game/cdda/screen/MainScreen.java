@@ -148,7 +148,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         gameWorld.initNpcManager();
 
         // 播放游戏背景音乐（循环，淡入 3 秒）
-        EngineServices.audio.playBGM("music/background.mp3", true, 0.7f, 3000);
+        EngineServices.audio.playBGM("audio/music/background.mp3", true, 0.7f, 3000);
 
         initialized = true;
     }

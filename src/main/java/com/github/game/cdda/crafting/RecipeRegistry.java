@@ -1,17 +1,17 @@
 package com.github.game.cdda.crafting;
 
+import com.github.game.engine.core.data.DataScanner;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
  * 加工配方注册表。
- * 管理所有已加载的加工配方，支持从 JSON 文件加载。
+ * 管理所有已加载的加工配方，从 data/core/recipes/ 自动扫描加载。
  *
  * <p>配方按输入物品 ID 索引，支持查询某物品的所有可用配方。
  */
@@ -32,48 +32,49 @@ public class RecipeRegistry {
     private static boolean loaded = false;
 
     /**
-     * 加载所有配方。
+     * 扫描 data/core/recipes/ 目录下所有 JSON 文件并加载。
      */
     public static synchronized void loadAll() {
         if (loaded) {
             return;
         }
 
-        // ── 原木 → 木板 ──
-        loadFromClasspath("recipes/oak_log_to_planks.json");
-        loadFromClasspath("recipes/birch_log_to_planks.json");
-        loadFromClasspath("recipes/pine_log_to_planks.json");
-        loadFromClasspath("recipes/fir_log_to_planks.json");
-        loadFromClasspath("recipes/beech_log_to_planks.json");
-
-        // ── 原木 → 木柴 ──
-        loadFromClasspath("recipes/oak_log_to_firewood.json");
-        loadFromClasspath("recipes/birch_log_to_firewood.json");
-        loadFromClasspath("recipes/pine_log_to_firewood.json");
-
-        // ── 树枝 → 木柴 ──
-        loadFromClasspath("recipes/branch_to_firewood.json");
+        // 扫描并加载所有配方定义（递归扫描子目录）
+        int count = 0;
+        for (String path : DataScanner.scanClasspathJson("data/core/recipes")) {
+            if (loadFromClasspath(path)) {
+                count++;
+            }
+        }
 
         loaded = true;
-        logger.info("配方注册表加载完成，共 {} 个配方", BY_ID.size());
+        logger.info("配方注册表加载完成，共 {} 个配方", count);
     }
 
     /**
      * 从 classpath 加载配方。
+     *
+     * @param path classpath 路径
+     * @return 是否加载成功
      */
-    private static void loadFromClasspath(String path) {
-        try (InputStream is = RecipeRegistry.class.getClassLoader().getResourceAsStream(path)) {
+    private static boolean loadFromClasspath(String path) {
+        try (InputStream is = DataScanner.openClasspathStream(path)) {
             if (is == null) {
-                logger.warn("配方文件未找到: {}", path);
-                return;
+                return false;
             }
             ProcessingRecipe recipe = GSON.fromJson(
-                    new InputStreamReader(is, StandardCharsets.UTF_8),
+                    new java.io.InputStreamReader(is, StandardCharsets.UTF_8),
                     ProcessingRecipe.class
             );
+            if (recipe == null || recipe.id == null) {
+                logger.warn("配方定义无效: {}", path);
+                return false;
+            }
             register(recipe);
+            return true;
         } catch (Exception e) {
             logger.error("加载配方失败: {}", path, e);
+            return false;
         }
     }
 

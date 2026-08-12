@@ -18,8 +18,8 @@ import com.github.game.engine.core.screen.ScreenManager;
  * 使用示例：
  * <pre>
  * // 音频
- * EngineServices.audio.playBGM("music/bg.mp3");
- * EngineServices.audio.playSFX("sounds/walk.wav");
+ * EngineServices.audio.playBGM("audio/music/bg.mp3");
+ * EngineServices.audio.playSFX("audio/sfx/walk.wav");
  *
  * // 国际化
  * String name = EngineServices.i18n.t("item.bread.name");

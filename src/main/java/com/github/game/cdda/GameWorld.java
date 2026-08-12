@@ -7,6 +7,8 @@ import com.github.game.cdda.game.WorldSettings;
 import com.github.game.cdda.item.GroundItemManager;
 import com.github.game.cdda.item.ItemRegistry;
 import com.github.game.cdda.log.GameLog;
+import com.github.game.cdda.npc.NpcManager;
+import com.github.game.cdda.npc.NpcRegistry;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.world.chunk.ChunkManager;
@@ -45,12 +47,10 @@ public class GameWorld {
     private final MetabolismManager metabolismManager;
     private final HydrationManager hydrationManager;
     private final CreatureManager creatureManager;
+    private final NpcManager npcManager;
     private final GroundItemManager groundItemManager;
     private final EnergyFlowManager energyFlowManager;
     private final PlantGrowthSystem plantGrowthSystem;
-
-    /** 音频引擎（可选，用于播放音效；由外部在初始化后注入） */
-    private com.github.game.engine.core.audio.AudioEngine audioEngine;
 
     // ── 玩家 ──────────────────────────────────
     private final Player player;
@@ -89,7 +89,11 @@ public class GameWorld {
         com.github.game.cdda.crafting.RecipeRegistry.loadAll();
         creatureManager = new CreatureManager(chunkManager, turnManager);
 
-        // 7) 地面物品系统
+        // 7) NPC 管理器
+        NpcRegistry.loadDefaults();
+        npcManager = new NpcManager(creatureManager, chunkManager, turnManager);
+
+        // 7.5) 地面物品系统
         groundItemManager = new GroundItemManager();
         creatureManager.setGroundItemManager(groundItemManager);
 
@@ -152,6 +156,24 @@ public class GameWorld {
         }
     }
 
+    /**
+     * 设置 NPC 管理器的玩家引用。
+     * 须在 initPlayerForRendering 之后调用。
+     */
+    public void initNpcManager() {
+        npcManager.setPlayer(player);
+    }
+
+    /**
+     * 在玩家附近生成调试 NPC。
+     *
+     * @param count 数量
+     * @param maxDistance 最大距离（瓦片）
+     */
+    public void spawnDebugNpcs(int count, int maxDistance) {
+        npcManager.spawnDebugNpcsNearPlayer(count, maxDistance);
+    }
+
     // ── 出生点搜索 ──────────────────────────────────
 
     /**
@@ -191,20 +213,11 @@ public class GameWorld {
     public MetabolismManager getMetabolismManager() { return metabolismManager; }
     public HydrationManager getHydrationManager() { return hydrationManager; }
     public CreatureManager getCreatureManager() { return creatureManager; }
+    public NpcManager getNpcManager() { return npcManager; }
     public GroundItemManager getGroundItemManager() { return groundItemManager; }
     public EnergyFlowManager getEnergyFlowManager() { return energyFlowManager; }
     public PlantGrowthSystem getPlantGrowthSystem() { return plantGrowthSystem; }
     public Player getPlayer() { return player; }
-
-    /** 设置音频引擎（由外部在初始化后注入） */
-    public void setAudioEngine(com.github.game.engine.core.audio.AudioEngine audioEngine) {
-        this.audioEngine = audioEngine;
-    }
-
-    /** 获取音频引擎（可能为 null） */
-    public com.github.game.engine.core.audio.AudioEngine getAudioEngine() {
-        return audioEngine;
-    }
 
     /**
      * 请求更新植物生长系统（异步，立即返回）。

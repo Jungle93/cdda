@@ -1,0 +1,13 @@
+{
+  "system.language": "语言",
+  "system.yes": "是",
+  "system.no": "否",
+  "system.cancel": "取消",
+  "system.confirm": "确认",
+  "system.back": "返回",
+  "system.next": "下一页",
+  "system.loading": "加载中...",
+  "system.saving": "保存中...",
+  "system.error": "错误",
+  "system.success": "成功"
+}

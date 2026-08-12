@@ -1,6 +1,6 @@
 {
   "id": "hare",
-  "name": "野兔",
+  "name": "hare",
   "hp": 8,
   "speed": 150,
   "trophicLevel": "PRIMARY_CONSUMER",
@@ -15,19 +15,43 @@
     "hearing": 10
   },
   "displayChar": "h",
-  "displayColor": [170, 140, 110],
+  "displayColor": [
+    170,
+    140,
+    110
+  ],
   "lifeStages": [
-    { "stage": "juvenile", "name": "幼野兔", "hp": 4, "growSeconds": 5400 },
-    { "stage": "adult", "name": "野兔", "hp": 8, "growSeconds": null }
+    {
+      "stage": "juvenile",
+      "name": "juvenile",
+      "hp": 4,
+      "growSeconds": 5400
+    },
+    {
+      "stage": "adult",
+      "name": "adult",
+      "hp": 8,
+      "growSeconds": null
+    }
   ],
   "lootTable": {
     "entries": [
-      { "itemId": 1076, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1076,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "lootOnPlayerKill": {
     "entries": [
-      { "itemId": 1076, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1076,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "energyConfig": {

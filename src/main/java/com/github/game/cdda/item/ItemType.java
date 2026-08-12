@@ -1,5 +1,7 @@
 package com.github.game.cdda.item;
 
+import com.github.game.engine.core.i18n.I18nManager;
+
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -63,9 +65,44 @@ public class ItemType {
     // ── 访问器 ──────────────────────────────────────────
     public int getId() { return id; }
     public String getName() { return name; }
-    /** 获取中文显示名（用于 UI 展示） */
-    public String getDisplayName() { return displayName; }
-    public String getDescription() { return description; }
+
+    /**
+     * 获取显示名（优先从 i18n 获取，回退到本地 displayName，最后回退到 name）。
+     */
+    public String getDisplayName() {
+        // 优先通过 i18n 系统获取
+        String key = "item." + name + ".name";
+        String i18nValue = resolveI18n(key);
+        if (i18nValue != null) return i18nValue;
+        // 回退到本地存储的 displayName
+        if (displayName != null && !displayName.isBlank()) return displayName;
+        // 最后回退到技术名称
+        return name;
+    }
+
+    /**
+     * 获取描述（优先从 i18n 获取，回退到本地 description）。
+     */
+    public String getDescription() {
+        String key = "item." + name + ".description";
+        String i18nValue = resolveI18n(key);
+        if (i18nValue != null) return i18nValue;
+        return description;
+    }
+
+    /** 尝试通过 I18nManager 解析翻译键，未找到时返回 null */
+    private String resolveI18n(String key) {
+        try {
+            I18nManager i18n = com.github.game.engine.core.EngineServices.i18n;
+            if (i18n == null) return null;
+            String value = i18n.t(key);
+            // 如果返回值等于 key 本身，说明未找到翻译
+            return key.equals(value) ? null : value;
+        } catch (Exception e) {
+            // I18nManager 未初始化时静默回退
+            return null;
+        }
+    }
     public double getWeightGrams() { return weightGrams; }
     public double getVolumeMl() { return volumeMl; }
     public int getMaxStackSize() { return maxStackSize; }

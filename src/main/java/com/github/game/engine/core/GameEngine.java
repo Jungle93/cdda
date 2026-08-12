@@ -1,6 +1,7 @@
 package com.github.game.engine.core;
 
 import com.github.game.engine.core.audio.AudioEngine;
+import com.github.game.engine.core.i18n.I18nManager;
 import com.github.game.engine.core.input.InputManager;
 import com.github.game.engine.core.resource.ResourceManager;
 import com.github.game.engine.core.screen.ScreenManager;
@@ -29,6 +30,7 @@ public class GameEngine {
     private final InputManager inputManager;
     private final ResourceManager resourceManager;
     private final AudioEngine audioEngine;
+    private final I18nManager i18nManager;
     private final Timer timer;
 
     private long lastFrameTime;
@@ -54,6 +56,7 @@ public class GameEngine {
         this.inputManager = new InputManager(this);
         this.resourceManager = new ResourceManager(config.getResourceBase());
         this.audioEngine = new AudioEngine(this::loadAudioStream);
+        this.i18nManager = new I18nManager();
         this.gamePanel = new GamePanel(this);
 
         // 将 GamePanel 加入窗口
@@ -155,6 +158,10 @@ public class GameEngine {
 
     public AudioEngine getAudioEngine() {
         return audioEngine;
+    }
+
+    public I18nManager getI18nManager() {
+        return i18nManager;
     }
 
     public boolean isRunning() {

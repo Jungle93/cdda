@@ -1,6 +1,6 @@
 {
   "id": "squirrel",
-  "name": "松鼠",
+  "name": "squirrel",
   "hp": 5,
   "speed": 160,
   "trophicLevel": "PRIMARY_CONSUMER",
@@ -15,19 +15,43 @@
     "hearing": 8
   },
   "displayChar": "s",
-  "displayColor": [160, 100, 50],
+  "displayColor": [
+    160,
+    100,
+    50
+  ],
   "lifeStages": [
-    { "stage": "juvenile", "name": "小松鼠", "hp": 3, "growSeconds": 3600 },
-    { "stage": "adult", "name": "松鼠", "hp": 5, "growSeconds": null }
+    {
+      "stage": "juvenile",
+      "name": "juvenile",
+      "hp": 3,
+      "growSeconds": 3600
+    },
+    {
+      "stage": "adult",
+      "name": "adult",
+      "hp": 5,
+      "growSeconds": null
+    }
   ],
   "lootTable": {
     "entries": [
-      { "itemId": 1079, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1079,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "lootOnPlayerKill": {
     "entries": [
-      { "itemId": 1079, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1079,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "energyConfig": {

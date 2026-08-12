@@ -117,4 +117,16 @@ public class GameConfig {
     public void saveGame() {
         cm.saveGameConfig();
     }
+
+    // ── 国际化 ──────────────────────────────────────────
+
+    /** 获取当前语言设置 */
+    public String getLocale() {
+        return cm.getLocale();
+    }
+
+    /** 设置语言（如 "en", "zh"） */
+    public void setLocale(String locale) {
+        cm.setLocale(locale);
+    }
 }

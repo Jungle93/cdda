@@ -54,6 +54,8 @@ public class InputStateMachine {
         void pushPickupScreen(List<GroundItem> items);
         /** 显示物品使用覆盖层（A 触发，半透明覆盖在游戏画面上） */
         void showItemUseOverlay();
+        /** 推入 NPC 交互菜单（C 触发） */
+        void pushNpcInteractionScreen();
     }
 
     // ── 状态 ──
@@ -273,6 +275,9 @@ public class InputStateMachine {
                 return;
             case KeyEvent.VK_A:
                 overlayCallback.showItemUseOverlay();
+                return;
+            case KeyEvent.VK_C:
+                overlayCallback.pushNpcInteractionScreen();
                 return;
 
             // ── 模式切换 ──

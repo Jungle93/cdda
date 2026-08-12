@@ -5,5 +5,7 @@
   "weightGrams": 800,
   "volumeMl": 200,
   "unique": true,
-  "tags": ["chopping"]
+  "tags": [
+    "chopping"
+  ]
 }

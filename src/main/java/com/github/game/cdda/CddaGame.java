@@ -1,5 +1,6 @@
 package com.github.game.cdda;
 
+import com.github.game.engine.core.EngineServices;
 import com.github.game.cdda.config.ConfigManager;
 import com.github.game.cdda.screen.menu.MainMenuScreen;
 import com.github.game.engine.core.EngineConfig;
@@ -46,6 +47,11 @@ public class CddaGame extends GameApplication {
 
     @Override
     protected void init() {
+        // 初始化服务门面（一次性注册 GameEngine，暴露所有子系统）
+        EngineServices.init(engine);
+        logger.info("服务门面初始化完成，当前语言: {} ({})",
+                EngineServices.i18n.getLocale(), EngineServices.i18n.getLocaleDisplayName(EngineServices.i18n.getLocale()));
+
         // 设置初始屏幕为主菜单
         engine.getScreenManager().switchScreen(new MainMenuScreen(engine));
     }

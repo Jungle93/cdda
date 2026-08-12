@@ -2,6 +2,7 @@ package com.github.game.cdda.screen.scene;
 
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.Player;
+import com.github.game.engine.core.EngineServices;
 import com.github.game.cdda.creature.CreatureActionContext;
 import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.item.GroundItem;
@@ -341,8 +342,9 @@ public class GameScene extends Scene {
         // 回合制：玩家行动后推进时间
         if (player.move(dx, dy)) {
             // 播放行走音效
-            if (world.getAudioEngine() != null) {
-                world.getAudioEngine().playSFX("sounds/walk.mp3", false, 0.6f);
+            var audio = EngineServices.audio;
+            if (audio != null) {
+                audio.playSFX("sounds/walk.mp3", false, 0.6f);
             }
             turnManager.addAction(player, Constants.MOVE_BASE_TIME);
             metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);

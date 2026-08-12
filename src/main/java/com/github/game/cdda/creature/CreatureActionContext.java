@@ -76,6 +76,13 @@ public class CreatureActionContext {
         return player.getTileY();
     }
 
+    /**
+     * 获取玩家实例。
+     */
+    public Player getPlayer() {
+        return player;
+    }
+
     public ChunkManager getChunkManager() {
         return chunkManager;
     }

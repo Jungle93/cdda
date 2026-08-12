@@ -1,6 +1,6 @@
 {
   "id": "roe_deer",
-  "name": "狍子",
+  "name": "roe_deer",
   "hp": 25,
   "speed": 120,
   "trophicLevel": "PRIMARY_CONSUMER",
@@ -15,19 +15,43 @@
     "hearing": 7
   },
   "displayChar": "r",
-  "displayColor": [160, 120, 70],
+  "displayColor": [
+    160,
+    120,
+    70
+  ],
   "lifeStages": [
-    { "stage": "juvenile", "name": "狍羔", "hp": 12, "growSeconds": 9000 },
-    { "stage": "adult", "name": "狍子", "hp": 25, "growSeconds": null }
+    {
+      "stage": "juvenile",
+      "name": "juvenile",
+      "hp": 12,
+      "growSeconds": 9000
+    },
+    {
+      "stage": "adult",
+      "name": "adult",
+      "hp": 25,
+      "growSeconds": null
+    }
   ],
   "lootTable": {
     "entries": [
-      { "itemId": 1077, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1077,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "lootOnPlayerKill": {
     "entries": [
-      { "itemId": 1077, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1077,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "energyConfig": {

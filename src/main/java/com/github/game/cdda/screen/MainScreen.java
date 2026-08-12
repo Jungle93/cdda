@@ -4,6 +4,7 @@ import com.github.game.cdda.config.ConfigManager;
 import com.github.game.cdda.input.InputStateMachine;
 import com.github.game.cdda.item.GroundItem;
 import com.github.game.cdda.screen.overlay.*;
+import com.github.game.engine.core.EngineServices;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.GameOverlay;
@@ -98,7 +99,6 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
 
         // ── 创建游戏世界（逻辑层） ──
         gameWorld = new GameWorld(worldSettings, Month.MARCH, 8);
-        gameWorld.setAudioEngine(getEngine().getAudioEngine());
 
         // ── 游戏场景（显示层，左侧） ──
         gameScene = new GameScene(
@@ -144,8 +144,11 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         addScene(hudScene);
         addScene(worldMapScene);
 
+        // 初始化 NPC 管理器（设置玩家引用）
+        gameWorld.initNpcManager();
+
         // 播放游戏背景音乐（循环，淡入 3 秒）
-        getEngine().getAudioEngine().playBGM("music/background.mp3", true, 0.7f, 3000);
+        EngineServices.audio.playBGM("music/background.mp3", true, 0.7f, 3000);
 
         initialized = true;
     }
@@ -251,6 +254,13 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     }
 
     @Override
+    public void pushNpcInteractionScreen() {
+        engine.getScreenManager().pushScreen(
+                new com.github.game.cdda.screen.overlay.NpcInteractionScreen(
+                        engine, gameWorld));
+    }
+
+    @Override
     public void showItemUseOverlay() {
         int infoPanelWidth = ConfigManager.getInstance().getInfoPanelWidth();
         Viewport gameViewport = new Viewport(0, 0, getWidth() - infoPanelWidth, getHeight());
@@ -262,7 +272,9 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     @Override
     public void dispose() {
         // 停止游戏背景音乐（淡出 1 秒）
-        getEngine().getAudioEngine().stopBGM(1000);
+        if (EngineServices.audio != null) {
+            EngineServices.audio.stopBGM(1000);
+        }
         super.dispose();
     }
 

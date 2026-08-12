@@ -58,6 +58,8 @@ public class ConfigManager {
     public static final String KEY_UNIT_MASS = "display.unit.mass";
     /** 体积显示单位（游戏配置） */
     public static final String KEY_UNIT_VOLUME = "display.unit.volume";
+    /** 国际化语言设置（游戏配置） */
+    public static final String KEY_LOCALE = "i18n.locale";
 
     private ConfigManager() {
         initDefaults();
@@ -82,6 +84,7 @@ public class ConfigManager {
         gameProps.setProperty(KEY_INFO_PANEL_WIDTH, "180");
         gameProps.setProperty(KEY_UNIT_MASS, "GRAM");
         gameProps.setProperty(KEY_UNIT_VOLUME, "MILLILITER");
+        gameProps.setProperty(KEY_LOCALE, "en");
     }
 
     // ── 加载 ──────────────────────────────────────────
@@ -214,5 +217,15 @@ public class ConfigManager {
     /** 获取信息面板宽度 */
     public int getInfoPanelWidth() {
         return getGameInt(KEY_INFO_PANEL_WIDTH);
+    }
+
+    /** 获取当前语言设置 */
+    public String getLocale() {
+        return getGame(KEY_LOCALE);
+    }
+
+    /** 设置语言 */
+    public void setLocale(String locale) {
+        setGame(KEY_LOCALE, locale);
     }
 }

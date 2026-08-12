@@ -1,0 +1,13 @@
+{
+  "system.language": "Language",
+  "system.yes": "Yes",
+  "system.no": "No",
+  "system.cancel": "Cancel",
+  "system.confirm": "Confirm",
+  "system.back": "Back",
+  "system.next": "Next",
+  "system.loading": "Loading...",
+  "system.saving": "Saving...",
+  "system.error": "Error",
+  "system.success": "Success"
+}

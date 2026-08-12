@@ -1,6 +1,6 @@
 {
   "id": "rabbit",
-  "name": "兔子",
+  "name": "rabbit",
   "hp": 10,
   "speed": 130,
   "trophicLevel": "PRIMARY_CONSUMER",
@@ -15,29 +15,43 @@
     "hearing": 10
   },
   "displayChar": "r",
-  "displayColor": [200, 180, 160],
+  "displayColor": [
+    200,
+    180,
+    160
+  ],
   "lifeStages": [
     {
       "stage": "juvenile",
-      "name": "幼兔",
+      "name": "juvenile",
       "hp": 5,
       "growSeconds": 3600
     },
     {
       "stage": "adult",
-      "name": "兔子",
+      "name": "adult",
       "hp": 10,
       "growSeconds": null
     }
   ],
   "lootTable": {
     "entries": [
-      { "itemId": 1071, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1071,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "lootOnPlayerKill": {
     "entries": [
-      { "itemId": 1071, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1071,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "energyConfig": {

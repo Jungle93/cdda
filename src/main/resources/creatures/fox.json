@@ -1,10 +1,12 @@
 {
   "id": "fox",
-  "name": "狐狸",
+  "name": "fox",
   "hp": 15,
   "speed": 140,
   "trophicLevel": "SECONDARY_CONSUMER",
-  "preyLevels": ["PRIMARY_CONSUMER"],
+  "preyLevels": [
+    "PRIMARY_CONSUMER"
+  ],
   "energyValue": 20,
   "stats": {
     "strength": 5,
@@ -16,19 +18,43 @@
     "hearing": 9
   },
   "displayChar": "f",
-  "displayColor": [200, 100, 30],
+  "displayColor": [
+    200,
+    100,
+    30
+  ],
   "lifeStages": [
-    { "stage": "juvenile", "name": "小狐狸", "hp": 8, "growSeconds": 7200 },
-    { "stage": "adult", "name": "狐狸", "hp": 15, "growSeconds": null }
+    {
+      "stage": "juvenile",
+      "name": "juvenile",
+      "hp": 8,
+      "growSeconds": 7200
+    },
+    {
+      "stage": "adult",
+      "name": "adult",
+      "hp": 15,
+      "growSeconds": null
+    }
   ],
   "lootTable": {
     "entries": [
-      { "itemId": 1074, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1074,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "lootOnPlayerKill": {
     "entries": [
-      { "itemId": 1074, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1074,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "energyConfig": {

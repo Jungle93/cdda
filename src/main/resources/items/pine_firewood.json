@@ -5,5 +5,8 @@
   "weightGrams": 220,
   "volumeMl": 400,
   "maxStackSize": 20,
-  "tags": ["fuel", "wood"]
+  "tags": [
+    "fuel",
+    "wood"
+  ]
 }

@@ -180,29 +180,10 @@ public class AudioEngine {
      * 交叉淡入淡出（可配置音量）。
      */
     public void crossFadeBGM(String newClipId, float volume, long durationMs) {
-        // 获取当前 BGM 音源
-        AudioChannel bgmChannel = manager.getChannel(AudioManager.CHANNEL_BGM);
-        if (bgmChannel == null) return;
-
-        // 找到当前播放的 BGM
-        AudioSource currentBgm = null;
-        for (AudioSource src : bgmChannel.getSources()) {
-            if (src.getState() == AudioSource.State.PLAYING
-                    || src.getState() == AudioSource.State.PAUSED) {
-                currentBgm = src;
-                break;
-            }
-        }
-
-        // 播放新 BGM 并交叉淡入淡出
-        if (currentBgm != null) {
-            StreamSource newBgm = createStreamSource(newClipId);
-            if (newBgm != null) {
-                manager.getFadeManager().crossFade(currentBgm, newBgm, volume, durationMs);
-            }
-        } else {
-            playBGM(newClipId, true, volume, durationMs);
-        }
+        // 停止当前 BGM（淡出）
+        stopBGM(durationMs);
+        // 播放新 BGM（淡入）
+        playBGM(newClipId, true, volume, durationMs);
     }
 
     // ── 缓存管理 ──────────────────────────────────
@@ -240,23 +221,5 @@ public class AudioEngine {
     /** 获取内部管理器（高级用法） */
     public AudioManager getManager() {
         return manager;
-    }
-
-    // ── 辅助方法 ──────────────────────────────────
-
-    private StreamSource createStreamSource(String clipId) {
-        // 简化：通过 manager 的内部资源加载创建
-        // 实际由 playBGM 内部处理
-        manager.playBGM(clipId);
-        // 获取刚创建的 BGM 音源
-        AudioChannel bgmChannel = manager.getChannel(AudioManager.CHANNEL_BGM);
-        if (bgmChannel != null) {
-            for (AudioSource src : bgmChannel.getSources()) {
-                if (src instanceof StreamSource) {
-                    return (StreamSource) src;
-                }
-            }
-        }
-        return null;
     }
 }

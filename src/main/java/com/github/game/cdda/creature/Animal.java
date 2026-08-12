@@ -1,11 +1,13 @@
 package com.github.game.cdda.creature;
 
+import com.github.game.engine.core.EngineServices;
 import com.github.game.cdda.creature.ai.AnimalAI;
 import com.github.game.cdda.creature.config.CreatureDefinition;
 import com.github.game.cdda.creature.energy.DeathCause;
 import com.github.game.cdda.creature.energy.EnergyConfig;
 import com.github.game.cdda.creature.energy.EnergyFlowManager;
 import com.github.game.engine.core.Camera;
+import com.github.game.engine.core.i18n.I18nManager;
 import com.github.game.engine.core.render.Renderer;
 
 import java.awt.*;
@@ -56,6 +58,23 @@ public class Animal extends Creature {
 
     /** 是否已处理掉落（避免重复掉落） */
     private boolean lootDropped = false;
+
+    // ── 逃跑耐力 ──────────────────────────
+
+    /** 逃跑耐力（fleeing 状态下的爆发耐力，非 fleeing 时为 -1） */
+    private int fleeStamina = -1;
+
+    /** 最大逃跑耐力（基于 endurance 计算） */
+    private int maxFleeStamina = 0;
+
+    /** 逃跑初始耐力基数（每点 endurance 对应的逃跑步数） */
+    private static final int FLEE_STAMINA_PER_ENDURANCE = 3;
+
+    /** 每逃一步消耗的耐力 */
+    private static final int FLEE_STAMINA_COST = 2;
+
+    /** 逃跑速度加成系数（基于耐力剩余比例，最大 +50%） */
+    private static final double FLEE_SPEED_BOOST_FACTOR = 0.5;
 
     /** 能量流动管理器 */
     private transient EnergyFlowManager energyFlowManager;
@@ -383,19 +402,46 @@ public class Animal extends Creature {
     }
 
     /**
-     * 获取当前生命阶段名称。
+     * 获取当前生命阶段名称（优先从 i18n 获取，回退到定义中的名称）。
      *
      * @return 阶段名称
      */
     public String getStageName() {
         List<CreatureDefinition.LifeStage> stages = definition.lifeStages;
         if (stages != null && currentStageIndex < stages.size()) {
-            return stages.get(currentStageIndex).name;
+            CreatureDefinition.LifeStage stage = stages.get(currentStageIndex);
+            // 优先从 i18n 获取
+            String key = "creature." + definition.id + ".stage." + stage.stage + ".name";
+            String i18nValue = resolveI18n(key);
+            if (i18nValue != null) return i18nValue;
+            // 回退到定义中的名称
+            return stage.name;
         }
-        return definition.name;
+        // 回退到物种名称
+        return getLocalizedName();
     }
 
     /**
+     * 获取物种显示名（优先从 i18n 获取，回退到定义中的 name）。
+     */
+    public String getLocalizedName() {
+        String key = "creature." + definition.id + ".name";
+        String value = resolveI18n(key);
+        return value != null ? value : definition.name;
+    }
+
+    /** 尝试通过 I18nManager 解析翻译键，未找到时返回 null */
+    private String resolveI18n(String key) {
+        try {
+            I18nManager i18n = EngineServices.i18n;
+            if (i18n == null) return null;
+            String value = i18n.t(key);
+            return key.equals(value) ? null : value;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /**
      * 获取已存活游戏秒数。
      *
@@ -467,5 +513,65 @@ public class Animal extends Creature {
     /** 是否健康（能量充足） */
     public boolean isHealthy() {
         return bodyEnergy > 60;
+    }
+
+    // ── 逃跑耐力 ──────────────────────────
+
+    /**
+     * 进入逃跑状态，初始化逃跑耐力。
+     * 耐力基于 endurance 计算：endurance × 3。
+     */
+    public void startFleeing() {
+        maxFleeStamina = endurance * FLEE_STAMINA_PER_ENDURANCE;
+        fleeStamina = maxFleeStamina;
+    }
+
+    /**
+     * 逃跑中消耗耐力。
+     * 每逃一步消耗 FLEE_STAMINA_COST 点耐力。
+     *
+     * @return 剩余耐力百分比 (0.0 ~ 1.0)
+     */
+    public double consumeFleeStamina() {
+        if (fleeStamina <= 0) return 0.0;
+        fleeStamina = Math.max(0, fleeStamina - FLEE_STAMINA_COST);
+        return maxFleeStamina > 0 ? (double) fleeStamina / maxFleeStamina : 0.0;
+    }
+
+    /**
+     * 获取当前逃跑耐力百分比。
+     */
+    public double getFleeStaminaRatio() {
+        if (fleeStamina < 0 || maxFleeStamina <= 0) return 1.0;
+        return (double) fleeStamina / maxFleeStamina;
+    }
+
+    /**
+     * 是否应该停止逃跑。
+     * 耐力耗尽（< 10%）或达到安全距离时返回 true。
+     *
+     * @param playerTileX 玩家瓦片 X
+     * @param playerTileY 玩家瓦片 Y
+     * @param safeDistance 安全距离（默认 10）
+     * @return 是否应停止逃跑
+     */
+    public boolean shouldStopFleeing(int playerTileX, int playerTileY, int safeDistance) {
+        // 耐力耗尽 → 停止
+        if (fleeStamina < maxFleeStamina * 0.1) {
+            return true;
+        }
+        // 达到安全距离 → 停止
+        if (distanceTo(playerTileX, playerTileY) >= safeDistance) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 结束逃跑状态。
+     */
+    public void endFleeing() {
+        fleeStamina = -1;
+        maxFleeStamina = 0;
     }
 }

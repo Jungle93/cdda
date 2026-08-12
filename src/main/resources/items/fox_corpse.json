@@ -5,5 +5,8 @@
   "weightGrams": 6000,
   "volumeMl": 5000,
   "maxStackSize": 1,
-  "tags": ["corpse", "butchering"]
+  "tags": [
+    "corpse",
+    "butchering"
+  ]
 }

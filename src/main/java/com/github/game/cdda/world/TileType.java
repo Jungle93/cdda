@@ -1,5 +1,8 @@
 package com.github.game.cdda.world;
 
+import com.github.game.engine.core.EngineServices;
+import com.github.game.engine.core.i18n.I18nManager;
+
 import java.awt.*;
 import java.util.Collection;
 import java.util.Collections;
@@ -148,6 +151,36 @@ public class TileType {
     public char getChar() { return ch; }
     public Color getColor() { return color; }
     public boolean isPassable() { return passable; }
+
+    /**
+     * 获取显示名（优先从 i18n 获取，回退到 name）。
+     */
+    public String getLocalizedName() {
+        String key = "tile." + name + ".name";
+        String value = resolveI18n(key);
+        return value != null ? value : name;
+    }
+
+    /**
+     * 获取描述（从 i18n 获取，无翻译时返回空字符串）。
+     */
+    public String getLocalizedDescription() {
+        String key = "tile." + name + ".description";
+        String value = resolveI18n(key);
+        return value != null ? value : "";
+    }
+
+    /** 尝试通过 I18nManager 解析翻译键，未找到时返回 null */
+    private String resolveI18n(String key) {
+        try {
+            I18nManager i18n = EngineServices.i18n;
+            if (i18n == null) return null;
+            String value = i18n.t(key);
+            return key.equals(value) ? null : value;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     @Override
     public String toString() {

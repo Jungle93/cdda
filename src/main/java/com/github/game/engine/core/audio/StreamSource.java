@@ -10,7 +10,7 @@ import java.io.InputStream;
  * 流式播放源（SourceDataLine + 后台线程）。
  *
  * <p>适用于大文件 BGM，边读边播，不需要全部载入内存。
- * MP3 通过 JavaLayer 流式解码，WAV 通过 AudioInputStream 分块读取。
+ * WAV 通过 AudioInputStream 分块读取；MP3 暂不支持流式播放（请使用 ClipSource）。
  *
  * <p>特性：
  * <ul>
@@ -49,21 +49,11 @@ public class StreamSource extends AudioSource {
     /** 停止标志 */
     private volatile boolean stopRequested = false;
 
-    /** MP3 流式解码器 */
-    private AudioFormatDecoder.Mp3StreamDecoder mp3Decoder;
-
     /** WAV 流式读取 */
     private AudioInputStream wavStream;
 
-    /** 是否 MP3 格式 */
-    private final boolean isMp3;
-
     /** 当前采样位置（用于 seek 计算） */
     private volatile long samplePosition = 0;
-
-    /** 总样本数 */
-    @SuppressWarnings("unused")
-    private final long totalSamples;
 
     /** 当前增益（用于软件音量控制） */
     private volatile float currentGain = 1.0f;
@@ -72,14 +62,11 @@ public class StreamSource extends AudioSource {
      * 创建流式音源。
      */
     public StreamSource(AudioFormat format, String resourcePath, long durationMs,
-                         boolean isMp3,
                          java.util.function.Function<String, InputStream> resourceLoader) {
         this.format = format;
         this.resourcePath = resourcePath;
         this.durationMs = durationMs;
-        this.isMp3 = isMp3;
         this.resourceLoader = resourceLoader;
-        this.totalSamples = (long) (durationMs * format.getSampleRate() / 1000.0);
     }
 
     @Override
@@ -114,7 +101,6 @@ public class StreamSource extends AudioSource {
     public void pause() {
         if (state == State.PLAYING) {
             state = State.PAUSED;
-            // 不停止线程，只是暂停填充数据
         }
     }
 
@@ -122,7 +108,6 @@ public class StreamSource extends AudioSource {
     public void resume() {
         if (state == State.PAUSED) {
             state = State.PLAYING;
-            // 线程会继续填充数据
         }
     }
 
@@ -155,8 +140,6 @@ public class StreamSource extends AudioSource {
     @Override
     public void setPitch(float pitch) {
         this.pitch = Math.max(0.25f, Math.min(4.0f, pitch));
-        // 对于流式播放，pitch 影响实际播放速率
-        // 这里简化处理，记录 pitch 值
     }
 
     @Override
@@ -186,7 +169,6 @@ public class StreamSource extends AudioSource {
 
     @Override
     public void seekMs(long ms) {
-        // 流式 seek 需要重新打开流并跳过到目标位置
         boolean wasPlaying = state == State.PLAYING;
         closeStream();
 
@@ -194,7 +176,6 @@ public class StreamSource extends AudioSource {
         currentPositionMs = ms;
 
         if (wasPlaying) {
-            // 重新开始播放
             ensureLine();
             if (line != null) {
                 stopRequested = false;
@@ -210,11 +191,7 @@ public class StreamSource extends AudioSource {
 
     private void decodeLoop() {
         try {
-            if (isMp3) {
-                decodeMp3Loop();
-            } else {
-                decodeWavLoop();
-            }
+            decodeWavLoop();
         } catch (Exception e) {
             if (!stopRequested) {
                 logger.error("流式解码错误: {}: {}", resourcePath, e.getMessage());
@@ -227,66 +204,12 @@ public class StreamSource extends AudioSource {
         }
     }
 
-    private void decodeMp3Loop() {
+    private void decodeWavLoop() {
         try (InputStream in = resourceLoader.apply(resourcePath)) {
             if (in == null) {
                 logger.warn("流式音源文件不存在: {}", resourcePath);
                 return;
             }
-
-            mp3Decoder = AudioFormatDecoder.createMp3Stream(in);
-
-            // Seek: 跳过前面的帧
-            if (samplePosition > 0) {
-                skipSamples(samplePosition);
-            }
-
-            byte[] buffer = new byte[BUFFER_SIZE * 4]; // 4 bytes per sample (16-bit stereo)
-            int byteCount = 0;
-
-            while (!stopRequested) {
-                if (state != State.PLAYING) {
-                    Thread.sleep(10);
-                    continue;
-                }
-
-                short[] samples = mp3Decoder.decodeFrame();
-                if (samples == null) {
-                    // 流结束
-                    break;
-                }
-
-                // 应用增益（软件音量）
-                byteCount = 0;
-                for (short sample : samples) {
-                    short adjusted = (short) (sample * currentGain);
-                    buffer[byteCount++] = (byte) (adjusted & 0xFF);
-                    buffer[byteCount++] = (byte) ((adjusted >> 8) & 0xFF);
-                }
-
-                // 写入 SourceDataLine
-                int written = 0;
-                while (written < byteCount && !stopRequested) {
-                    int n = line.write(buffer, written, byteCount - written);
-                    if (n > 0) {
-                        written += n;
-                        samplePosition += n / 2; // 2 bytes per sample
-                    } else {
-                        Thread.sleep(1);
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            if (!stopRequested) {
-                logger.warn("MP3 流式解码异常: {}", e.getMessage());
-            }
-        }
-    }
-
-    private void decodeWavLoop() {
-        try (InputStream in = resourceLoader.apply(resourcePath)) {
-            if (in == null) return;
 
             wavStream = AudioSystem.getAudioInputStream(in);
 
@@ -329,7 +252,7 @@ public class StreamSource extends AudioSource {
 
         } catch (Exception e) {
             if (!stopRequested) {
-                logger.warn("WAV 流式读取异常: {}", e.getMessage());
+                logger.warn("流式读取异常: {}", e.getMessage());
             }
         }
     }
@@ -342,16 +265,6 @@ public class StreamSource extends AudioSource {
             short adjusted = (short) (sample * currentGain);
             buffer[i] = (byte) (adjusted & 0xFF);
             buffer[i + 1] = (byte) ((adjusted >> 8) & 0xFF);
-        }
-    }
-
-    /** 跳过指定数量的样本（用于 seek） */
-    private void skipSamples(long sampleCount) {
-        long skipped = 0;
-        while (skipped < sampleCount) {
-            short[] frame = mp3Decoder.decodeFrame();
-            if (frame == null) break;
-            skipped += frame.length;
         }
     }
 
@@ -379,10 +292,6 @@ public class StreamSource extends AudioSource {
 
     /** 关闭流资源 */
     private void closeStream() {
-        if (mp3Decoder != null) {
-            mp3Decoder.close();
-            mp3Decoder = null;
-        }
         if (wavStream != null) {
             try {
                 wavStream.close();

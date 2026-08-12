@@ -1,10 +1,13 @@
 {
   "id": "wolf",
-  "name": "狼",
+  "name": "wolf",
   "hp": 25,
   "speed": 130,
   "trophicLevel": "APEX_PREDATOR",
-  "preyLevels": ["PRIMARY_CONSUMER", "SECONDARY_CONSUMER"],
+  "preyLevels": [
+    "PRIMARY_CONSUMER",
+    "SECONDARY_CONSUMER"
+  ],
   "energyValue": 45,
   "stats": {
     "strength": 12,
@@ -16,19 +19,43 @@
     "hearing": 10
   },
   "displayChar": "w",
-  "displayColor": [130, 130, 130],
+  "displayColor": [
+    130,
+    130,
+    130
+  ],
   "lifeStages": [
-    { "stage": "juvenile", "name": "狼崽", "hp": 12, "growSeconds": 10800 },
-    { "stage": "adult", "name": "狼", "hp": 25, "growSeconds": null }
+    {
+      "stage": "juvenile",
+      "name": "juvenile",
+      "hp": 12,
+      "growSeconds": 10800
+    },
+    {
+      "stage": "adult",
+      "name": "adult",
+      "hp": 25,
+      "growSeconds": null
+    }
   ],
   "lootTable": {
     "entries": [
-      { "itemId": 1073, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1073,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "lootOnPlayerKill": {
     "entries": [
-      { "itemId": 1073, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1073,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "energyConfig": {

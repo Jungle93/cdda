@@ -1,6 +1,6 @@
 {
   "id": "deer",
-  "name": "鹿",
+  "name": "deer",
   "hp": 30,
   "speed": 110,
   "trophicLevel": "PRIMARY_CONSUMER",
@@ -15,29 +15,43 @@
     "hearing": 6
   },
   "displayChar": "d",
-  "displayColor": [180, 140, 80],
+  "displayColor": [
+    180,
+    140,
+    80
+  ],
   "lifeStages": [
     {
       "stage": "juvenile",
-      "name": "鹿羔",
+      "name": "juvenile",
       "hp": 15,
       "growSeconds": 10800
     },
     {
       "stage": "adult",
-      "name": "鹿",
+      "name": "adult",
       "hp": 30,
       "growSeconds": null
     }
   ],
   "lootTable": {
     "entries": [
-      { "itemId": 1070, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1070,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "lootOnPlayerKill": {
     "entries": [
-      { "itemId": 1070, "chance": 1.0, "minCount": 1, "maxCount": 1 }
+      {
+        "itemId": 1070,
+        "chance": 1.0,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ]
   },
   "energyConfig": {

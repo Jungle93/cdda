@@ -62,6 +62,7 @@ public class AnimalAI {
 
         if (trophicLevel.isHerbivore() && playerDistance <= animal.getVisionRange()) {
             if (currentState != AIState.FLEE) {
+                animal.startFleeing();
                 enterState(AIState.FLEE);
             }
         }
@@ -108,8 +109,13 @@ public class AnimalAI {
                 break;
 
             case FLEE:
-                // 远离玩家 10+ 瓦片 → IDLE
+                // 远离玩家 10+ 瓦片或耐力耗尽 → IDLE
                 if (playerDistance >= 10) {
+                    animal.endFleeing();
+                    enterState(AIState.IDLE);
+                } else if (animal.shouldStopFleeing(
+                        context.getPlayerTileX(), context.getPlayerTileY(), 10)) {
+                    animal.endFleeing();
                     enterState(AIState.IDLE);
                 }
                 break;
@@ -184,7 +190,7 @@ public class AnimalAI {
                 maxStateTurns = Integer.MAX_VALUE;  // 持续到捕食成功或目标丢失
                 break;
             case FLEE:
-                maxStateTurns = Integer.MAX_VALUE;  // 持续到远离威胁
+                maxStateTurns = Integer.MAX_VALUE;  // 持续到耐力耗尽或安全
                 break;
             case SCAVENGE:
                 maxStateTurns = 5 + random.nextInt(6);  // 5-10
@@ -234,7 +240,7 @@ public class AnimalAI {
                 break;
 
             case FLEE:
-                // 远离玩家方向移动
+                // 远离玩家方向移动（消耗耐力）
                 fleeFromPlayer(animal, context);
                 break;
 
@@ -377,35 +383,76 @@ public class AnimalAI {
 
     /**
      * 远离玩家方向移动。
+     * 消耗逃跑耐力，耐力越低移动成功率越低（太累了跑不动）。
+     * 被卡住时会尝试所有 8 个方向（包括朝向玩家的方向）找出路。
      *
      * @param animal  动物实例
      * @param context 行动上下文
      */
     private void fleeFromPlayer(Animal animal, CreatureActionContext context) {
+        // 消耗逃跑耐力
+        double staminaRatio = animal.consumeFleeStamina();
+
+        // 耐力过低时，有概率无法移动（太累了）
+        if (staminaRatio < 0.1 && random.nextDouble() < 0.8) return;
+        if (staminaRatio < 0.3 && random.nextDouble() < 0.5) return;
+
         int dx = Integer.compare(animal.getTileX(), context.getPlayerTileX());
         int dy = Integer.compare(animal.getTileY(), context.getPlayerTileY());
 
-        // 优先移动距离较大的方向
+        // 优先：远离玩家的 3 个方向
         if (Math.abs(dx) >= Math.abs(dy)) {
-            if (tryMove(animal, dx, 0, context)) {
-                return;
-            }
-            if (tryMove(animal, 0, dy, context)) {
-                return;
-            }
+            if (tryMove(animal, dx, 0, context)) return;
+            if (tryMove(animal, 0, dy, context)) return;
         } else {
-            if (tryMove(animal, 0, dy, context)) {
-                return;
-            }
-            if (tryMove(animal, dx, 0, context)) {
-                return;
-            }
+            if (tryMove(animal, 0, dy, context)) return;
+            if (tryMove(animal, dx, 0, context)) return;
         }
 
         // 对角线逃跑
-        if (dx != 0 && dy != 0) {
-            tryMove(animal, dx, dy, context);
+        if (dx != 0 && dy != 0 && tryMove(animal, dx, dy, context)) return;
+
+        // 被卡住了：尝试所有 8 个方向找出路（包括朝向玩家的方向）
+        // 优先试远离玩家的方向，再试其他方向
+        int[][] escapeDirs = buildEscapeDirections(dx, dy);
+        for (int[] dir : escapeDirs) {
+            if (tryMove(animal, dir[0], dir[1], context)) return;
         }
+    }
+
+    /**
+     * 构建逃跑方向的备选列表（不含已经试过的远离方向）。
+     * 按距离玩家的远近排序，远的优先。
+     */
+    private int[][] buildEscapeDirections(int awayDx, int awayDy) {
+        // 8 个方向
+        int[][] allDirs = {
+            {-1, -1}, {0, -1}, {1, -1},
+            {-1,  0},          {1,  0},
+            {-1,  1}, {0,  1}, {1,  1}
+        };
+
+        // 按距离玩家远近排序（远的优先 = 远离玩家的方向优先）
+        // 距离 = -(dir·awayDir)，值越大表示越远离玩家
+        int[][] scored = new int[8][3]; // {dx, dy, score}
+        for (int i = 0; i < 8; i++) {
+            scored[i][0] = allDirs[i][0];
+            scored[i][1] = allDirs[i][1];
+            scored[i][2] = -(allDirs[i][0] * awayDx + allDirs[i][1] * awayDy);
+        }
+
+        // 简单冒泡排序（只排 8 个元素）
+        for (int i = 1; i < 8; i++) {
+            for (int j = 0; j < 8 - i; j++) {
+                if (scored[j][2] < scored[j + 1][2]) {
+                    int[] tmp = scored[j];
+                    scored[j] = scored[j + 1];
+                    scored[j + 1] = tmp;
+                }
+            }
+        }
+
+        return scored;
     }
 
     /**

@@ -38,6 +38,8 @@ public class DebugMenuScreen extends MenuScreen {
             "传送到原点 (0,0)",
             "前进 1 小时",
             "切换 FPS 显示",
+            "生成调试 NPC (5个)",
+            "清理死亡 NPC",
     };
 
     public DebugMenuScreen(GameEngine engine, GameWorld world) {
@@ -113,10 +115,11 @@ public class DebugMenuScreen extends MenuScreen {
                 world.getHydrationManager().getThirstDescriptor()), 10, y);
         y += lineHeight;
 
-        // 生物 / 区块 / 地面物品
+        // 生物 / NPC / 区块 / 地面物品
         renderer.setColor(Color.GREEN);
-        renderer.drawText(String.format("生物: %d  区块: %d  地面物品: %d  背包: %d种",
+        renderer.drawText(String.format("生物: %d | NPC: %d | 区块: %d | 地面物品: %d | 背包: %d种",
                 world.getCreatureManager().getCreatureCount(),
+                world.getNpcManager().getAliveCount(),
                 world.getChunkManager().getLoadedChunkCount(),
                 world.getGroundItemManager().getCount(),
                 player.getInventory().getItemCount()), 10, y);
@@ -154,6 +157,8 @@ public class DebugMenuScreen extends MenuScreen {
             String suffix = "";
             if (i == 0) suffix = Constants.SHOW_DEBUG_INFO ? " [开]" : " [关]";
             if (i == 7) suffix = Constants.DEBUG_SHOW_FPS ? " [开]" : " [关]";
+            if (i == 8) suffix = " (当前: " + world.getNpcManager().getAliveCount() + ")";
+            if (i == 9) suffix = " (当前: " + world.getCreatureManager().getCreatureCount() + ")";
 
             renderer.setColor(sel ? Color.YELLOW : new Color(180, 220, 180));
             renderer.drawText(line + suffix, 10, y + visibleIndex * lineHeight);
@@ -209,6 +214,16 @@ public class DebugMenuScreen extends MenuScreen {
             case 7: // 切换 FPS 显示
                 Constants.DEBUG_SHOW_FPS = !Constants.DEBUG_SHOW_FPS;
                 log("FPS 显示: " + (Constants.DEBUG_SHOW_FPS ? "开" : "关"));
+                break;
+
+            case 8: // 生成调试 NPC
+                world.spawnDebugNpcs(5, 20);
+                log("已生成 5 个调试 NPC");
+                break;
+
+            case 9: // 清理死亡 NPC
+                int cleaned = world.getNpcManager().cleanupDeadNpcs();
+                log("清理了 " + cleaned + " 个死亡 NPC");
                 break;
 
             default:

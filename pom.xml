@@ -35,14 +35,7 @@
             <version>2.10.1</version>
         </dependency>
 
-        <!-- JavaLayer MP3 解码（保留作回退） -->
-        <dependency>
-            <groupId>javazoom</groupId>
-            <artifactId>jlayer</artifactId>
-            <version>1.0.1</version>
-        </dependency>
-
-        <!-- MP3SPI：JavaSound 的 MP3 服务提供者（首选解码方案，兼容所有 MPEG 版本） -->
+        <!-- MP3SPI：JavaSound 的 MP3 服务提供者（纯 Java 解码，兼容所有 MPEG 版本） -->
         <dependency>
             <groupId>com.googlecode.soundlibs</groupId>
             <artifactId>mp3spi</artifactId>

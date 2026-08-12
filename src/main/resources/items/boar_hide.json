@@ -5,5 +5,8 @@
   "weightGrams": 1000,
   "volumeMl": 700,
   "maxStackSize": 3,
-  "tags": ["crafting", "leather"]
+  "tags": [
+    "crafting",
+    "leather"
+  ]
 }

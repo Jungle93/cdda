@@ -8,6 +8,8 @@ import com.github.game.cdda.item.world.PlayerInventory;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
+import com.github.game.engine.core.sprite.Sprite;
+import com.github.game.engine.core.sprite.SpriteManager;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.ChunkManager;
 
@@ -222,13 +224,24 @@ public class Player extends Creature {
     // ── 渲染 ──────────────────────────────────
 
     /**
-     * 渲染玩家（字符模式）。通过 Camera 将世界坐标转换为视图局部坐标。
+     * 渲染玩家。支持精灵模式和 ASCII 字符模式。
+     * 通过 Camera 将世界坐标转换为视图局部坐标。
      */
     @Override
     public void render(Renderer renderer, Camera camera, int tileWidth, int tileHeight) {
         int viewX = camera.toViewX(worldX);
         int viewY = camera.toViewY(worldY);
 
+        // 优先使用精灵渲染
+        if (SpriteManager.hasActivePack()) {
+            Sprite sprite = SpriteManager.getSprite("player");
+            if (sprite != null) {
+                renderer.drawImage(sprite.getImage(), viewX, viewY, tileWidth, tileHeight);
+                return;
+            }
+        }
+
+        // 回退到字符渲染
         renderer.setColor(displayColor);
         int baselineY = viewY + renderer.getFontMetrics().getAscent();
         renderer.drawText(String.valueOf(displayChar), viewX, baselineY);

@@ -2,7 +2,7 @@
   "id": "boar",
   "name": "boar",
   "hp": 40,
-  "speed": 275,
+  "speed": 187,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 35,
   "stats": {

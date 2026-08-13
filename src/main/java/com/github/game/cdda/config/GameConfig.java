@@ -129,4 +129,16 @@ public class GameConfig {
     public void setLocale(String locale) {
         cm.setLocale(locale);
     }
+
+    // ── 图形包 ──────────────────────────────────────────
+
+    /** 获取当前图形包 ID（"builtin"=内置图形包，"none"=ASCII 模式） */
+    public String getSpritePack() {
+        return cm.getSpritePack();
+    }
+
+    /** 设置图形包 ID */
+    public void setSpritePack(String packId) {
+        cm.setSpritePack(packId);
+    }
 }

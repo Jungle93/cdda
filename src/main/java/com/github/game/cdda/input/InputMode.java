@@ -19,6 +19,9 @@ public enum InputMode {
     /** 观察模式——方向键移动观察光标，Tab 切换生物，ESC 退出。 */
     LOOK,
 
+    /** NPC 选择模式——方向键移动光标选择 NPC，Enter 确认，ESC 取消。 */
+    NPC_SELECT,
+
     /** 世界地图——方向键平移，+/- 缩放，ESC/M/Enter 关闭。 */
     WORLD_MAP,
 

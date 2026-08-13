@@ -2,7 +2,7 @@
   "id": "rabbit",
   "name": "rabbit",
   "hp": 10,
-  "speed": 300,
+  "speed": 200,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 15,
   "stats": {

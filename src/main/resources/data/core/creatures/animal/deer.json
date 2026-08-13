@@ -2,7 +2,7 @@
   "id": "deer",
   "name": "deer",
   "hp": 30,
-  "speed": 375,
+  "speed": 237,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 30,
   "stats": {

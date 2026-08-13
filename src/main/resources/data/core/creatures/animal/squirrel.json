@@ -2,7 +2,7 @@
   "id": "squirrel",
   "name": "squirrel",
   "hp": 5,
-  "speed": 275,
+  "speed": 187,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 8,
   "stats": {

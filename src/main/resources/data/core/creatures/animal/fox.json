@@ -2,7 +2,7 @@
   "id": "fox",
   "name": "fox",
   "hp": 15,
-  "speed": 275,
+  "speed": 187,
   "trophicLevel": "SECONDARY_CONSUMER",
   "preyLevels": [
     "PRIMARY_CONSUMER"

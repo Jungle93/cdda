@@ -63,14 +63,22 @@ public class NpcInteractionScreen extends MenuScreen {
     /** 当前子菜单 */
     private SubMenu currentSubMenu = SubMenu.MAIN;
 
-    /** 当前交互的 NPC */
-    private Npc targetNpc;
+    /** 当前交互的 NPC（由光标选中，构造时传入） */
+    private final Npc targetNpc;
 
-    public NpcInteractionScreen(GameEngine engine, GameWorld world) {
+    /**
+     * 创建 NPC 交互菜单。
+     *
+     * @param engine    游戏引擎
+     * @param world     游戏世界
+     * @param targetNpc 光标选中的 NPC（可为 null，表示无 NPC 可交互）
+     */
+    public NpcInteractionScreen(GameEngine engine, GameWorld world, Npc targetNpc) {
         super(engine);
         this.world = world;
         this.player = world.getPlayer();
         this.npcManager = world.getNpcManager();
+        this.targetNpc = targetNpc;
     }
 
     @Override
@@ -99,10 +107,6 @@ public class NpcInteractionScreen extends MenuScreen {
 
     @Override
     protected void renderMenu(Renderer renderer) {
-        // 找到最近的 NPC
-        if (targetNpc == null || !targetNpc.isAlive()) {
-            targetNpc = npcManager.findNearestNpcToPlayer();
-        }
 
         // 半透明深色背景
         renderer.setColor(new Color(0, 0, 20, 230));

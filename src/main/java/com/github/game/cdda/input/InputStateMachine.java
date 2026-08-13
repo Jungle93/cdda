@@ -54,8 +54,8 @@ public class InputStateMachine {
         void pushPickupScreen(List<GroundItem> items);
         /** 显示物品使用覆盖层（A 触发，半透明覆盖在游戏画面上） */
         void showItemUseOverlay();
-        /** 推入 NPC 交互菜单（C 触发） */
-        void pushNpcInteractionScreen();
+        /** 推入 NPC 交互菜单（C 触发，传入光标选中的 NPC） */
+        void pushNpcInteractionScreen(com.github.game.cdda.npc.Npc npc);
     }
 
     // ── 状态 ──
@@ -104,6 +104,9 @@ public class InputStateMachine {
     /** @return 当前是否处于观察模式（替代 GameScene.inLookMode） */
     public boolean isInLookMode() { return currentMode == InputMode.LOOK; }
 
+    /** @return 当前是否处于 NPC 选择模式 */
+    public boolean isInNpcSelectMode() { return currentMode == InputMode.NPC_SELECT; }
+
     /** @return 当前是否打开世界地图（替代 WorldMapScene.open） */
     public boolean isWorldMapOpen() { return currentMode == InputMode.WORLD_MAP; }
 
@@ -140,6 +143,32 @@ public class InputStateMachine {
         if (currentMode != InputMode.WORLD_MAP) return;
         currentMode = InputMode.NORMAL;
         worldMapScene.onClose();
+    }
+
+    /** 进入 NPC 选择模式（仅 NORMAL 模式下可进入） */
+    public void enterNpcSelectMode() {
+        if (currentMode != InputMode.NORMAL) return;
+        currentMode = InputMode.NPC_SELECT;
+        gameScene.onEnterNpcSelectMode();
+    }
+
+    /** 退出 NPC 选择模式（仅 NPC_SELECT 模式下可退出） */
+    public void exitNpcSelectMode() {
+        if (currentMode != InputMode.NPC_SELECT) return;
+        currentMode = InputMode.NORMAL;
+        gameScene.onExitNpcSelectMode();
+    }
+
+    /**
+     * NPC 选择确认：打开交互菜单并退出选择模式。
+     * 由 GameScene 在用户按 Enter 确认选中 NPC 时调用。
+     *
+     * @param npc 选中的 NPC
+     */
+    public void confirmNpcSelection(com.github.game.cdda.npc.Npc npc) {
+        currentMode = InputMode.NORMAL;
+        gameScene.onExitNpcSelectMode();
+        overlayCallback.pushNpcInteractionScreen(npc);
     }
 
     /** 切换日志面板展开/折叠 */
@@ -191,6 +220,9 @@ public class InputStateMachine {
                 break;
             case LOOK:
                 gameScene.handleLookInput(keyCode);
+                break;
+            case NPC_SELECT:
+                gameScene.handleNpcSelectInput(keyCode);
                 break;
             case WORLD_MAP:
                 worldMapScene.onKeyPressed(keyCode);
@@ -277,7 +309,7 @@ public class InputStateMachine {
                 overlayCallback.showItemUseOverlay();
                 return;
             case KeyEvent.VK_C:
-                overlayCallback.pushNpcInteractionScreen();
+                enterNpcSelectMode();
                 return;
 
             // ── 模式切换 ──

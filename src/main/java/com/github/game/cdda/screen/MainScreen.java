@@ -17,6 +17,8 @@ import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.GameOverlay;
 import com.github.game.engine.core.scene.Viewport;
 import com.github.game.engine.core.screen.Screen;
+import com.github.game.engine.core.sprite.SpriteManager;
+import com.github.game.cdda.sprite.BuiltinSpritePack;
 import com.github.game.cdda.game.CharacterSettings;
 import com.github.game.cdda.game.WorldSettings;
 import com.github.game.cdda.screen.hud.CharacterInfoPanel;
@@ -99,6 +101,14 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
 
         int fontSize = ConfigManager.getInstance().getFontSize();
         int infoPanelWidth = ConfigManager.getInstance().getInfoPanelWidth();
+
+        // ── 激活图形包（根据配置） ──
+        String spritePackId = ConfigManager.getInstance().getSpritePack();
+        if ("builtin".equals(spritePackId)) {
+            SpriteManager.setActivePack(new BuiltinSpritePack());
+        } else {
+            SpriteManager.setActivePack(null);
+        }
 
         // 使用实际窗口尺寸（跟随设置），而非固定常量
         int gameWidth = getWidth() - infoPanelWidth;
@@ -261,9 +271,9 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     }
 
     @Override
-    public void pushNpcInteractionScreen() {
+    public void pushNpcInteractionScreen(com.github.game.cdda.npc.Npc targetNpc) {
         engine.getScreenManager().pushScreen(
-                new NpcInteractionScreen(engine, gameWorld));
+                new NpcInteractionScreen(engine, gameWorld, targetNpc));
     }
 
     @Override

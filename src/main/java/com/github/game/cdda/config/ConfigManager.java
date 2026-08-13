@@ -60,6 +60,8 @@ public class ConfigManager {
     public static final String KEY_UNIT_VOLUME = "display.unit.volume";
     /** 国际化语言设置（游戏配置） */
     public static final String KEY_LOCALE = "i18n.locale";
+    /** 图形包（游戏配置）："builtin"=内置图形包，"none"=ASCII字符模式 */
+    public static final String KEY_SPRITE_PACK = "sprite.pack";
 
     private ConfigManager() {
         initDefaults();
@@ -85,6 +87,7 @@ public class ConfigManager {
         gameProps.setProperty(KEY_UNIT_MASS, "GRAM");
         gameProps.setProperty(KEY_UNIT_VOLUME, "MILLILITER");
         gameProps.setProperty(KEY_LOCALE, "zh");
+        gameProps.setProperty(KEY_SPRITE_PACK, "builtin");
     }
 
     // ── 加载 ──────────────────────────────────────────
@@ -227,5 +230,15 @@ public class ConfigManager {
     /** 设置语言 */
     public void setLocale(String locale) {
         setGame(KEY_LOCALE, locale);
+    }
+
+    /** 获取当前图形包 ID */
+    public String getSpritePack() {
+        return getGame(KEY_SPRITE_PACK);
+    }
+
+    /** 设置图形包 ID */
+    public void setSpritePack(String packId) {
+        setGame(KEY_SPRITE_PACK, packId);
     }
 }

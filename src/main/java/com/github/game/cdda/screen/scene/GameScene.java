@@ -13,6 +13,7 @@ import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.engine.core.scene.Scene;
 import com.github.game.engine.core.scene.Viewport;
+import com.github.game.engine.core.sprite.SpriteManager;
 import com.github.game.cdda.game.TurnManager;
 import com.github.game.cdda.game.MetabolismManager;
 import com.github.game.cdda.game.HydrationManager;
@@ -121,7 +122,13 @@ public class GameScene extends Scene {
     public void ensureInitialized(Renderer renderer) {
         if (initialized) return;
 
-        tileMap.initTileSize(renderer);
+        // 根据图形包决定瓦片尺寸
+        if (SpriteManager.hasActivePack()) {
+            int tileSize = SpriteManager.getTileSize();
+            tileMap.initTileSize(tileSize, tileSize);
+        } else {
+            tileMap.initTileSize(renderer);
+        }
 
         int tileW = tileMap.getTileWidth();
         int tileH = tileMap.getTileHeight();
@@ -143,7 +150,7 @@ public class GameScene extends Scene {
         world.spawnInitialCreatures();
 
         // 记录开局日志
-        GameLog.getInstance().log("游戏开始。方向键移动/攻击，5等待，L观察，M大地图，E进食，G拾取，D丢弃，I背包，`调试，ESC菜单");
+        GameLog.getInstance().log("游戏开始。方向键移动/攻击，5等待，L观察，C对话，M大地图，E进食，G拾取，D丢弃，I背包，`调试，ESC菜单");
         GameLog.getInstance().log(String.format("周围生成了 %d 个生物", creatureManager.getCreatureCount()));
 
         initialized = true;
@@ -422,6 +429,131 @@ public class GameScene extends Scene {
         GameLog.getInstance().log("退出观察模式");
     }
 
+    // ── NPC 选择模式生命周期回调 ──────────────────────────────────
+
+    /** 可见 NPC 列表（NPC 选择模式用，按距离排序） */
+    private List<com.github.game.cdda.npc.Npc> visibleNpcList = new ArrayList<>();
+
+    /** 当前循环到的 NPC 索引（NPC 选择模式） */
+    private int npcCycleIndex = -1;
+
+    /** 进入 NPC 选择模式（由输入状态机调用） */
+    public void onEnterNpcSelectMode() {
+        lookCursorDx = 0;
+        lookCursorDy = 0;
+        npcCycleIndex = -1;
+        refreshVisibleNpcs();
+        if (visibleNpcList.isEmpty()) {
+            GameLog.getInstance().log("视野内没有 NPC");
+        } else {
+            GameLog.getInstance().log(String.format(
+                    "选择 NPC：方向键/WASD 移动光标，Tab 切换（%d 个 NPC），Enter 确认，ESC 取消",
+                    visibleNpcList.size()));
+        }
+    }
+
+    /** 退出 NPC 选择模式（由输入状态机调用） */
+    public void onExitNpcSelectMode() {
+        visibleNpcList.clear();
+        npcCycleIndex = -1;
+    }
+
+    /** 刷新可见 NPC 列表（视口范围内且存活的 NPC） */
+    private void refreshVisibleNpcs() {
+        int tileW = tileMap.getTileWidth();
+        int tileH = tileMap.getTileHeight();
+        if (tileW == 0 || tileH == 0) {
+            visibleNpcList = new ArrayList<>();
+            return;
+        }
+
+        // 视口覆盖的瓦片范围（相对玩家）
+        int maxDx = viewport.getWidth() / tileW;
+        int maxDy = viewport.getHeight() / tileH;
+
+        visibleNpcList = new ArrayList<>();
+        for (com.github.game.cdda.npc.Npc npc : world.getNpcManager().getAllNpcs()) {
+            if (!npc.isAlive()) continue;
+            int dx = npc.getTileX() - player.getTileX();
+            int dy = npc.getTileY() - player.getTileY();
+            // 视口范围内
+            if (Math.abs(dx) <= maxDx && Math.abs(dy) <= maxDy) {
+                visibleNpcList.add(npc);
+            }
+        }
+
+        // 按距离排序（曼哈顿距离）
+        visibleNpcList.sort((a, b) -> {
+            int da = Math.abs(a.getTileX() - player.getTileX())
+                   + Math.abs(a.getTileY() - player.getTileY());
+            int db = Math.abs(b.getTileX() - player.getTileX())
+                   + Math.abs(b.getTileY() - player.getTileY());
+            return Integer.compare(da, db);
+        });
+    }
+
+    /** NPC 选择模式下的按键处理（由输入状态机在 NPC_SELECT 模式下调用） */
+    public void handleNpcSelectInput(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.VK_ESCAPE:
+                inputStateMachine.exitNpcSelectMode();
+                GameLog.getInstance().log("取消选择 NPC");
+                return;
+            case KeyEvent.VK_ENTER:
+                confirmNpcAtCursor();
+                return;
+            case KeyEvent.VK_TAB:
+                cycleNpcs();
+                return;
+            case KeyEvent.VK_UP:    case KeyEvent.VK_W: moveLookCursor(0, -1); break;
+            case KeyEvent.VK_DOWN:  case KeyEvent.VK_S: moveLookCursor(0, 1);  break;
+            case KeyEvent.VK_LEFT:  case KeyEvent.VK_A: moveLookCursor(-1, 0); break;
+            case KeyEvent.VK_RIGHT: case KeyEvent.VK_D: moveLookCursor(1, 0);  break;
+            default: break;
+        }
+    }
+
+    /** 确认光标位置的 NPC，打开交互菜单 */
+    private void confirmNpcAtCursor() {
+        com.github.game.cdda.npc.Npc npc = getNpcAtCursor();
+        if (npc != null && npc.isAlive()) {
+            // 由状态机打开交互菜单并退出 NPC 选择模式
+            inputStateMachine.confirmNpcSelection(npc);
+        } else {
+            GameLog.getInstance().log("这里没有 NPC");
+        }
+    }
+
+    /** 获取光标所在瓦片的 NPC（可能为 null） */
+    private com.github.game.cdda.npc.Npc getNpcAtCursor() {
+        int targetTileX = player.getTileX() + lookCursorDx;
+        int targetTileY = player.getTileY() + lookCursorDy;
+        com.github.game.cdda.creature.Creature c =
+                creatureManager.getCreatureAtTile(targetTileX, targetTileY);
+        if (c instanceof com.github.game.cdda.npc.Npc npc && npc.isAlive()) {
+            return npc;
+        }
+        return null;
+    }
+
+    /** Tab 键在可见 NPC 之间循环切换（NPC 选择模式） */
+    private void cycleNpcs() {
+        if (visibleNpcList.isEmpty()) {
+            GameLog.getInstance().log("视野内没有 NPC");
+            return;
+        }
+        npcCycleIndex = (npcCycleIndex + 1) % visibleNpcList.size();
+        com.github.game.cdda.npc.Npc target = visibleNpcList.get(npcCycleIndex);
+
+        // 将光标跳转到目标 NPC 位置
+        lookCursorDx = target.getTileX() - player.getTileX();
+        lookCursorDy = target.getTileY() - player.getTileY();
+
+        GameLog.getInstance().log(String.format("选中：%s（%s，距离 %d）",
+                target.getName(), target.getTypeDisplayName(),
+                Math.abs(lookCursorDx) + Math.abs(lookCursorDy)));
+    }
+
     /** 刷新可见生物列表（以玩家感知范围为半径） */
     private void refreshVisibleCreatures() {
         int maxRange = Math.max(player.getVisionRange(), player.getHearingRange());
@@ -461,6 +593,7 @@ public class GameScene extends Scene {
 
         // 光标移动后重置生物循环
         creatureCycleIndex = -1;
+        npcCycleIndex = -1;
     }
 
     /**
@@ -498,11 +631,18 @@ public class GameScene extends Scene {
     }
 
     /**
-     * 渲染观察模式光标高亮。
-     * 在目标瓦片上绘制青色边框 + 半透明叠加，重绘目标字符为高亮色。
+     * 渲染观察模式 / NPC 选择模式的光标高亮。
+     * 在目标瓦片上绘制半透明叠加 + 边框，重绘目标字符为高亮色。
+     * <ul>
+     *   <li>观察模式：青色边框 + 蓝色叠加</li>
+     *   <li>NPC 选择模式：绿色边框 + 绿色叠加</li>
+     * </ul>
      */
     private void renderLookCursorHighlight(Renderer renderer, int tileW, int tileH) {
-        if (inputStateMachine == null || !inputStateMachine.isInLookMode()) return;
+        if (inputStateMachine == null) return;
+        boolean lookMode = inputStateMachine.isInLookMode();
+        boolean npcSelect = inputStateMachine.isInNpcSelectMode();
+        if (!lookMode && !npcSelect) return;
 
         int targetTileX = player.getTileX() + lookCursorDx;
         int targetTileY = player.getTileY() + lookCursorDy;
@@ -518,12 +658,16 @@ public class GameScene extends Scene {
             return;
         }
 
-        // 1. 绘制半透明蓝色叠加层
-        renderer.setColor(new Color(50, 100, 200, 80));
+        // 颜色按模式区分
+        Color overlayColor = npcSelect ? new Color(50, 180, 80, 80) : new Color(50, 100, 200, 80);
+        Color borderColor = npcSelect ? new Color(80, 255, 120) : Color.CYAN;
+
+        // 1. 绘制半透明叠加层
+        renderer.setColor(overlayColor);
         renderer.fillRect(viewX, viewY, tileW, tileH);
 
-        // 2. 绘制青色边框
-        renderer.setColor(Color.CYAN);
+        // 2. 绘制边框
+        renderer.setColor(borderColor);
         renderer.drawRect(viewX, viewY, tileW, tileH);
 
         // 3. 高亮重绘该瓦片上的内容（生物或玩家）
@@ -544,19 +688,22 @@ public class GameScene extends Scene {
     }
 
     /**
-     * 渲染观察模式状态栏（游戏区域底部）。
-     * 显示光标指向的瓦片信息和生物信息。
+     * 渲染观察模式 / NPC 选择模式的底部状态栏。
      */
     private void renderLookStatusBar(Renderer renderer, int tileW, int tileH) {
-        if (inputStateMachine == null || !inputStateMachine.isInLookMode()) return;
+        if (inputStateMachine == null) return;
+        boolean lookMode = inputStateMachine.isInLookMode();
+        boolean npcSelect = inputStateMachine.isInNpcSelectMode();
+        if (!lookMode && !npcSelect) return;
 
         int vpW = viewport.getWidth();
         int vpH = viewport.getHeight();
         int barHeight = 40;
         int barY = vpH - barHeight;
 
-        // 背景
-        renderer.setColor(new Color(0, 0, 0, 200));
+        // 背景（NPC 选择模式用绿色调，观察模式用蓝色调）
+        Color bgColor = npcSelect ? new Color(0, 20, 0, 200) : new Color(0, 0, 0, 200);
+        renderer.setColor(bgColor);
         renderer.fillRect(0, barY, vpW, barHeight);
 
         int targetTileX = player.getTileX() + lookCursorDx;
@@ -564,6 +711,14 @@ public class GameScene extends Scene {
         int distance = Math.abs(lookCursorDx) + Math.abs(lookCursorDy);
 
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 12));
+
+        if (npcSelect) {
+            // ── NPC 选择模式状态栏 ──
+            renderNpcSelectStatusBar(renderer, barY, vpW, targetTileX, targetTileY, distance);
+            return;
+        }
+
+        // ── 观察模式状态栏（原有逻辑） ──
 
         // 第一行：坐标 + 地形 + 距离
         TileType tile = chunkManager.getTile(targetTileX, targetTileY);
@@ -650,6 +805,65 @@ public class GameScene extends Scene {
         // 底部提示行（右对齐）
         String hint = "方向键/WASD 移动光标 | Tab 切换生物 | ESC 退出";
         renderer.setColor(new Color(180, 180, 180));
+        renderer.setFont(new Font("Monospaced", Font.PLAIN, 10));
+        int hintY = barY + barHeight - 4;
+        int hintX = vpW - renderer.getTextWidth(hint) - 4;
+        renderer.drawText(hint, hintX, hintY);
+    }
+
+    /**
+     * 渲染 NPC 选择模式的底部状态栏。
+     * 显示光标处 NPC 信息或"此处无 NPC"提示。
+     */
+    private void renderNpcSelectStatusBar(Renderer renderer, int barY, int vpW,
+                                          int targetTileX, int targetTileY, int distance) {
+        int barHeight = 40;
+        renderer.setFont(new Font("Monospaced", Font.PLAIN, 12));
+
+        com.github.game.cdda.creature.Creature creature =
+                creatureManager.getCreatureAtTile(targetTileX, targetTileY);
+
+        if (creature instanceof com.github.game.cdda.npc.Npc npc && npc.isAlive()) {
+            // 第一行：NPC 名称 + 类型 + 距离
+            String npcInfo = String.format("[%d,%d] 距离:%d  %s（%s）",
+                    targetTileX, targetTileY, distance,
+                    npc.getName(), npc.getTypeDisplayName());
+            renderer.setColor(new Color(180, 255, 180));
+            renderer.drawText(npcInfo, 4, barY + 14);
+
+            // 第二行：地域 + 态度 + 循环提示
+            String detail = String.format("地域: %s  |  态度: %s",
+                    npc.getRegion().name, npc.getAttitudeDescription());
+            renderer.setColor(new Color(140, 220, 140));
+            renderer.drawText(detail, 4, barY + 30);
+
+            if (!visibleNpcList.isEmpty()) {
+                String cycleHint = String.format("  Tab 切换 (%d/%d)",
+                        npcCycleIndex + 1, visibleNpcList.size());
+                renderer.setColor(Color.GRAY);
+                int detailWidth = renderer.getTextWidth(detail);
+                renderer.drawText(cycleHint, 4 + detailWidth + 4, barY + 30);
+            }
+        } else {
+            // 光标不在 NPC 上
+            renderer.setColor(Color.GRAY);
+            renderer.drawText(String.format("[%d,%d] 距离:%d  此处无 NPC",
+                    targetTileX, targetTileY, distance), 4, barY + 14);
+
+            // 显示视野内 NPC 数量
+            if (visibleNpcList.isEmpty()) {
+                renderer.setColor(new Color(200, 100, 100));
+                renderer.drawText("视野内没有可交互的 NPC", 4, barY + 30);
+            } else {
+                renderer.setColor(new Color(180, 180, 180));
+                renderer.drawText(String.format("视野内共 %d 个 NPC（Tab 快速切换）",
+                        visibleNpcList.size()), 4, barY + 30);
+            }
+        }
+
+        // 底部提示行（右对齐）
+        String hint = "方向键/WASD 移动光标 | Tab 切换 NPC | Enter 确认 | ESC 取消";
+        renderer.setColor(new Color(180, 220, 180));
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 10));
         int hintY = barY + barHeight - 4;
         int hintX = vpW - renderer.getTextWidth(hint) - 4;

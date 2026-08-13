@@ -2,7 +2,7 @@
   "id": "roe_deer",
   "name": "roe_deer",
   "hp": 25,
-  "speed": 325,
+  "speed": 212,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 25,
   "stats": {

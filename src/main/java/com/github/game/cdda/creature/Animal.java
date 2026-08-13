@@ -9,6 +9,8 @@ import com.github.game.cdda.creature.energy.EnergyFlowManager;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.i18n.I18nManager;
 import com.github.game.engine.core.render.Renderer;
+import com.github.game.engine.core.sprite.Sprite;
+import com.github.game.engine.core.sprite.SpriteManager;
 
 import java.awt.*;
 import java.util.List;
@@ -322,7 +324,17 @@ public class Animal extends Creature {
         int viewX = camera.toViewX(worldX);
         int viewY = camera.toViewY(worldY);
 
-        // 渲染字符
+        // 优先使用精灵渲染
+        if (SpriteManager.hasActivePack()) {
+            String spriteId = "creature." + definition.id;
+            Sprite sprite = SpriteManager.getSprite(spriteId);
+            if (sprite != null) {
+                renderer.drawImage(sprite.getImage(), viewX, viewY, tileWidth, tileHeight);
+                return;
+            }
+        }
+
+        // 回退到字符渲染
         renderer.setColor(displayColor);
         int baselineY = viewY + renderer.getFontMetrics().getAscent();
         renderer.drawText(String.valueOf(displayChar), viewX, baselineY);

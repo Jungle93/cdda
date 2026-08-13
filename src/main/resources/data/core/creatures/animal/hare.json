@@ -2,7 +2,7 @@
   "id": "hare",
   "name": "hare",
   "hp": 8,
-  "speed": 375,
+  "speed": 237,
   "trophicLevel": "PRIMARY_CONSUMER",
   "energyValue": 12,
   "stats": {

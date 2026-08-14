@@ -29,7 +29,7 @@ import java.util.Map;
 public final class PixelArt {
 
     /** 默认精灵尺寸 */
-    public static final int DEFAULT_SIZE = 16;
+    public static final int DEFAULT_SIZE = 32;
 
     /** 透明像素标记字符 */
     public static final char TRANSPARENT = '.';

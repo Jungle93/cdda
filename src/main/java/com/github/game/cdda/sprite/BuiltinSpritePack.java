@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 /**
- * 内置图形包 —— 使用程序化点阵数据生成的基础精灵集合。
+ * 内置图形包 —— 可爱抽象风格的程序化点阵精灵集合。
  * <p>
  * 包含：
  * <ul>
@@ -16,7 +16,7 @@ import java.util.*;
  *   <li>玩家精灵</li>
  *   <li>18 种地形精灵</li>
  * </ul>
- * 所有精灵尺寸为 16×16 像素。
+ * 所有精灵尺寸为 32×32 像素。
  * </p>
  */
 public class BuiltinSpritePack implements SpritePack {
@@ -27,10 +27,10 @@ public class BuiltinSpritePack implements SpritePack {
     public static final String ID = "builtin";
 
     /** 图形包名称 */
-    public static final String NAME = "内置基础图形包";
+    public static final String NAME = "可爱抽象图形包";
 
     /** 瓦片尺寸（像素） */
-    public static final int TILE_SIZE = 16;
+    public static final int TILE_SIZE = 32;
 
     /** 精灵集合（不可变） */
     private final Map<String, Sprite> sprites;

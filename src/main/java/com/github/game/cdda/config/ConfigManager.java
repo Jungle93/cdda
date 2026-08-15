@@ -62,6 +62,8 @@ public class ConfigManager {
     public static final String KEY_LOCALE = "i18n.locale";
     /** 图形包（游戏配置）："builtin"=内置图形包，"none"=ASCII字符模式 */
     public static final String KEY_SPRITE_PACK = "sprite.pack";
+    /** 相机缩放级别（游戏配置）：对应 Camera.ZOOM_LEVELS 数组索引 */
+    public static final String KEY_CAMERA_ZOOM_LEVEL = "camera.zoom.level";
 
     private ConfigManager() {
         initDefaults();
@@ -88,6 +90,7 @@ public class ConfigManager {
         gameProps.setProperty(KEY_UNIT_VOLUME, "MILLILITER");
         gameProps.setProperty(KEY_LOCALE, "zh");
         gameProps.setProperty(KEY_SPRITE_PACK, "builtin");
+        gameProps.setProperty(KEY_CAMERA_ZOOM_LEVEL, "2"); // 默认 1.0x（索引 2）
     }
 
     // ── 加载 ──────────────────────────────────────────
@@ -240,5 +243,15 @@ public class ConfigManager {
     /** 设置图形包 ID */
     public void setSpritePack(String packId) {
         setGame(KEY_SPRITE_PACK, packId);
+    }
+
+    /** 获取相机缩放级别索引 */
+    public int getCameraZoomLevel() {
+        return getGameInt(KEY_CAMERA_ZOOM_LEVEL);
+    }
+
+    /** 设置相机缩放级别索引 */
+    public void setCameraZoomLevel(int level) {
+        setGameInt(KEY_CAMERA_ZOOM_LEVEL, level);
     }
 }

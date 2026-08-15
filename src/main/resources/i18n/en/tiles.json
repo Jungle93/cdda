@@ -34,5 +34,7 @@
   "tile.withered_bush.name": "Withered Bush",
   "tile.withered_bush.description": "A dead withered bush",
   "tile.dead_grass.name": "Dead Grass",
-  "tile.dead_grass.description": "Dry withered grass"
+  "tile.dead_grass.description": "Dry withered grass",
+  "tile.rock.name": "Rock",
+  "tile.rock.description": "A rock scattered on the ground"
 }

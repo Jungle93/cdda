@@ -116,6 +116,32 @@ public class ChunkManager {
     }
 
     /**
+     * 获取世界瓦片坐标处的地面层地形类型。
+     * 地面层是植被放置前的基底地形，用于分层渲染（植被在地面之上）。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 地面层地形类型；区块未加载返回 null
+     */
+    public TileType getGroundTile(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        if (chunk == null) {
+            chunk = loadChunk(cx, cy);
+        }
+
+        if (!chunk.isGenerated()) {
+            generateChunkSync(chunk, cx, cy);
+        }
+
+        int localCol = floorMod(worldTileX, Chunk.SIZE);
+        int localRow = floorMod(worldTileY, Chunk.SIZE);
+        return chunk.getGroundTile(localCol, localRow);
+    }
+
+    /**
      * 设置指定世界瓦片坐标的地形类型。
      *
      * @param worldTileX 世界瓦片 X 坐标

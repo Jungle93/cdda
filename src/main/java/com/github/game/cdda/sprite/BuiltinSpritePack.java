@@ -15,6 +15,7 @@ import java.util.*;
  *   <li>10 种生物精灵（wolf、fox、badger、rabbit、hare、squirrel、deer、roe_deer、boar、mouflon）</li>
  *   <li>玩家精灵</li>
  *   <li>18 种地形精灵</li>
+ *   <li>物品精灵（从 PNG 贴图加载，无则跳过）</li>
  * </ul>
  * 所有精灵尺寸为 32×32 像素。
  * </p>
@@ -50,6 +51,11 @@ public class BuiltinSpritePack implements SpritePack {
         Map<String, Sprite> tileSprites = TileSpriteData.createAllTileSprites();
         all.putAll(tileSprites);
         logger.debug("加载 {} 个地形精灵", tileSprites.size());
+
+        // 加载物品精灵
+        Map<String, Sprite> itemSprites = ItemSpriteData.createAllItemSprites();
+        all.putAll(itemSprites);
+        logger.debug("加载 {} 个物品精灵", itemSprites.size());
 
         this.sprites = Collections.unmodifiableMap(all);
         logger.info("内置图形包加载完成，共 {} 个精灵", sprites.size());

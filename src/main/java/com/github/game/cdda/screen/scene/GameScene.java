@@ -1,6 +1,7 @@
 package com.github.game.cdda.screen.scene;
 
 import com.github.game.cdda.Constants;
+import com.github.game.cdda.config.ConfigManager;
 import com.github.game.cdda.creature.Player;
 import com.github.game.engine.core.EngineServices;
 import com.github.game.cdda.creature.CreatureActionContext;
@@ -139,6 +140,10 @@ public class GameScene extends Scene {
         // 创建摄像机 — 视口尺寸 = Scene viewport 尺寸
         camera = new Camera(viewport.getWidth(), viewport.getHeight());
         setCamera(camera);
+
+        // 从配置加载相机缩放级别
+        int zoomLevel = ConfigManager.getInstance().getCameraZoomLevel();
+        camera.setZoomLevel(zoomLevel);
 
         // 立即加载玩家周围的区块
         chunkManager.updateChunks(player.getWorldX(), player.getWorldY(), tileW, tileH);
@@ -652,9 +657,14 @@ public class GameScene extends Scene {
         int viewX = camera.toViewX(pixelX);
         int viewY = camera.toViewY(pixelY);
 
+        // 缩放后的绘制尺寸
+        double zoom = camera.getZoom();
+        int scaledW = (int) (tileW * zoom);
+        int scaledH = (int) (tileH * zoom);
+
         // 边界检查：只在视口内绘制
-        if (viewX < -tileW || viewX >= viewport.getWidth()
-                || viewY < -tileH || viewY >= viewport.getHeight()) {
+        if (viewX < -scaledW || viewX >= viewport.getWidth()
+                || viewY < -scaledH || viewY >= viewport.getHeight()) {
             return;
         }
 
@@ -664,11 +674,11 @@ public class GameScene extends Scene {
 
         // 1. 绘制半透明叠加层
         renderer.setColor(overlayColor);
-        renderer.fillRect(viewX, viewY, tileW, tileH);
+        renderer.fillRect(viewX, viewY, scaledW, scaledH);
 
         // 2. 绘制边框
         renderer.setColor(borderColor);
-        renderer.drawRect(viewX, viewY, tileW, tileH);
+        renderer.drawRect(viewX, viewY, scaledW, scaledH);
 
         // 3. 高亮重绘该瓦片上的内容（生物或玩家）
         int ascent = renderer.getFontMetrics().getAscent();
@@ -904,15 +914,18 @@ public class GameScene extends Scene {
         if (groundItemManager == null) return;
 
         int ascent = renderer.getFontMetrics().getAscent();
+        double zoom = camera.getZoom();
+        int scaledW = (int) (tileW * zoom);
+        int scaledH = (int) (tileH * zoom);
         for (GroundItem gi : groundItemManager.getAllGroundItems()) {
             int worldX = gi.getTileX() * tileW;
             int worldY = gi.getTileY() * tileH;
             int viewX = camera.toViewX(worldX);
             int viewY = camera.toViewY(worldY);
 
-            // 边界检查
-            if (viewX < -tileW || viewX >= viewport.getWidth()
-                    || viewY < -tileH || viewY >= viewport.getHeight()) {
+            // 边界检查（使用缩放后的视口尺寸）
+            if (viewX < -scaledW || viewX >= viewport.getWidth()
+                    || viewY < -scaledH || viewY >= viewport.getHeight()) {
                 continue;
             }
 

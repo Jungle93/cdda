@@ -56,6 +56,10 @@ public class InputStateMachine {
         void showItemUseOverlay();
         /** 推入 NPC 交互菜单（C 触发，传入光标选中的 NPC） */
         void pushNpcInteractionScreen(com.github.game.cdda.npc.Npc npc);
+        /** 相机放大一档（] 触发） */
+        void zoomCameraIn();
+        /** 相机缩小一档（[ 触发） */
+        void zoomCameraOut();
     }
 
     // ── 状态 ──
@@ -321,6 +325,14 @@ public class InputStateMachine {
                 return;
             case KeyEvent.VK_M:
                 openWorldMap();
+                return;
+
+            // ── 相机缩放 ──
+            case KeyEvent.VK_CLOSE_BRACKET:  // ] 放大
+                overlayCallback.zoomCameraIn();
+                return;
+            case KeyEvent.VK_OPEN_BRACKET:   // [ 缩小
+                overlayCallback.zoomCameraOut();
                 return;
 
             // ── 游戏动作 ──

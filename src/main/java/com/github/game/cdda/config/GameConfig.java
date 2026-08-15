@@ -141,4 +141,16 @@ public class GameConfig {
     public void setSpritePack(String packId) {
         cm.setSpritePack(packId);
     }
+
+    // ── 相机缩放 ──────────────────────────────────────────
+
+    /** 获取相机缩放级别索引（对应 Camera.ZOOM_LEVELS 数组） */
+    public int getCameraZoomLevel() {
+        return cm.getCameraZoomLevel();
+    }
+
+    /** 设置相机缩放级别索引 */
+    public void setCameraZoomLevel(int level) {
+        cm.setCameraZoomLevel(level);
+    }
 }

@@ -87,6 +87,9 @@ public class TileMap {
      * </ul>
      * 从 ChunkManager 获取瓦片数据，仅渲染视口覆盖的瓦片。
      * 无限世界：不钳制到固定边界，直接按视口范围遍历。
+     *
+     * <p><b>分层渲染</b>：覆盖层瓦片（树木、灌木等）分两层渲染：
+     * 先渲染地面层（草地、泥土等），再叠加覆盖层精灵。
      */
     public void render(Renderer renderer, Camera camera) {
         if (tileWidth == 0 || tileHeight == 0) return; // 尚未初始化
@@ -96,37 +99,75 @@ public class TileMap {
             renderer.setFont(font);
         }
 
-        // 计算可见瓦片范围（世界像素 → 瓦片索引）
+        // 缩放因子：精灵模式下瓦片绘制尺寸随缩放变化
+        double zoom = camera.getZoom();
+        int scaledTileW = (int) (tileWidth * zoom);
+        int scaledTileH = (int) (tileHeight * zoom);
+
+        // 计算可见瓦片范围（使用缩放后的视口尺寸，确保缩放过后的可见区域正确）
         // 使用 floorDiv 正确处理负坐标（整数除法向零截断会导致负坐标偏移）
-        // 使用 Camera 的视口尺寸（而非全屏），支持分屏布局
+        int zoomedVW = camera.getZoomedViewportWidth();
+        int zoomedVH = camera.getZoomedViewportHeight();
         int startCol = Math.floorDiv(camera.getX(), tileWidth);
         int startRow = Math.floorDiv(camera.getY(), tileHeight);
-        int endCol = Math.floorDiv(camera.getX() + camera.getViewportWidth(), tileWidth) + 1;
-        int endRow = Math.floorDiv(camera.getY() + camera.getViewportHeight(), tileHeight) + 1;
+        int endCol = Math.floorDiv(camera.getX() + zoomedVW, tileWidth) + 1;
+        int endRow = Math.floorDiv(camera.getY() + zoomedVH, tileHeight) + 1;
 
+        // ── 第一遍：渲染地面层 ──
         for (int r = startRow; r <= endRow; r++) {
             for (int c = startCol; c <= endCol; c++) {
                 TileType tile = chunkManager.getTile(c, r);
                 if (tile == null) continue;
 
-                // 世界 → 屏幕
-                int screenX = c * tileWidth - camera.getX();
-                int screenY = r * tileHeight - camera.getY();
+                // 世界 → 屏幕（通过 Camera 的缩放变换）
+                int screenX = camera.toViewX(c * tileWidth);
+                int screenY = camera.toViewY(r * tileHeight);
+
+                // 覆盖层瓦片：渲染其下方的地面层
+                TileType groundTile = tile.isOverlay()
+                        ? chunkManager.getGroundTile(c, r)
+                        : tile;
+
+                if (groundTile == null) groundTile = tile;
 
                 if (useSprites) {
-                    // 精灵模式：尝试获取地形精灵
-                    String spriteId = "tile." + tile.getName();
+                    // 精灵模式：尝试获取地面层精灵，使用缩放后的尺寸绘制
+                    String spriteId = "tile." + groundTile.getName();
                     Sprite sprite = SpriteManager.getSprite(spriteId);
                     if (sprite != null) {
-                        renderer.drawImage(sprite.getImage(), screenX, screenY, tileWidth, tileHeight);
+                        renderer.drawImage(sprite.getImage(), screenX, screenY, scaledTileW, scaledTileH);
                         continue;
                     }
                     // 无精灵时回退到字符模式
                 }
 
-                // ASCII 字符渲染（回退）
+                // ASCII 字符渲染（回退）— 字号不缩放，保持可读性
+                renderer.setColor(groundTile.getColor());
+                int baselineY = screenY + renderer.getFontMetrics().getAscent();
+                renderer.drawText(String.valueOf(groundTile.getChar()), screenX, baselineY);
+            }
+        }
+
+        // ── 第二遍：渲染覆盖层（树木、灌木等） ──
+        for (int r = startRow; r <= endRow; r++) {
+            for (int c = startCol; c <= endCol; c++) {
+                TileType tile = chunkManager.getTile(c, r);
+                if (tile == null || !tile.isOverlay()) continue;
+
+                int screenX = camera.toViewX(c * tileWidth);
+                int screenY = camera.toViewY(r * tileHeight);
+
+                if (useSprites) {
+                    String spriteId = "tile." + tile.getName();
+                    Sprite sprite = SpriteManager.getSprite(spriteId);
+                    if (sprite != null) {
+                        renderer.drawImage(sprite.getImage(), screenX, screenY, scaledTileW, scaledTileH);
+                        continue;
+                    }
+                }
+
+                // ASCII 字符渲染覆盖层
                 renderer.setColor(tile.getColor());
-                // drawText 的 y 是基线位置，需要用 ascent 调整
                 int baselineY = screenY + renderer.getFontMetrics().getAscent();
                 renderer.drawText(String.valueOf(tile.getChar()), screenX, baselineY);
             }

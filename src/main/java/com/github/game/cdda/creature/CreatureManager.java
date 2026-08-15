@@ -699,11 +699,11 @@ public class CreatureManager {
      * @param tileHeight 瓦片像素高度
      */
     public void renderCreatures(Renderer renderer, Camera camera, int tileWidth, int tileHeight) {
-        // 计算摄像机视口覆盖的瓦片范围
+        // 计算摄像机视口覆盖的瓦片范围（使用缩放后的视口尺寸）
         int viewStartX = camera.getX();
         int viewStartY = camera.getY();
-        int viewWidth = camera.getViewportWidth();
-        int viewHeight = camera.getViewportHeight();
+        int viewWidth = camera.getZoomedViewportWidth();
+        int viewHeight = camera.getZoomedViewportHeight();
 
         int startTileX = viewStartX / tileWidth;
         int startTileY = viewStartY / tileHeight;

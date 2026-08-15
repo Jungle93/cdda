@@ -34,6 +34,8 @@ public class ItemType {
     private final Set<ConsumableType> consumableTypes;
     /** 功能标签集合（如 "chopping"、"cooking" 等，用于物品动作系统） */
     private final Set<String> tags;
+    /** 图标字符（可选，用于 UI 展示；未设置时使用 displayName 首字回退） */
+    private final String icon;
 
     // ── 营养值（仅对食物/饮品有意义） ──
     /** 热量（千卡 kcal） */
@@ -59,6 +61,7 @@ public class ItemType {
         this.tags = b.tags.isEmpty()
                 ? Collections.emptySet()
                 : Collections.unmodifiableSet(new HashSet<>(b.tags));
+        this.icon = b.icon;
         this.calories = b.calories;
         this.satiety = b.satiety;
         this.waterContent = b.waterContent;
@@ -131,6 +134,23 @@ public class ItemType {
     /** 获取所有功能标签（不可变集合） */
     public Set<String> getTags() { return tags; }
 
+    /**
+     * 获取图标字符。
+     * 优先返回显式设置的 icon；若未设置，回退到 displayName 的首字符。
+     *
+     * @return 图标字符串（1-2 个字符），不会为 null
+     */
+    public String getIcon() {
+        if (icon != null && !icon.isEmpty()) return icon;
+        String dn = getDisplayName();
+        if (dn != null && !dn.isEmpty()) {
+            // 取第一个字符（兼容 surrogate pair）
+            int cp = dn.codePointAt(0);
+            return new String(Character.toChars(cp));
+        }
+        return "?";
+    }
+
     // ── 显示（带单位转换） ──
     /** 获取格式化重量（按指定单位） */
     public String formatWeight(DisplayUnit unit) {
@@ -176,6 +196,7 @@ public class ItemType {
         private double calories = 0;
         private double satiety = 0;
         private double waterContent = 0;
+        private String icon = null;
 
         /** 创建 Builder（id 和 name 必填） */
         public Builder(int id, String name) {
@@ -255,6 +276,15 @@ public class ItemType {
             this.waterContent = waterContent;
             return this;
         }
+
+        /**
+         * 设置图标字符。
+         * 用于 UI 展示（如背包详情面板）。未设置时回退到 displayName 首字。
+         *
+         * @param icon 图标字符（1-2 个字符的字符串）
+         * @return 当前 Builder 实例（链式调用）
+         */
+        public Builder icon(String icon) { this.icon = icon; return this; }
 
         /**
          * 构建 ItemType 实例（不注册）。

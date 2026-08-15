@@ -20,9 +20,11 @@ public class Graphics2DRenderer implements Renderer {
 
     public Graphics2DRenderer(Graphics2D g2d) {
         this.g2d = g2d;
-        // 开启抗锯齿
+        // 开启抗锯齿（文字和图形）
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        // 像素画精灵缩放使用 nearest-neighbor，避免模糊
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
     }
 
     @Override

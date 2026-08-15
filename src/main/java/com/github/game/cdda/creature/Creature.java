@@ -92,6 +92,33 @@ public abstract class Creature extends Entity {
      */
     public abstract void render(Renderer renderer, Camera camera, int tileWidth, int tileHeight);
 
+    /**
+     * 获取渲染时的水平偏移量（待机动画）。
+     * <p>
+     * 每秒随机变化 ±2 像素偏移，让生物看起来更有生命力。
+     * 每个生物根据自身坐标产生不同随机种子，避免同步晃动。
+     * 实际位置（tileX/tileY）不受影响。
+     * </p>
+     *
+     * @return 水平偏移像素数（-2 到 2）
+     */
+    protected int getRenderOffsetX() {
+        long tick = System.currentTimeMillis() / 1000;
+        long seed = tileX * 7919L + tileY * 104729L + tick * 6364136223846793005L + 1442695040888963407L;
+        return (int) ((seed >>> 33) % 5) - 2;
+    }
+
+    /**
+     * 获取渲染时的垂直偏移量（待机动画）。
+     *
+     * @return 垂直偏移像素数（-2 到 2）
+     */
+    protected int getRenderOffsetY() {
+        long tick = System.currentTimeMillis() / 1000;
+        long seed = tileX * 104729L + tileY * 7919L + tick * 6364136223846793005L + 1442695040888963407L;
+        return (int) ((seed >>> 33) % 5) - 2;
+    }
+
     // ── 生命管理 ──────────────────────────────────
 
     /**

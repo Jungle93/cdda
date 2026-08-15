@@ -73,6 +73,9 @@ public class Chunk {
     /** 瓦片数据 [row][col]（generate() 调用后初始化） */
     private TileType[][] tiles;
 
+    /** 地面层瓦片 [row][col] — 植被下方的基础地形（用于分层渲染） */
+    private TileType[][] groundTiles;
+
     /** 植被地图（存储每个瓦片的植被物种 ID 和生长状态） */
     private VegetationMap vegetationMap;
 
@@ -124,6 +127,7 @@ public class Chunk {
     public void generate(PerlinNoise noise, WorldMap worldMap, Chunk[][] neighbors) {
         if (generated) return;
         this.tiles = new TileType[SIZE][SIZE];
+        this.groundTiles = new TileType[SIZE][SIZE];
         this.vegetationMap = new VegetationMap(chunkX, chunkY);
         this.soilFertility = new SoilFertility(chunkX, chunkY, biome);
         generated = true;
@@ -155,8 +159,18 @@ public class Chunk {
             }
         }
 
+        // 保存地面层（植被放置前，所有瓦片都是地面）
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                groundTiles[row][col] = tiles[row][col];
+            }
+        }
+
         // ── 第二遍：噪声 + 环境适配 → 植被 ──
         placeVegetation(noise, worldMap);
+
+        // ── 第二遍半：群落岩石率 → 散布岩石覆盖物 ──
+        placeRocks(noise);
 
         // ─ 第三遍：排水算法 → 湖泊/河流/海洋 ──
         carveWaterFeatures(worldMap);
@@ -175,14 +189,14 @@ public class Chunk {
      *
      * <p>判定优先级：
      * <ol>
-     *   <li>高海拔 + 高岩石率 → 石头</li>
      *   <li>低海拔 + 高湿度 → 泥地</li>
      *   <li>低海拔 + 中等湿度 → 泥土</li>
      *   <li>干燥 + 低湿度噪声 → 沙地</li>
-     *   <li>高海拔 + 低温 → 石头（高原冻土）</li>
+     *   <li>高海拔 + 低温 → 泥土（高原冻土，不再产生 STONE 地面）</li>
      *   <li>默认 → 草地</li>
      * </ol>
      *
+     * <p>注意：STONE 不再由地形生成（改为 ROCK 覆盖物散布）。
      * <p>群落 waterLevel 会降低低地阈值，使海洋/沼泽群落产生更多泥地，
      * 便于后续 {@link #carveWaterFeatures} 在这些区域放置水域。
      */
@@ -190,11 +204,6 @@ public class Chunk {
                                       double humidity, double moisture,
                                       BiomeType biome, double rockThreshold,
                                       float waterLevel) {
-        // 岩石优先（高海拔 + 群落岩石率）
-        if (elevation > rockThreshold) {
-            return TileType.STONE;
-        }
-
         // waterLevel 越高，低地阈值越宽松（海洋 waterLevel=1.0 → 阈值 +0.30）
         // 使海洋/沼泽群落更容易产生泥地，便于后续水域雕刻
         double waterBonus = waterLevel * 0.30;
@@ -214,9 +223,9 @@ public class Chunk {
             return TileType.SAND;
         }
 
-        // 高海拔 + 低温 → 高原冻土（石头）
+        // 高海拔 + 低温 → 高原冻土（改为泥土，不再产生 STONE 地面）
         if (elevation > 0.30 && temperature < 0) {
-            return TileType.STONE;
+            return TileType.DIRT;
         }
 
         // 默认 → 草地
@@ -358,10 +367,11 @@ public class Chunk {
             return null;
         }
 
-        // 邻居是石头 → 只在自身也是石头时保持，否则渐变
-        if (neighborTile == TileType.STONE) {
-            if (selfTile == TileType.GRASS && randomVal < blendFactor * 0.3) {
-                return TileType.STONE;
+        // 邻居是岩石覆盖物 → 如果自身是草地/沙地，概率变为岩石
+        if (neighborTile == TileType.ROCK
+                && (selfTile == TileType.GRASS || selfTile == TileType.SAND)) {
+            if (randomVal < blendFactor * 0.3) {
+                return TileType.ROCK;
             }
             return null;
         }
@@ -535,6 +545,53 @@ public class Chunk {
     }
 
     /**
+     * 第二遍半：在沙地和草地上散布岩石覆盖物。
+     *
+     * <p>利用群落 rockiness 参数控制岩石密度：
+     * <ul>
+     *   <li>MOUNTAIN (rockiness=0.50) → 岩石最密集</li>
+     *   <li>DESERT (rockiness=0.05) → 少量岩石</li>
+     *   <li>其他 (rockiness=0.00) → 无岩石</li>
+     * </ul>
+     *
+     * <p>岩石作为覆盖物（ROCK overlay）放置，不改变底层地面类型。
+     * 使用区域噪声使岩石分布呈簇状（非均匀随机）。
+     */
+    private void placeRocks(PerlinNoise noise) {
+        float rockiness = biome.getRockiness();
+        if (rockiness <= 0) return;
+
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                TileType ground = groundTiles[row][col];
+                // 仅在沙地和草地上放置岩石
+                if (ground != TileType.SAND && ground != TileType.GRASS) continue;
+                // 跳过已有覆盖物（植被等）的瓦片
+                if (tiles[row][col] != ground) continue;
+
+                int gx = chunkX * SIZE + col;
+                int gy = chunkY * SIZE + row;
+
+                // 确定性哈希
+                double hash = tileHash(gx + 99991, gy + 77777);
+
+                // 区域噪声：使岩石呈簇状分布
+                double zoneNoise = noise.fbm(
+                        gx * 0.05 + 5000.0, gy * 0.05 + 5000.0,
+                        2, PERSISTENCE, LACUNARITY);
+                double factor = (zoneNoise + 1.0) * 0.5; // 归一化到 0~1
+
+                // 岩石概率 = rockiness * 基础系数 * 噪声因子
+                double rockProb = rockiness * 0.15 * (0.3 + 0.7 * factor);
+
+                if (hash < rockProb) {
+                    tiles[row][col] = TileType.ROCK;
+                }
+            }
+        }
+    }
+
+    /**
      * 第三遍：放置水域（湖泊/河流/海洋）及过渡带。
      *
      * <p>使用 WorldMap 水域特征 + 高频扰动：
@@ -615,9 +672,12 @@ public class Chunk {
      *
      * <p>规则：
      * <ul>
-     *   <li>WATER 瓦片且四邻接有非 WATER → 有概率放置（水边芦苇）</li>
-     *   <li>SAND 瓦片且四邻接有 WATER → 有概率放置（湿地香蒲）</li>
+     *   <li>WATER 瓦片且四邻接有非 WATER → 仅在湖泊区域有概率放置（湖边芦苇）</li>
+     *   <li>SAND 瓦片且四邻接有 WATER → 仅在湖泊区域有概率放置（湿地香蒲）</li>
      * </ul>
+     *
+     * <p>利用 WorldMap.getWaterFeature() 区分湖泊（>1.0）和其他水域。
+     * 非湖泊水域（河流、海洋）不生成芦苇，使芦苇仅出现在湖边浅水区。
      *
      * <p>使用确定性哈希控制概率，相同坐标总是产生相同结果。
      */
@@ -642,7 +702,7 @@ public class Chunk {
                         int nc = col + dx[d];
                         if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE
                                 && tiles[nr][nc] != TileType.WATER
-                                && tiles[nr][nc] != TileType.STONE) {
+                                && tiles[nr][nc] != TileType.ROCK) {
                             isWaterEdge = true;
                             break;
                         }
@@ -662,6 +722,15 @@ public class Chunk {
 
                 if (!isWaterEdge && !isSandEdge) continue;
 
+                // 湖泊检测：仅在湖泊区域（waterFeature > 1.0）生成芦苇
+                double waterFeature = worldMap.getWaterFeature(globalX, globalY);
+                boolean isLake = waterFeature > 1.0;
+
+                if (!isLake) {
+                    // 非湖泊水域：大幅降低概率（仅极少数芦苇出现在河口等区域）
+                    // 概率从 0.30/0.15 降至 0.03/0.015
+                }
+
                 // 环境查询
                 double temperature = worldMap.getTemperatureAt(globalX, globalY);
                 double humidity = worldMap.getHumidityAt(globalX, globalY);
@@ -670,7 +739,9 @@ public class Chunk {
                 // 概率判定（使用偏移哈希区分 WATER/SAND 两种情况）
                 int hashOffset = isWaterEdge ? 0 : 50000;
                 double hash = tileHash(globalX + hashOffset, globalY + hashOffset);
-                double threshold = isWaterEdge ? 0.30 : 0.15;
+                // 湖泊边缘高概率，非湖泊极低概率
+                double baseThreshold = isWaterEdge ? 0.30 : 0.15;
+                double threshold = isLake ? baseThreshold : baseThreshold * 0.1;
 
                 if (hash < threshold) {
                     VegetationDefinition aquDef = VegetationRegistry.selectForEnvironment(
@@ -714,6 +785,23 @@ public class Chunk {
         }
         if (tiles == null) return null;
         return tiles[localRow][localCol];
+    }
+
+    /**
+     * 获取区块内局部坐标处的地面层瓦片。
+     * 地面层是植被放置前的基底地形（草地、泥土、沙地等），
+     * 用于分层渲染：植被精灵渲染在地面之上。
+     *
+     * @param localCol 局部列号 [0, SIZE)
+     * @param localRow 局部行号 [0, SIZE)
+     * @return 地面层地形类型；越界返回 null
+     */
+    public TileType getGroundTile(int localCol, int localRow) {
+        if (localCol < 0 || localCol >= SIZE || localRow < 0 || localRow >= SIZE) {
+            return null;
+        }
+        if (groundTiles == null) return null;
+        return groundTiles[localRow][localCol];
     }
 
     /**

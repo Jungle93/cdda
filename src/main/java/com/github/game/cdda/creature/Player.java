@@ -232,11 +232,20 @@ public class Player extends Creature {
         int viewX = camera.toViewX(worldX);
         int viewY = camera.toViewY(worldY);
 
+        // 待机动画：随机微幅晃动（晃动幅度也随缩放）
+        double zoom = camera.getZoom();
+        viewX += (int) (getRenderOffsetX() * zoom);
+        viewY += (int) (getRenderOffsetY() * zoom);
+
+        // 缩放后的绘制尺寸
+        int scaledW = (int) (tileWidth * zoom);
+        int scaledH = (int) (tileHeight * zoom);
+
         // 优先使用精灵渲染
         if (SpriteManager.hasActivePack()) {
             Sprite sprite = SpriteManager.getSprite("player");
             if (sprite != null) {
-                renderer.drawImage(sprite.getImage(), viewX, viewY, tileWidth, tileHeight);
+                renderer.drawImage(sprite.getImage(), viewX, viewY, scaledW, scaledH);
                 return;
             }
         }

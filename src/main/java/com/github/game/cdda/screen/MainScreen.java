@@ -235,7 +235,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
 
     @Override
     public void pushInGameMenu() {
-        engine.getScreenManager().pushScreen(new InGameMenuScreen(engine));
+        engine.getScreenManager().pushScreen(new InGameMenuScreen(engine, gameScene));
     }
 
     @Override
@@ -247,7 +247,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     public void pushInventoryScreen() {
         engine.getScreenManager().pushScreen(
                 new InventoryScreen(engine, gameWorld.getPlayer(),
-                        gameWorld.getGroundItemManager()));
+                        gameWorld, inputStateMachine));
     }
 
     @Override
@@ -283,6 +283,20 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         ItemUseOverlay overlay = new ItemUseOverlay(
                 gameViewport, gameWorld.getPlayer(), gameWorld, inputStateMachine);
         showOverlay(overlay);
+    }
+
+    @Override
+    public void zoomCameraIn() {
+        if (gameScene != null && gameScene.getCamera() != null) {
+            gameScene.getCamera().zoomIn();
+        }
+    }
+
+    @Override
+    public void zoomCameraOut() {
+        if (gameScene != null && gameScene.getCamera() != null) {
+            gameScene.getCamera().zoomOut();
+        }
     }
 
     @Override

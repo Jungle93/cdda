@@ -34,5 +34,7 @@
   "tile.withered_bush.name": "枯灌木",
   "tile.withered_bush.description": "枯萎的灌木丛",
   "tile.dead_grass.name": "枯草",
-  "tile.dead_grass.description": "干枯的杂草"
+  "tile.dead_grass.description": "干枯的杂草",
+  "tile.rock.name": "岩石",
+  "tile.rock.description": "散布在地面上的岩石块"
 }

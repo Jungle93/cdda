@@ -95,8 +95,9 @@ public class ChopTreeAction implements ItemAction {
         // 生成掉落物
         int dropCount = generateDrops(vegDef, world, tx, ty);
 
-        // 将植被瓦片替换为草地
-        cm.setTile(tx, ty, TileType.GRASS);
+        // 恢复地面层瓦片（砍伐前该位置的地形，如草地、泥土等）
+        TileType groundTile = cm.getGroundTile(tx, ty);
+        cm.setTile(tx, ty, groundTile != null ? groundTile : TileType.GRASS);
         cm.clearVegetation(tx, ty);
 
         // 消耗回合时间

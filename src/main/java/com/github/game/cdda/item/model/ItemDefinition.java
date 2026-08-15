@@ -50,6 +50,8 @@ public class ItemDefinition {
     public int consumableTypes = 0;
     /** 功能标签（如 "chopping", "cooking", "crafting"） */
     public String[] tags = new String[0];
+    /** 图标字符（可选，用于 UI 展示；未设置时使用 displayName 首字回退） */
+    public String icon = null;
     /** 热量（千卡 kcal） */
     public double calories = 0;
     /** 饱腹度（0-100 相对值） */
@@ -86,6 +88,10 @@ public class ItemDefinition {
 
         if (tags != null && tags.length > 0) {
             builder.tag(tags);
+        }
+
+        if (icon != null && !icon.isEmpty()) {
+            builder.icon(icon);
         }
 
         if (calories > 0 || satiety > 0 || waterContent > 0) {

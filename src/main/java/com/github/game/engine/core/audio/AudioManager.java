@@ -54,6 +54,9 @@ public class AudioManager {
     /** 当前 BGM 音源（可能是 ClipSource 或 StreamSource） */
     private AudioSource currentBgm;
 
+    /** 动作音效：动作名 → 音源（循环播放，由 stopActionSound 显式停止） */
+    private final Map<String, AudioSource> actionSounds = new java.util.concurrent.ConcurrentHashMap<>();
+
     /**
      * 创建音频管理器。
      *
@@ -242,6 +245,102 @@ public class AudioManager {
         stopBGM(1000);
     }
 
+    // ── 动作音效（按动作名绑定生命周期） ──────────────────────────────────
+
+    /**
+     * 播放动作音效（循环，绑定到动作名）。
+     *
+     * <p>动作音效与一次性 SFX 不同：它持续循环播放，直到显式调用 {@link #stopActionSound} 停止。
+     * 适合与持续性动作绑定（如行走、砍树、挖掘等）：动作开始时播放，动作结束时停止。
+     *
+     * <p>特性：
+     * <ul>
+     *   <li>同一动作名重复调用（同一 clipId）是 no-op，不会重复播放</li>
+     *   <li>同一动作名不同 clipId 会先停止旧音效再播放新音效</li>
+     *   <li>不同动作名可同时播放（如"行走"+"喘息"）</li>
+     * </ul>
+     *
+     * @param actionName 动作名称（如 "walk"、"chop"、"dig"）
+     * @param clipId     音频资源路径（如 "audio/sfx/walk.mp3"）
+     * @param volume     音量 (0~1)
+     */
+    public void playActionSound(String actionName, String clipId, float volume) {
+        // 同一动作已在播放相同音效，无需重触发
+        AudioSource existing = actionSounds.get(actionName);
+        if (existing != null
+                && clipId.equals(existing.getClipId())
+                && existing.getState() == AudioSource.State.PLAYING) {
+            return;
+        }
+
+        // 同一动作名正在播放不同音效，或旧音效已意外停止：先停止
+        if (existing != null) {
+            stopActionSound(actionName);
+        }
+
+        // 加载音频并创建循环音源
+        AudioCache.CachedAudio cached = cache.loadSync(clipId);
+        if (cached == null) {
+            logger.warn("动作音效加载失败: {}", clipId);
+            return;
+        }
+
+        ClipSource source = new ClipSource(cached);
+        source.setClipId(clipId);
+        source.setLoop(true);
+        source.setVolume(volume);
+
+        AudioChannel channel = channels.get(CHANNEL_SFX);
+        if (channel == null) return;
+        source.setChannel(channel);
+        source.updateEffectiveVolume();
+
+        actionSounds.put(actionName, source);
+        channel.addSource(source);
+        source.play();
+
+        logger.debug("开始动作音效: {} → {}", actionName, clipId);
+    }
+
+    /**
+     * 停止指定动作的音效。
+     * 若该动作没有正在播放的音效，此方法为空操作。
+     *
+     * @param actionName 动作名称
+     */
+    public void stopActionSound(String actionName) {
+        AudioSource source = actionSounds.remove(actionName);
+        if (source != null) {
+            source.stop();
+            AudioChannel channel = source.getChannel();
+            if (channel != null) {
+                channel.removeSource(source);
+            }
+            if (source instanceof ClipSource clip) {
+                clip.dispose();
+            }
+            logger.debug("停止动作音效: {}", actionName);
+        }
+    }
+
+    /** 停止所有动作音效。 */
+    public void stopAllActionSounds() {
+        for (String actionName : new java.util.ArrayList<>(actionSounds.keySet())) {
+            stopActionSound(actionName);
+        }
+    }
+
+    /**
+     * 查询动作音效是否正在播放。
+     *
+     * @param actionName 动作名称
+     * @return true 如果该动作有正在播放的音效
+     */
+    public boolean isActionSoundPlaying(String actionName) {
+        AudioSource source = actionSounds.get(actionName);
+        return source != null && source.getState() == AudioSource.State.PLAYING;
+    }
+
     // ── 音量控制 ──────────────────────────────────
 
     /** 设置全局主音量 */
@@ -342,8 +441,10 @@ public class AudioManager {
             for (AudioSource src : ch.getSources()) {
                 if (src.getState() == AudioSource.State.PLAYING) {
                     src.update(deltaTime);
-                } else if (src.getState() == AudioSource.State.STOPPED && !src.isLoop()) {
-                    // 非循环音源播放完成（或被手动 stop），待清理
+                } else if (src.getState() == AudioSource.State.STOPPED
+                        && !src.isLoop()
+                        && !actionSounds.containsValue(src)) {
+                    // 非循环、非动作音效的音源播放完成，待清理
                     if (completed == null) {
                         completed = new java.util.ArrayList<>();
                     }
@@ -367,6 +468,7 @@ public class AudioManager {
 
     /** 停止所有音频，释放资源 */
     public void dispose() {
+        stopAllActionSounds();
         for (AudioChannel ch : channels.values()) {
             ch.stopAll();
         }

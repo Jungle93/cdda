@@ -98,6 +98,48 @@ public class AudioEngine {
         manager.stopBGM(fadeMs);
     }
 
+    // ── 动作音效（按动作名绑定生命周期） ──────────────────────────────────
+
+    /**
+     * 播放动作音效（循环，绑定到动作名）。
+     *
+     * <p>动作音效持续循环播放，直到显式调用 {@link #stopActionSound} 停止。
+     * 适合与持续性动作绑定：动作开始时调用一次，动作结束时停止。
+     *
+     * <p>示例：
+     * <pre>
+     * // 开始行走时
+     * audio.playActionSound("walk", "audio/sfx/walk.mp3", 0.6f);
+     * // 停止行走时
+     * audio.stopActionSound("walk");
+     * </pre>
+     *
+     * @param actionName 动作名称（如 "walk"、"chop"、"dig"）
+     * @param clipId     音频资源路径
+     * @param volume     音量 (0~1)
+     */
+    public void playActionSound(String actionName, String clipId, float volume) {
+        manager.playActionSound(actionName, clipId, volume);
+    }
+
+    /**
+     * 停止指定动作的音效。
+     * 若该动作没有正在播放的音效，此方法为空操作。
+     */
+    public void stopActionSound(String actionName) {
+        manager.stopActionSound(actionName);
+    }
+
+    /** 停止所有动作音效。 */
+    public void stopAllActionSounds() {
+        manager.stopAllActionSounds();
+    }
+
+    /** 查询动作音效是否正在播放。 */
+    public boolean isActionSoundPlaying(String actionName) {
+        return manager.isActionSoundPlaying(actionName);
+    }
+
     // ── 音量控制 ──────────────────────────────────
 
     /**

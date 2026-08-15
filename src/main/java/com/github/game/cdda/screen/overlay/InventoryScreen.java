@@ -10,6 +10,8 @@ import com.github.game.cdda.item.world.PlayerInventory;
 import com.github.game.cdda.screen.menu.MenuScreen;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
+import com.github.game.engine.core.sprite.Sprite;
+import com.github.game.engine.core.sprite.SpriteManager;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -423,13 +425,26 @@ public class InventoryScreen extends MenuScreen {
         int contentW = panelW - 40;
         int curY = panelY + 16;
 
-        // ── 图标（大号居中） ──
-        String icon = stack.getType().getIcon();
-        renderer.setFont(new Font("Monospaced", Font.BOLD, 36));
-        renderer.setColor(new Color(255, 220, 100));
-        int iconX = panelX + (panelW - renderer.getTextWidth(icon)) / 2;
-        renderer.drawText(icon, iconX, curY + 36);
-        curY += 52;
+        // ── 图标（精灵贴图优先，无贴图时用字符替代） ──
+        String spriteId = "item." + stack.getType().getName();
+        Sprite sprite = SpriteManager.hasActivePack()
+                ? SpriteManager.getSprite(spriteId) : null;
+
+        if (sprite != null) {
+            // 渲染精灵图片（居中，放大到 48×48）
+            int iconSize = 48;
+            int iconX = panelX + (panelW - iconSize) / 2;
+            renderer.drawImage(sprite.getImage(), iconX, curY, iconSize, iconSize);
+            curY += iconSize + 4;
+        } else {
+            // 字符回退
+            String icon = stack.getType().getIcon();
+            renderer.setFont(new Font("Monospaced", Font.BOLD, 36));
+            renderer.setColor(new Color(255, 220, 100));
+            int iconX = panelX + (panelW - renderer.getTextWidth(icon)) / 2;
+            renderer.drawText(icon, iconX, curY + 36);
+            curY += 52;
+        }
 
         // ── 物品名称 ──
         String name = stack.getType().getDisplayName();

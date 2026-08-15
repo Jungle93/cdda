@@ -138,14 +138,8 @@ public class AudioManager {
         // 设置冷却时间 = 当前时间 + 音频时长
         sfxCooldowns.put(clipId, now + cached.getDurationMs());
 
-        // 从对象池获取音源
-        ClipSource source = sfxPool.acquire();
-        source.setChannel(channel);
-        source.setClipId(clipId);
-
-        // 如果音源已经初始化过，检查是否匹配
-        // 由于对象池复用，需要确保 PCM 数据匹配
-        // 简化处理：每次创建新 ClipSource
+        // 创建新的 ClipSource（每次播放独立实例，由 update() 在播放完成后释放）
+        // 注：sfxPool 的复用逻辑需后续实现 ClipSource.reset(CachedAudio) 后才能启用
         ClipSource newSource = new ClipSource(cached);
         newSource.setChannel(channel);
         newSource.setClipId(clipId);
@@ -328,6 +322,12 @@ public class AudioManager {
 
     /**
      * 每帧调用，更新淡入淡出和调度器。
+     * 同时清理已完成播放的非循环音效，释放原生音频线路。
+     *
+     * <p>每次 playSFX() 都会创建新的 ClipSource（持有 Java Sound Clip），
+     * 播放完毕后状态变为 STOPPED，但 Clip 不主动释放。
+     * 此处在每帧扫描 STOPPED 的非循环音源，调用 {@link ClipSource#dispose()}
+     * 释放原生音频线路，并将对象从通道中移除，防止线路耗尽。
      *
      * @param deltaTime 距上一帧的时间（毫秒）
      */
@@ -335,11 +335,29 @@ public class AudioManager {
         fadeManager.update(deltaTime);
         scheduler.update(deltaTime);
 
-        // 更新所有活跃音源
+        // 更新所有活跃音源，并收集已完成的音效进行清理
         for (AudioChannel ch : channels.values()) {
+            java.util.List<AudioSource> completed = null;
+
             for (AudioSource src : ch.getSources()) {
                 if (src.getState() == AudioSource.State.PLAYING) {
                     src.update(deltaTime);
+                } else if (src.getState() == AudioSource.State.STOPPED && !src.isLoop()) {
+                    // 非循环音源播放完成（或被手动 stop），待清理
+                    if (completed == null) {
+                        completed = new java.util.ArrayList<>();
+                    }
+                    completed.add(src);
+                }
+            }
+
+            // 清理：从通道移除并释放原生资源
+            if (completed != null) {
+                for (AudioSource src : completed) {
+                    ch.removeSource(src);
+                    if (src instanceof ClipSource clip) {
+                        clip.dispose(); // 释放 Java Sound Clip 及其原生音频线路
+                    }
                 }
             }
         }

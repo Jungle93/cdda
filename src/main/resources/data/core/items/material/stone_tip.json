@@ -1,0 +1,9 @@
+{
+  "id": 1084,
+  "name": "stone_tip",
+  "description": "打制的石制尖头 — 绑在木棍上可制成石矛",
+  "weightGrams": 150,
+  "volumeMl": 80,
+  "maxStackSize": 5,
+  "tags": ["crafting", "processing"]
+}

@@ -1,0 +1,9 @@
+{
+  "id": 1109,
+  "name": "rye_wheat",
+  "description": "未脱粒的黑麦穗 — 需要连枷脱粒后才能食用",
+  "weightGrams": 5,
+  "volumeMl": 15,
+  "maxStackSize": 30,
+  "tags": ["wheat", "processing"]
+}

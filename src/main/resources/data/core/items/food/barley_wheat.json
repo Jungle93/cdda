@@ -1,0 +1,9 @@
+{
+  "id": 1108,
+  "name": "barley_wheat",
+  "description": "未脱粒的大麦穗 — 需要连枷脱粒后才能食用",
+  "weightGrams": 5,
+  "volumeMl": 15,
+  "maxStackSize": 30,
+  "tags": ["wheat", "processing"]
+}

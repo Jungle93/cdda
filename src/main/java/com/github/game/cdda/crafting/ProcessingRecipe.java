@@ -18,6 +18,9 @@ public class ProcessingRecipe {
     /** 显示名称（如 "制作橡木板"） */
     public String name;
 
+    /** 配方分类（如 "weapon", "tool", "material", "food", "misc"），用于制作菜单分组 */
+    public String category;
+
     /** 输入物品 ID（如 "oak_log"） */
     public String inputItemId;
 
@@ -27,11 +30,14 @@ public class ProcessingRecipe {
     /** 所需工具标签（如 "chopping"），null 表示不需要工具 */
     public String toolRequired;
 
-    /** 加工时间（游戏秒） */
-    public int processingTime;
+    /** 加工时间（回合数） */
+    public long processingTime;
 
     /** 输出物品列表 */
     public List<Output> outputs;
+
+    /** 额外输入物品（可选，如合成石矛需要木矛+石尖+纤维绳） */
+    public List<Output> additionalInputs;
 
     /**
      * 输出物品定义。

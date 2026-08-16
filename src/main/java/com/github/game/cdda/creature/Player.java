@@ -4,6 +4,8 @@ import com.github.game.cdda.Constants;
 
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureActionContext;
+import com.github.game.cdda.item.model.ItemStack;
+import com.github.game.cdda.item.model.ItemType;
 import com.github.game.cdda.item.world.PlayerInventory;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.engine.core.Camera;
@@ -162,8 +164,8 @@ public class Player extends Creature {
 
     /**
      * 近战攻击目标生物。
-     * 伤害公式：基础伤害 = strength / 2，浮动 ±20%。
-     * 未来可扩展：装备武器时加上武器攻击加成。
+     * 伤害公式：基础伤害 = strength / 2 + 武器加成，浮动 ±20%。
+     * 武器加成：检测背包中的狩猎武器（"hunting" 标签），取最高加成。
      *
      * @param target 目标生物
      * @return 实际造成的伤害值
@@ -175,6 +177,10 @@ public class Player extends Creature {
         int baseDamage = strength / 2;
         // 至少造成 1 点伤害
         baseDamage = Math.max(1, baseDamage);
+
+        // 武器加成：扫描背包中最高伤害加成的狩猎武器
+        int weaponBonus = getBestWeaponBonus();
+        baseDamage += weaponBonus;
 
         // ±20% 随机浮动
         double variance = 0.8 + random.nextDouble() * 0.4; // 0.8 ~ 1.2
@@ -192,15 +198,53 @@ public class Player extends Creature {
 
         // 记录日志
         String targetName = getCreatureDisplayName(target);
+        String weaponStr = weaponBonus > 0 ? "（武器+" + weaponBonus + "）" : "";
         if (target.isAlive()) {
-            GameLog.getInstance().log(String.format("攻击了 %s，造成 %d 点伤害（剩余 %d/%d）",
-                    targetName, finalDamage, target.getHp(), target.getMaxHp()));
+            GameLog.getInstance().log(String.format("攻击了 %s，造成 %d 点伤害%s（剩余 %d/%d）",
+                    targetName, finalDamage, weaponStr, target.getHp(), target.getMaxHp()));
         } else {
-            GameLog.getInstance().log(String.format("击杀了 %s！（造成 %d 点伤害）",
-                    targetName, finalDamage));
+            GameLog.getInstance().log(String.format("击杀了 %s！（造成 %d 点伤害%s）",
+                    targetName, finalDamage, weaponStr));
         }
 
         return finalDamage;
+    }
+
+    /**
+     * 获取背包中最佳狩猎武器的伤害加成。
+     * 扫描背包所有物品，查找带有 "hunting" 标签的物品，
+     * 根据物品名称返回对应的伤害加成值。
+     *
+     * @return 最高武器加成（0 表示无武器）
+     */
+    private int getBestWeaponBonus() {
+        if (inventory == null) return 0;
+        int best = 0;
+        for (ItemStack stack : inventory.getItems()) {
+            if (stack == null || stack.isEmpty()) continue;
+            ItemType type = stack.getType();
+            // 检查 "hunting" 标签
+            if (!type.hasTag("hunting")) continue;
+            int bonus = getWeaponBonusForItem(type.getName());
+            if (bonus > best) {
+                best = bonus;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * 根据物品名称获取武器伤害加成。
+     * 使用常量配置，方便后续扩展和数据驱动。
+     */
+    private static int getWeaponBonusForItem(String itemName) {
+        return switch (itemName) {
+            case "stone_spear"    -> Constants.WEAPON_BONUS_STONE_SPEAR;
+            case "wooden_spear"   -> Constants.WEAPON_BONUS_WOODEN_SPEAR;
+            case "stone_axe"      -> Constants.WEAPON_BONUS_AXE;
+            case "rusty_knife"    -> Constants.WEAPON_BONUS_KNIFE;
+            default               -> 0;
+        };
     }
 
     /**
@@ -241,11 +285,15 @@ public class Player extends Creature {
         int scaledW = (int) (tileWidth * zoom);
         int scaledH = (int) (tileHeight * zoom);
 
-        // 优先使用精灵渲染
+        // 优先使用精灵渲染（支持可变尺寸）
         if (SpriteManager.hasActivePack()) {
             Sprite sprite = SpriteManager.getSprite("player");
             if (sprite != null) {
-                renderer.drawImage(sprite.getImage(), viewX, viewY, scaledW, scaledH);
+                int drawW = (int) (scaledW * sprite.getTileWidth());
+                int drawH = (int) (scaledH * sprite.getTileHeight());
+                int offsetX = (int) (sprite.getAnchorX() * drawW);
+                int offsetY = (int) (sprite.getAnchorY() * drawH);
+                renderer.drawImage(sprite.getImage(), viewX - offsetX, viewY - offsetY, drawW, drawH);
                 return;
             }
         }

@@ -414,6 +414,49 @@ public class ChunkManager {
     }
 
     /**
+     * 获取指定世界瓦片坐标的生长状态。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @return 生长状态，无植被或未加载返回 null
+     */
+    public com.github.game.cdda.world.vegetation.VegetationState getGrowthState(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        if (chunk == null) return null;
+
+        int localCol = floorMod(worldTileX, Chunk.SIZE);
+        int localRow = floorMod(worldTileY, Chunk.SIZE);
+        return chunk.getGrowthState(localCol, localRow);
+    }
+
+    /**
+     * 设置指定世界瓦片坐标的植被物种（播种时调用）。
+     *
+     * @param worldTileX 世界瓦片 X 坐标
+     * @param worldTileY 世界瓦片 Y 坐标
+     * @param speciesId  植被物种 ID
+     * @param state      生长状态
+     */
+    public void setVegetation(int worldTileX, int worldTileY, String speciesId,
+                              com.github.game.cdda.world.vegetation.VegetationState state) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        if (chunk == null) return;
+
+        int localCol = floorMod(worldTileX, Chunk.SIZE);
+        int localRow = floorMod(worldTileY, Chunk.SIZE);
+        chunk.setVegetation(localCol, localRow, speciesId);
+        if (state != null) {
+            chunk.setGrowthState(localCol, localRow, state);
+        }
+    }
+
+    /**
      * 清除指定世界瓦片坐标的植被（砍伐后调用）。
      *
      * @param worldTileX 世界瓦片 X 坐标

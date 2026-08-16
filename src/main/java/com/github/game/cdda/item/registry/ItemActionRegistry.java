@@ -95,5 +95,12 @@ public final class ItemActionRegistry {
         register("chopping", new ChopTreeAction());
         register("processing", new ProcessItemAction());
         register("cutting", new ButcherAction());
+        register("snaring", new com.github.game.cdda.item.action.SetSnareAction());
+        register("tracking", new com.github.game.cdda.item.action.TrackingAction());
+        register("gathering", new com.github.game.cdda.item.action.GatherStoneAction());
+        register("foraging", new com.github.game.cdda.item.action.GatherPlantAction());
+        register("tilling", new com.github.game.cdda.item.action.PrepareSoilAction());
+        register("sowing", new com.github.game.cdda.item.action.PlantSeedAction());
+        register("harvesting", new com.github.game.cdda.item.action.HarvestCropAction());
     }
 }

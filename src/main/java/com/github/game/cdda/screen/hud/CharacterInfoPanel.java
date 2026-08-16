@@ -141,8 +141,8 @@ public class CharacterInfoPanel implements StatusPanel {
     }
 
     /** 设置速度百分比 */
-    public void setSpeed(int percent) {
-        this.speedPercent = percent;
+    public void setSpeed(long percent) {
+        this.speedPercent = (int) percent;
     }
 
     /**

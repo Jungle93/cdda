@@ -126,6 +126,29 @@ public class CreatureGrid {
     }
 
     /**
+     * 查询指定瓦片上的所有存活生物。
+     *
+     * @param tileX 瓦片 X
+     * @param tileY 瓦片 Y
+     * @return 该位置的存活生物列表（可能为空，不含已死亡的生物）
+     */
+    public List<Creature> getAllAtTile(int tileX, int tileY) {
+        int cx = tileToChunk(tileX);
+        int cy = tileToChunk(tileY);
+        long key = chunkKey(cx, cy);
+        List<Creature> list = chunkMap.get(key);
+        if (list == null) return List.of();
+
+        List<Creature> result = new ArrayList<>();
+        for (Creature c : list) {
+            if (c.isAlive() && c.getTileX() == tileX && c.getTileY() == tileY) {
+                result.add(c);
+            }
+        }
+        return result;
+    }
+
+    /**
      * 查询指定半径（曼哈顿距离）内的所有存活生物。
      *
      * @param centerX     中心瓦片 X

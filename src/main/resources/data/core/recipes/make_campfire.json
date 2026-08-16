@@ -1,0 +1,15 @@
+{
+  "id": "make_campfire",
+  "name": "搭建营火",
+  "category": "misc",
+  "inputItemId": "birch_firewood",
+  "inputCount": 4,
+  "toolRequired": null,
+  "processingTime": 100,
+  "outputs": [
+    { "itemId": "campfire", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "small_branch", "count": 3 }
+  ]
+}

@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 地面物品管理器。
@@ -16,7 +18,7 @@ import java.util.List;
  * <p>职责：
  * <ul>
  *   <li>添加/移除地面物品</li>
- *   <li>按瓦片坐标查询物品</li>
+ *   <li>按瓦片坐标查询物品（空间索引 O(1)）</li>
  *   <li>提供所有地面物品列表（用于渲染）</li>
  * </ul>
  */
@@ -27,6 +29,38 @@ public class GroundItemManager {
     /** 所有地面物品 */
     private final List<GroundItem> groundItems = new ArrayList<>();
 
+    /** 空间索引：瓦片坐标 → 地面物品列表，O(1) 位置查询 */
+    private final Map<Long, List<GroundItem>> spatialIndex = new HashMap<>();
+
+    /**
+     * 将瓦片坐标编码为 long key。
+     */
+    private static long tileKey(int tileX, int tileY) {
+        return ((long) tileX << 32) | (tileY & 0xFFFFFFFFL);
+    }
+
+    /**
+     * 将地面物品添加到空间索引。
+     */
+    private void addToSpatialIndex(GroundItem item) {
+        long key = tileKey(item.getTileX(), item.getTileY());
+        spatialIndex.computeIfAbsent(key, k -> new ArrayList<>()).add(item);
+    }
+
+    /**
+     * 从空间索引移除地面物品。
+     */
+    private void removeFromSpatialIndex(GroundItem item) {
+        long key = tileKey(item.getTileX(), item.getTileY());
+        List<GroundItem> list = spatialIndex.get(key);
+        if (list != null) {
+            list.remove(item);
+            if (list.isEmpty()) {
+                spatialIndex.remove(key);
+            }
+        }
+    }
+
     /**
      * 添加地面物品。
      *
@@ -35,6 +69,7 @@ public class GroundItemManager {
     public void addGroundItem(GroundItem groundItem) {
         if (groundItem == null || groundItem.getItemStack().isEmpty()) return;
         groundItems.add(groundItem);
+        addToSpatialIndex(groundItem);
         logger.debug("添加地面物品: {} at [{},{}]",
                 groundItem.getItemStack().getType().getName(),
                 groundItem.getTileX(), groundItem.getTileY());
@@ -72,21 +107,25 @@ public class GroundItemManager {
      * @param groundItem 要移除的地面物品
      */
     public void removeGroundItem(GroundItem groundItem) {
+        removeFromSpatialIndex(groundItem);
         groundItems.remove(groundItem);
     }
 
     /**
-     * 获取指定瓦片的所有地面物品。
+     * 获取指定瓦片的所有地面物品（O(1) 空间索引查询）。
      *
      * @param tileX 瓦片 X
      * @param tileY 瓦片 Y
      * @return 该位置的地面物品列表（不可变，可能为空）
      */
     public List<GroundItem> getItemsAt(int tileX, int tileY) {
-        List<GroundItem> result = new ArrayList<>();
-        for (GroundItem item : groundItems) {
-            if (item.getTileX() == tileX && item.getTileY() == tileY
-                    && !item.getItemStack().isEmpty()) {
+        long key = tileKey(tileX, tileY);
+        List<GroundItem> list = spatialIndex.get(key);
+        if (list == null) return Collections.emptyList();
+        // 过滤空堆叠
+        List<GroundItem> result = new ArrayList<>(list.size());
+        for (GroundItem item : list) {
+            if (!item.getItemStack().isEmpty()) {
                 result.add(item);
             }
         }
@@ -94,18 +133,18 @@ public class GroundItemManager {
     }
 
     /**
-     * 检查指定瓦片是否有地面物品。
+     * 检查指定瓦片是否有地面物品（O(1) 空间索引查询）。
      *
      * @param tileX 瓦片 X
      * @param tileY 瓦片 Y
      * @return 是否有物品
      */
     public boolean hasItemAt(int tileX, int tileY) {
-        for (GroundItem item : groundItems) {
-            if (item.getTileX() == tileX && item.getTileY() == tileY
-                    && !item.getItemStack().isEmpty()) {
-                return true;
-            }
+        long key = tileKey(tileX, tileY);
+        List<GroundItem> list = spatialIndex.get(key);
+        if (list == null) return false;
+        for (GroundItem item : list) {
+            if (!item.getItemStack().isEmpty()) return true;
         }
         return false;
     }

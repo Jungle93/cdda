@@ -1,0 +1,12 @@
+{
+  "id": "make_stone_tip",
+  "name": "打制石尖",
+  "category": "material",
+  "inputItemId": "stone",
+  "inputCount": 2,
+  "toolRequired": "chopping",
+  "processingTime": 80,
+  "outputs": [
+    { "itemId": "stone_tip", "count": 1 }
+  ]
+}

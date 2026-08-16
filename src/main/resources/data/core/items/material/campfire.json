@@ -1,0 +1,9 @@
+{
+  "id": 1104,
+  "name": "campfire",
+  "description": "营火 — 用木头搭成的火堆，可用于烹饪和取暖",
+  "weightGrams": 2000,
+  "volumeMl": 3000,
+  "unique": true,
+  "tags": ["cooking", "fire"]
+}

@@ -1,0 +1,13 @@
+{
+  "id": 1100,
+  "name": "grain_porridge",
+  "description": "谷物粥 — 用谷粒熬制的热粥，暖胃又饱腹",
+  "weightGrams": 300,
+  "volumeMl": 400,
+  "maxStackSize": 3,
+  "consumableTypes": 1,
+  "calories": 250,
+  "satiety": 70,
+  "waterContent": 100,
+  "tags": ["cooked"]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "potato",
+  "name": "马铃薯",
+  "type": "CROP",
+  "tempMin": 8.0,
+  "tempMax": 25.0,
+  "humidityMin": 0.3,
+  "humidityMax": 0.8,
+  "soilMin": 0.4,
+  "soilMax": 1.0,
+  "probability": 0.0,
+  "minClusterSize": 1,
+  "maxClusterSize": 1,
+  "drops": [
+    { "itemId": "potato", "minCount": 2, "maxCount": 5, "chance": 1.0 },
+    { "itemId": "potato_seed", "minCount": 0, "maxCount": 1, "chance": 0.5 }
+  ],
+  "germinateFertility": 15.0,
+  "seedlingFertility": 12.0,
+  "growingFertility": 10.0,
+  "matureFertility": 8.0,
+  "dailyFertilityCost": 1.0,
+  "seedlingDays": 7,
+  "growingDays": 18,
+  "matureLifespanDays": 100,
+  "spreadProbability": 0.0
+}

@@ -1,0 +1,13 @@
+{
+  "id": "thresh_rye_wheat",
+  "name": "黑麦脱粒",
+  "category": "material",
+  "inputItemId": "rye_wheat",
+  "inputCount": 5,
+  "toolRequired": "threshing",
+  "processingTime": 40,
+  "outputs": [
+    { "itemId": "rye_grain", "count": 3 },
+    { "itemId": "chaff", "count": 2 }
+  ]
+}

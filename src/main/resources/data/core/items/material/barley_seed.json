@@ -1,0 +1,10 @@
+{
+  "id": 1090,
+  "name": "barley_seed",
+  "description": "大麦种子 — 播种在耕地上可种植大麦",
+  "weightGrams": 5,
+  "volumeMl": 20,
+  "maxStackSize": 20,
+  "producesCrop": "barley",
+  "tags": ["seed", "sowing"]
+}

@@ -9,6 +9,7 @@ import com.github.game.cdda.item.registry.ItemRegistry;
 import com.github.game.cdda.item.model.ItemStack;
 import com.github.game.cdda.item.model.ItemType;
 import com.github.game.cdda.log.GameLog;
+import com.github.game.cdda.screen.scene.GameScene;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.ChunkManager;
 import com.github.game.cdda.world.vegetation.VegetationDefinition;
@@ -86,43 +87,37 @@ public class ChopTreeAction implements ItemAction {
             return;
         }
 
+        // 检查是否已经在砍伐中
+        GameScene gameScene = GameScene.getActiveInstance();
+        if (gameScene != null && gameScene.isChopping()) {
+            GameLog.getInstance().log("你正在砍伐中...");
+            return;
+        }
+
         // 查询植被物种
         String speciesId = cm.getVegetation(tx, ty);
-        VegetationDefinition vegDef = (speciesId != null)
-                ? VegetationRegistry.getById(speciesId)
-                : null;
 
-        // 生成掉落物
-        int dropCount = generateDrops(vegDef, world, tx, ty);
-
-        // 恢复地面层瓦片（砍伐前该位置的地形，如草地、泥土等）
-        TileType groundTile = cm.getGroundTile(tx, ty);
-        cm.setTile(tx, ty, groundTile != null ? groundTile : TileType.GRASS);
-        cm.clearVegetation(tx, ty);
-
-        // 消耗回合时间
-        world.getTurnManager().addAction(player, Constants.CHOP_BASE_TIME);
-        world.getTurnManager().processRound();
-
-        // 日志
-        String vegName = (vegDef != null) ? vegDef.name : (tile == TileType.TREE ? "树" : "灌木");
-        if (dropCount > 0) {
-            GameLog.getInstance().log(String.format("你砍倒了一棵%s，获得了 %d 件物品", vegName, dropCount));
-        } else {
-            GameLog.getInstance().log(String.format("你砍倒了一棵%s", vegName));
+        // 委托给 GameScene 启动实时砍伐状态机
+        if (gameScene != null) {
+            gameScene.startChopping(tx, ty, speciesId, tile);
         }
     }
 
     /**
-     * 根据植被定义生成掉落物。
+     * 根据植被物种 ID 生成掉落物。
+     * 由 GameScene 在砍伐完成时调用。
      *
-     * @param def    植被定义（可为 null）
-     * @param world  游戏世界
-     * @param tileX  掉落位置的瓦片 X
-     * @param tileY  掉落位置的瓦片 Y
+     * @param speciesId 植被物种 ID（可为 null）
+     * @param world     游戏世界
+     * @param tileX     掉落位置的瓦片 X
+     * @param tileY     掉落位置的瓦片 Y
      * @return 实际掉落的物品堆数
      */
-    private int generateDrops(VegetationDefinition def, GameWorld world, int tileX, int tileY) {
+    public static int generateDrops(String speciesId, GameWorld world, int tileX, int tileY) {
+        VegetationDefinition def = (speciesId != null)
+                ? VegetationRegistry.getById(speciesId)
+                : null;
+
         if (def == null || def.drops == null || def.drops.isEmpty()) {
             // 无定义时使用默认掉落（少量树枝）
             return dropDefaultLoot(world, tileX, tileY);
@@ -159,7 +154,7 @@ public class ChopTreeAction implements ItemAction {
     /**
      * 默认掉落物（无植被定义时）。
      */
-    private int dropDefaultLoot(GameWorld world, int tileX, int tileY) {
+    private static int dropDefaultLoot(GameWorld world, int tileX, int tileY) {
         GroundItemManager gim = world.getGroundItemManager();
 
         // 默认掉落 1-2 个树枝

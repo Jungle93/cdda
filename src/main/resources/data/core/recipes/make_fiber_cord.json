@@ -1,0 +1,12 @@
+{
+  "id": "make_fiber_cord",
+  "name": "搓制纤维绳",
+  "category": "material",
+  "inputItemId": "grass_bundle",
+  "inputCount": 2,
+  "toolRequired": null,
+  "processingTime": 60,
+  "outputs": [
+    { "itemId": "fiber_cord", "count": 1 }
+  ]
+}

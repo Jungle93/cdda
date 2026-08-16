@@ -1,0 +1,12 @@
+{
+  "id": "make_wooden_spear",
+  "name": "制作木矛",
+  "category": "weapon",
+  "inputItemId": "small_branch",
+  "inputCount": 3,
+  "toolRequired": "cutting",
+  "processingTime": 120,
+  "outputs": [
+    { "itemId": "wooden_spear", "count": 1 }
+  ]
+}

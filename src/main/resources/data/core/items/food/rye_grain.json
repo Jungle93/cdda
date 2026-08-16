@@ -1,0 +1,13 @@
+{
+  "id": 1096,
+  "name": "rye_grain",
+  "description": "黑麦粒 — 可磨粉或煮粥，耐寒性比大麦更好",
+  "weightGrams": 3,
+  "volumeMl": 10,
+  "maxStackSize": 30,
+  "consumableTypes": 1,
+  "calories": 20,
+  "satiety": 10,
+  "waterContent": 0,
+  "tags": ["grain", "processing"]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "craft_stone_sickle",
+  "name": "制作石镰",
+  "category": "weapon",
+  "inputItemId": "stone_tip",
+  "inputCount": 1,
+  "toolRequired": "cutting",
+  "processingTime": 80,
+  "outputs": [
+    { "itemId": "stone_sickle", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "small_branch", "count": 1 },
+    { "itemId": "fiber_cord", "count": 1 }
+  ]
+}

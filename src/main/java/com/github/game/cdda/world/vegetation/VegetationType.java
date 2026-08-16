@@ -18,7 +18,10 @@ public enum VegetationType {
     MOSS("苔藓", ','),
 
     /** 水生植物 — 不可通过，生长于水边 */
-    AQUATIC("水生", '‖');
+    AQUATIC("水生", '‖'),
+
+    /** 农作物 — 可通过，需要播种，可收获 */
+    CROP("作物", 'i');
 
     private final String displayName;
     private final char defaultChar;

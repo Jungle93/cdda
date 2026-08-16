@@ -1,6 +1,7 @@
 {
   "id": "oak_log_to_planks",
   "name": "制作橡木板",
+  "category": "material",
   "inputItemId": "oak_log",
   "inputCount": 1,
   "toolRequired": "chopping",

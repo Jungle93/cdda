@@ -46,6 +46,8 @@ public class InputStateMachine {
         void pushDebugMenu();
         /** 推入物品栏界面（I 触发） */
         void pushInventoryScreen();
+        /** 推入制作界面（F1 触发） */
+        void pushCraftingScreen();
         /** 推入进食界面（E 触发） */
         void pushEatingScreen();
         /** 推入丢弃物品界面（D 触发） */
@@ -302,6 +304,9 @@ public class InputStateMachine {
                 return;
             case KeyEvent.VK_I:
                 overlayCallback.pushInventoryScreen();
+                return;
+            case KeyEvent.VK_F1:
+                overlayCallback.pushCraftingScreen();
                 return;
             case KeyEvent.VK_E:
                 overlayCallback.pushEatingScreen();

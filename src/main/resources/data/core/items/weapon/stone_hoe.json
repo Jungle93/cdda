@@ -1,0 +1,9 @@
+{
+  "id": 1105,
+  "name": "stone_hoe",
+  "description": "石锄 — 用来翻耕土地的农具",
+  "weightGrams": 700,
+  "volumeMl": 300,
+  "unique": true,
+  "tags": ["tilling"]
+}

@@ -40,13 +40,13 @@ public final class Constants {
     // ── 玩家 ──────────────────────────────────────
     // 注：玩家速度已迁移到时间系统常量 ENTITY_DEFAULT_SPEED
 
-    // ── 时间系统 ──────────────────────────────────────
-    /** 默认实体速度（= 正常步行，映射 1.2 m/s） */
-    public static final int ENTITY_DEFAULT_SPEED = 100;
-    /** 移动一步的基础时间（游戏秒）。speed=100时每步=10游戏秒 */
-    public static final int MOVE_BASE_TIME = 10;
+    // ── 回合系统 ──────────────────────────────────────
+    /** 默认实体速度（= 正常步行） */
+    public static final long ENTITY_DEFAULT_SPEED = 100;
+    /** 移动一步的基础回合数。speed=100时每步=10回合 */
+    public static final long MOVE_BASE_TIME = 10;
     /** 每次行动消耗的能量点数 */
-    public static final int ENERGY_PER_ACTION = 100;
+    public static final long ENERGY_PER_ACTION = 100;
 
     // ── 温度系统 ──────────────────────────────────────
     /** 日内温度波动振幅（°C）。14:00 峰值+amplitude，02:00 谷值-amplitude */
@@ -61,32 +61,56 @@ public final class Constants {
     // ── 物品系统 ──────────────────────────────────────
     /** 每点力量的携带量（克）。strength × 此值 = 最大携带重量 */
     public static final int CARRY_PER_STRENGTH = 5000;
-    /** 拾取动作的基础时间（游戏秒） */
-    public static final int PICKUP_BASE_TIME = 50;
-    /** 丢弃动作的基础时间（游戏秒） */
-    public static final int DROP_BASE_TIME = 30;
+    /** 拾取动作的基础回合数 */
+    public static final long PICKUP_BASE_TIME = 50;
+    /** 丢弃动作的基础回合数 */
+    public static final long DROP_BASE_TIME = 30;
     /** 地面物品显示字符 */
     public static final char GROUND_ITEM_CHAR = '~';
     /** 拾取动作的脱水倍率 */
     public static final double ADD_THIRST_PICKUP = 1.0;
-    /** 进食/饮水动作的基础时间（游戏秒） */
-    public static final int EAT_BASE_TIME = 50;
+    /** 进食/饮水动作的基础回合数 */
+    public static final long EAT_BASE_TIME = 50;
     /** 药品默认回复量（HP） */
     public static final int MEDICINE_HEAL_AMOUNT = 20;
-    /** 近战攻击动作的基础时间（游戏秒） */
-    public static final int ATTACK_BASE_TIME = 80;
-    /** 砍树动作的基础时间（游戏秒） */
-    public static final int CHOP_BASE_TIME = 150;
-    /** 加工/制造动作的基础时间（游戏秒） */
-    public static final int CRAFT_BASE_TIME = 100;
+    /** 近战攻击动作的基础回合数 */
+    public static final long ATTACK_BASE_TIME = 80;
+    /** 砍树动作的基础回合数 */
+    public static final long CHOP_BASE_TIME = 150;
+    /** 砍伐树木需要的游戏回合数 */
+    public static final long CHOP_ROUNDS_TREE = 30;
+    /** 砍伐灌木需要的游戏回合数 */
+    public static final long CHOP_ROUNDS_BUSH = 10;
+    /** 树木倒地音效播放时长（毫秒） */
+    public static final long FALL_SOUND_DURATION_MS = 3_000;
+    /** 加工/制造动作的基础回合数 */
+    public static final long CRAFT_BASE_TIME = 100;
+
+    // ── 狩猎系统 ──────────────────────────────────────
+    /** 追踪揭示范围（瓦片数） */
+    public static final int HUNT_TRACK_RANGE = 15;
+    /** 放置陷阱消耗的回合数 */
+    public static final long SNARE_PLACE_TIME = 100;
+    /** 陷阱检测间隔（回合数）——每经过这么多回合检查一次陷阱 */
+    public static final long SNARE_CHECK_INTERVAL = 50;
+    /** 圈套陷阱基础捕获概率（0.0~1.0） */
+    public static final double SNARE_CATCH_CHANCE = 0.4;
+    /** 木矛伤害加成 */
+    public static final int WEAPON_BONUS_WOODEN_SPEAR = 6;
+    /** 石矛伤害加成 */
+    public static final int WEAPON_BONUS_STONE_SPEAR = 10;
+    /** 小刀伤害加成 */
+    public static final int WEAPON_BONUS_KNIFE = 3;
+    /** 石斧伤害加成（也可当武器） */
+    public static final int WEAPON_BONUS_AXE = 5;
 
     // ── 代谢系统 ──────────────────────────────────────
     /** 最大能量储备（cal）。≈ 2500 kcal × 1000倍率，约2.5天基础消耗 */
     public static final int CALORIE_MAX_POOL = 2_500_000;
     /** 初始能量百分比（0.0~1.0）。游戏开始时不饿但也不满 */
     public static final double CALORIE_INITIAL_PERCENT = 0.8;
-    /** 基础代谢率（cal/游戏秒）。28 × 86400 ≈ 2,419,200 cal/天 */
-    public static final int BASAL_METABOLISM_RATE = 28;
+    /** 基础代谢率（cal/回合）。28 × 86400 ≈ 2,419,200 cal/天 */
+    public static final long BASAL_METABOLISM_RATE = 28;
     /** 舒适区温度下限（°C）。在此范围内无额外环境代偿消耗 */
     public static final double COMFORT_TEMP_MIN = 18.0;
     /** 舒适区温度上限（°C） */
@@ -101,8 +125,8 @@ public final class Constants {
     public static final double BODY_TEMP_DRIFT_RATE = 0.0002;
     /** 体温缓冲最大值。有能量时用于延缓体温偏离 */
     public static final int BODY_TEMP_BUFFER_MAX = 5000;
-    /** 等待一回合的基础时间（游戏秒）。≈ 10步的时间 */
-    public static final int WAIT_BASE_TIME = 100;
+    /** 等待一回合的基础回合数。≈ 10步的时间 */
+    public static final long WAIT_BASE_TIME = 100;
 
     // ── 口渴系统 ──────────────────────────────────────
     /** 最大水分值。100% = 完全水合 */

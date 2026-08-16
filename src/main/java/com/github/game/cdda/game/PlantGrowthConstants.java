@@ -161,6 +161,7 @@ public final class PlantGrowthConstants {
         return switch (plantType.toLowerCase()) {
             case "tree" -> TREE_GERMINATE_FERTILITY;
             case "shrub" -> SHRUB_GERMINATE_FERTILITY;
+            case "crop" -> 15.0; // 农作物发芽需中等肥力
             default -> HERB_GERMINATE_FERTILITY;
         };
     }
@@ -172,6 +173,7 @@ public final class PlantGrowthConstants {
         return switch (plantType.toLowerCase()) {
             case "tree" -> TREE_SEEDLING_FERTILITY;
             case "shrub" -> SHRUB_SEEDLING_FERTILITY;
+            case "crop" -> 12.0; // 农作物幼苗需中等肥力
             default -> HERB_SEEDLING_FERTILITY;
         };
     }
@@ -183,6 +185,7 @@ public final class PlantGrowthConstants {
         return switch (plantType.toLowerCase()) {
             case "tree" -> TREE_GROWING_FERTILITY;
             case "shrub" -> SHRUB_GROWING_FERTILITY;
+            case "crop" -> 10.0;
             default -> HERB_GROWING_FERTILITY;
         };
     }
@@ -194,6 +197,7 @@ public final class PlantGrowthConstants {
         return switch (plantType.toLowerCase()) {
             case "tree" -> TREE_MATURE_FERTILITY;
             case "shrub" -> SHRUB_MATURE_FERTILITY;
+            case "crop" -> 8.0;
             default -> HERB_MATURE_FERTILITY;
         };
     }
@@ -206,6 +210,7 @@ public final class PlantGrowthConstants {
             case "tree" -> TREE_DAILY_FERTILITY_COST;
             case "shrub" -> SHRUB_DAILY_FERTILITY_COST;
             case "flower" -> FLOWER_DAILY_FERTILITY_COST;
+            case "crop" -> 0.8; // 农作物每日消耗少量肥力
             default -> HERB_DAILY_FERTILITY_COST;
         };
     }
@@ -218,6 +223,7 @@ public final class PlantGrowthConstants {
             case "tree" -> TREE_SEEDLING_DAYS;
             case "shrub" -> SHRUB_SEEDLING_DAYS;
             case "flower" -> FLOWER_SEEDLING_DAYS;
+            case "crop" -> 6; // 农作物幼苗期约 6 天
             default -> GRASS_SEEDLING_DAYS;
         };
     }
@@ -230,6 +236,7 @@ public final class PlantGrowthConstants {
             case "tree" -> TREE_GROWING_DAYS;
             case "shrub" -> SHRUB_GROWING_DAYS;
             case "flower" -> FLOWER_GROWING_DAYS;
+            case "crop" -> 17; // 农作物生长期约 17 天
             default -> GRASS_GROWING_DAYS;
         };
     }
@@ -242,6 +249,7 @@ public final class PlantGrowthConstants {
             case "tree" -> TREE_MATURE_LIFESPAN_DAYS;
             case "shrub" -> SHRUB_MATURE_LIFESPAN_DAYS;
             case "flower" -> FLOWER_MATURE_LIFESPAN_DAYS;
+            case "crop" -> 100; // 农作物成熟后可存活约 100 天
             default -> GRASS_MATURE_LIFESPAN_DAYS;
         };
     }
@@ -253,6 +261,7 @@ public final class PlantGrowthConstants {
         return switch (plantType.toLowerCase()) {
             case "shrub" -> SHRUB_SPREAD_PROBABILITY;
             case "tree" -> TREE_SPREAD_PROBABILITY;
+            case "crop" -> 0.0; // 农作物不自然传播
             default -> GRASS_SPREAD_PROBABILITY;
         };
     }

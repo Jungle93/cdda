@@ -1,0 +1,9 @@
+{
+  "id": 1085,
+  "name": "stone",
+  "description": "一块石头，可用于打制工具或作为原始武器投掷",
+  "weightGrams": 300,
+  "volumeMl": 150,
+  "maxStackSize": 5,
+  "tags": ["crafting", "throwing", "processing"]
+}

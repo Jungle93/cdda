@@ -1,0 +1,9 @@
+{
+  "id": 1081,
+  "name": "stone_spear",
+  "description": "绑有石制尖头的长矛 — 比木矛更锋利，是可靠的狩猎武器",
+  "weightGrams": 900,
+  "volumeMl": 900,
+  "unique": true,
+  "tags": ["hunting", "throwing"]
+}

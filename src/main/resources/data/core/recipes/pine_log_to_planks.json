@@ -1,6 +1,7 @@
 {
   "id": "pine_log_to_planks",
   "name": "制作松木板",
+  "category": "material",
   "inputItemId": "pine_log",
   "inputCount": 1,
   "toolRequired": "chopping",

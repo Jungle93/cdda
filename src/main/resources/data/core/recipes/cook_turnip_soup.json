@@ -1,0 +1,15 @@
+{
+  "id": "cook_turnip_soup",
+  "name": "煮芜菁汤",
+  "category": "food",
+  "inputItemId": "turnip",
+  "inputCount": 3,
+  "toolRequired": "cooking",
+  "processingTime": 80,
+  "outputs": [
+    { "itemId": "turnip_soup", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "water_bottle", "count": 1 }
+  ]
+}

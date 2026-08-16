@@ -1,6 +1,7 @@
 {
   "id": "fir_log_to_planks",
   "name": "制作冷杉板",
+  "category": "material",
   "inputItemId": "fir_log",
   "inputCount": 1,
   "toolRequired": "chopping",

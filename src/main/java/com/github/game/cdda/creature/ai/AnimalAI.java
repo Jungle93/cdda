@@ -224,12 +224,18 @@ public class AnimalAI {
             case GRAZE:
                 // 吃草 → 增加 bodyEnergy
                 graze(animal);
-                // 30% 概率随机移动一步
-                if (random.nextInt(100) < 30) {
-                    int dx = random.nextInt(3) - 1;
-                    int dy = random.nextInt(3) - 1;
-                    if (dx != 0 || dy != 0) {
-                        tryMove(animal, dx, dy, context);
+                // 觅食移动：优先走向有食物的瓦片（草丛/花/灌木），而非完全随机
+                if (random.nextInt(100) < 40) {
+                    int[] foodDir = findFoodDirection(animal, context);
+                    if (foodDir != null) {
+                        tryMove(animal, foodDir[0], foodDir[1], context);
+                    } else {
+                        // 附近没有食物，随机漫步
+                        int dx = random.nextInt(3) - 1;
+                        int dy = random.nextInt(3) - 1;
+                        if (dx != 0 || dy != 0) {
+                            tryMove(animal, dx, dy, context);
+                        }
                     }
                 }
                 break;
@@ -473,6 +479,21 @@ public class AnimalAI {
             return false;
         }
 
+        // 陷阱感知：动物在移动前有机会发现并避开陷阱
+        com.github.game.cdda.GameWorld world = com.github.game.cdda.GameWorld.getInstance();
+        if (world != null && world.getTrapManager() != null) {
+            var trap = world.getTrapManager().getTrapAt(newX, newY);
+            if (trap != null && trap.getState() == com.github.game.cdda.trap.PlacedTrap.State.ARMED) {
+                // 陷阱感知概率：基于动物的感知力和体型
+                double awarenessChance = getTrapAwarenessChance(animal);
+                if (random.nextDouble() < awarenessChance) {
+                    // 动物察觉到陷阱，拒绝移动到此方向
+                    return false;
+                }
+                // 未察觉 → 继续移动，踩中陷阱
+            }
+        }
+
         // 记录旧位置，用于更新空间索引
         int oldX = animal.getTileX();
         int oldY = animal.getTileY();
@@ -487,7 +508,72 @@ public class AnimalAI {
                     .move(animal, oldX, oldY, newX, newY);
         }
 
+        // 移动后再次检查陷阱（对已感知但被迫移动的情况也生效）
+        if (world != null && world.getTrapManager() != null) {
+            world.getTrapManager().checkTrapAt(newX, newY, animal);
+            if (!animal.isAlive()) return true;
+        }
+
         return true;
+    }
+
+    /**
+     * 在周围 3×3 范围内寻找食物瓦片（草丛/花），返回朝向食物的方向。
+     * 优先选择有 TALL_GRASS、FLOWER、DEAD_GRASS 的瓦片。
+     * 找不到时返回 null。
+     *
+     * @return int[]{dx, dy} 或 null
+     */
+    private int[] findFoodDirection(com.github.game.cdda.creature.Animal animal, CreatureActionContext context) {
+        ChunkManager cm = context.getChunkManager();
+        int ax = animal.getTileX();
+        int ay = animal.getTileY();
+
+        // 收集所有有食物的方向
+        java.util.List<int[]> foodDirs = new java.util.ArrayList<>();
+
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                TileType t = cm.getTile(ax + dx, ay + dy);
+                if (t == TileType.TALL_GRASS || t == TileType.FLOWER
+                        || t == TileType.DEAD_GRASS || t == TileType.BUSH) {
+                    foodDirs.add(new int[]{dx, dy});
+                }
+            }
+        }
+
+        if (foodDirs.isEmpty()) return null;
+        return foodDirs.get(random.nextInt(foodDirs.size()));
+    }
+
+    /**
+     * 计算动物对陷阱的感知概率。
+     * 基于感知力和体型：感知力越高、体型越大，越容易察觉陷阱。
+     * <ul>
+     *   <li>小型动物（兔/松鼠）：5-15%（容易上钩）</li>
+     *   <li>中型动物（狐狸/獾）：20-35%</li>
+     *   <li>大型动物（鹿/野猪）：35-50%（难以用陷阱捕获）</li>
+     * </ul>
+     */
+    private double getTrapAwarenessChance(com.github.game.cdda.creature.Animal animal) {
+        int vision = animal.getVisionRange();
+        int hp = animal.getMaxHp();
+
+        // 基础感知：感知范围贡献 2% 每点（最多 ~20%）
+        double base = Math.min(0.20, vision * 0.02);
+
+        // 体型加成：HP 越高越警觉
+        if (hp <= 10) {
+            // 小型：兔子、松鼠 — 警觉性低
+            return base * 0.5;  // 最高 10%
+        } else if (hp <= 30) {
+            // 中型：狐狸、獾
+            return base * 1.0;  // 最高 20%
+        } else {
+            // 大型：鹿、野猪
+            return base * 1.5 + 0.15; // 基础 15% + 感知加成
+        }
     }
 
     /**

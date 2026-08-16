@@ -2,10 +2,12 @@ package com.github.game.cdda.screen.scene;
 
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.config.ConfigManager;
+import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.Player;
 import com.github.game.engine.core.EngineServices;
 import com.github.game.cdda.creature.CreatureActionContext;
 import com.github.game.cdda.creature.CreatureManager;
+import com.github.game.cdda.item.action.ChopTreeAction;
 import com.github.game.cdda.item.world.GroundItem;
 import com.github.game.cdda.item.world.GroundItemManager;
 import com.github.game.cdda.item.model.ItemStack;
@@ -48,7 +50,7 @@ import java.util.List;
  * <p>需要延迟初始化：Camera 的创建依赖 Renderer 的 FontMetrics，
  * 通过 {@link #ensureInitialized(Renderer)} 在首帧渲染时完成。
  */
-public class GameScene extends Scene {
+public class GameScene extends Scene implements TileMap.TileLayerRenderer {
 
     private final GameWorld world;
     private final int fontSize;
@@ -88,6 +90,55 @@ public class GameScene extends Scene {
     private long fpsLastTime = System.currentTimeMillis();
     private int currentFps = 0;
 
+    // ── 行走音效看门狗 ──────────────────────────────────
+
+    /** 行走音效动作名（用于 playActionSound/stopActionSound 绑定） */
+    private static final String WALK_ACTION = "walk";
+
+    /**
+     * 看门狗续期阈值（毫秒）。
+     * 玩家超过此时间未移动，自动停止行走音效。
+     * 需大于 OS 按键重复间隔（通常 ~250ms），避免正常连走时被误停。
+     */
+    private static final long WALK_WATCHDOG_MS = 500;
+
+    /** 上次成功移动的时间戳（毫秒），用于看门狗续期 */
+    private long lastMoveTimeMs = 0;
+
+    // ── 静态实例引用（供 ChopTreeAction 等外部类访问） ──────────────────────────────────
+
+    /** 当前活跃的 GameScene 实例（单例场景，与 GameLog 模式一致） */
+    private static GameScene activeInstance;
+
+    /** 获取当前活跃的 GameScene 实例 */
+    public static GameScene getActiveInstance() { return activeInstance; }
+
+    // ── 砍伐状态机 ──────────────────────────────────
+
+    /** 砍伐音效动作名 */
+    private static final String CHOP_ACTION = "chop";
+
+    /** 砍伐阶段 */
+    private enum ChopPhase { IDLE, FALLING }
+
+    /** 当前砍伐阶段 */
+    private ChopPhase chopPhase = ChopPhase.IDLE;
+
+    /** 砍伐目标瓦片坐标 */
+    private int chopTileX, chopTileY;
+
+    /** 砍伐需要的总回合数（用于日志） */
+    private long chopRoundsTotal;
+
+    /** FALLING 阶段开始时间（现实毫秒） */
+    private long chopPhaseStartMs;
+
+    /** 植被物种 ID（用于掉落计算） */
+    private String chopSpeciesId;
+
+    /** 原始瓦片类型（TREE / BUSH，用于区分回合数和日志） */
+    private TileType chopOriginalTile;
+
     /**
      * 创建游戏世界场景。
      *
@@ -97,6 +148,7 @@ public class GameScene extends Scene {
      */
     public GameScene(Viewport viewport, GameWorld world, int fontSize) {
         super(viewport);
+        activeInstance = this;
         this.world = world;
         this.fontSize = fontSize;
     }
@@ -195,6 +247,48 @@ public class GameScene extends Scene {
 
         // 4) 应用生物回合后台计算结果（出生、死亡、迁徙）
         creatureManager.applyPendingCreatureMutations();
+
+        // 5) 行走音效看门狗：玩家长时间未移动时自动停止
+        if (lastMoveTimeMs > 0) {
+            long idle = System.currentTimeMillis() - lastMoveTimeMs;
+            if (idle > WALK_WATCHDOG_MS) {
+                var audio = EngineServices.audio;
+                if (audio != null && audio.isActionSoundPlaying(WALK_ACTION)) {
+                    audio.stopActionSound(WALK_ACTION);
+                }
+                lastMoveTimeMs = 0; // 重置，避免重复检查
+            }
+        }
+
+        // 6) 砍伐状态机：驱动回合推进和阶段转换
+        updateChopStateMachine();
+    }
+
+    /**
+     * 砍伐状态机更新（每帧调用）。
+     * 仅处理 FALLING 阶段：等待倒地音效播放完毕后执行 completeChopping()。
+     * CHOPPING 阶段的回合推进在 startChopping() 中一次性完成。
+     */
+    private void updateChopStateMachine() {
+        if (chopPhase != ChopPhase.FALLING) return;
+
+        long now = System.currentTimeMillis();
+        if (now - chopPhaseStartMs >= Constants.FALL_SOUND_DURATION_MS) {
+            completeChopping();
+            chopPhase = ChopPhase.IDLE;
+        }
+    }
+
+    @Override
+    public void dispose() {
+        // 场景销毁时停止行走和砍伐音效，避免残留
+        var audio = EngineServices.audio;
+        if (audio != null) {
+            audio.stopActionSound(WALK_ACTION);
+            audio.stopActionSound(CHOP_ACTION);
+        }
+        lastMoveTimeMs = 0;
+        chopPhase = ChopPhase.IDLE;
     }
 
     @Override
@@ -204,17 +298,15 @@ public class GameScene extends Scene {
         int tileW = tileMap.getTileWidth();
         int tileH = tileMap.getTileHeight();
 
-        // 渲染瓦片地图
-        tileMap.render(renderer, camera);
+        // 按 tile 图层循环渲染（地形 → 物品 → 生物 → 覆盖层）
+        // this 实现 TileLayerRenderer，提供物品和生物图层回调
+        tileMap.render(renderer, camera, this);
 
-        // 渲染地面物品
-        renderGroundItems(renderer, tileW, tileH);
-
-        // 渲染生物（在玩家之下）
-        creatureManager.renderCreatures(renderer, camera, tileW, tileH);
-
-        // 渲染玩家
+        // 渲染玩家（在生物层之上）
         player.render(renderer, camera, tileW, tileH);
+
+        // 渲染砍伐进度条（在目标瓦片上方）
+        renderChopProgress(renderer, tileW, tileH);
 
         // 渲染调试信息（场景局部坐标，左上角）
         renderDebugInfo(renderer);
@@ -307,11 +399,148 @@ public class GameScene extends Scene {
         renderer.drawText(thirstStr, 4, metabY + (debugFontSize + 2));
     }
 
+    // ── 砍伐状态机方法 ──────────────────────────────────
+
+    /**
+     * 是否正在砍伐（含 CHOPPING 和 FALLING 阶段）。
+     * 砍伐期间玩家不能移动或执行其他动作。
+     */
+    public boolean isChopping() {
+        return chopPhase != ChopPhase.IDLE;
+    }
+
+    /**
+     * 开始砍伐。由 ChopTreeAction 调用。
+     * 立即推进所有游戏回合（世界时间 + 生物行动 + 代谢），然后进入 FALLING 阶段等待倒地音效。
+     *
+     * @param tileX     目标瓦片 X
+     * @param tileY     目标瓦片 Y
+     * @param speciesId 植被物种 ID（用于掉落计算，可为 null）
+     * @param tile      原始瓦片类型（TREE 或 BUSH）
+     */
+    public void startChopping(int tileX, int tileY, String speciesId, TileType tile) {
+        chopTileX = tileX;
+        chopTileY = tileY;
+        chopSpeciesId = speciesId;
+        chopOriginalTile = tile;
+        chopRoundsTotal = (tile == TileType.TREE)
+                ? Constants.CHOP_ROUNDS_TREE
+                : Constants.CHOP_ROUNDS_BUSH;
+
+        // 停止行走音效（砍伐时不能移动）
+        var audio = EngineServices.audio;
+        if (audio != null) {
+            audio.stopActionSound(WALK_ACTION);
+            audio.playActionSound(CHOP_ACTION, "audio/sfx/felling.mp3", 0.7f);
+        }
+        lastMoveTimeMs = 0;
+
+        // 立即推进所有游戏回合（时间 + 生物 + 代谢）
+        for (int i = 0; i < chopRoundsTotal; i++) {
+            turnManager.addAction(player, Constants.CHOP_BASE_TIME);
+            metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);
+            metabolismManager.update();
+            hydrationManager.addAction(Constants.ADD_THIRST_COMBAT);
+            hydrationManager.update();
+            requestCreatureTurns();
+            turnManager.processRound();
+            world.updatePlantGrowth();
+        }
+
+        // 伐木完成 → 停止伐木声，播放倒地声，进入 FALLING 阶段
+        if (audio != null) {
+            audio.stopActionSound(CHOP_ACTION);
+            audio.playSFX("audio/sfx/tree_fallen.mp3", false, 0.8f);
+        }
+        chopPhase = ChopPhase.FALLING;
+        chopPhaseStartMs = System.currentTimeMillis();
+
+        String vegName = tile == TileType.TREE ? "树" : "灌木";
+        GameLog.getInstance().log(String.format("经过 %d 回合的砍伐，%s终于倒下了...", chopRoundsTotal, vegName));
+    }
+
+    /** 取消砍伐（ESC 触发）。已消耗的回合不退。 */
+    private void cancelChopping() {
+        var audio = EngineServices.audio;
+        if (audio != null) {
+            audio.stopActionSound(CHOP_ACTION);
+        }
+        chopPhase = ChopPhase.IDLE;
+        GameLog.getInstance().log("砍伐被取消了");
+    }
+
+    /**
+     * 砍伐完成：移除植被、生成掉落物、推进游戏时间。
+     * 在 FALLING 阶段结束后调用。
+     */
+    private void completeChopping() {
+        // 恢复地面层瓦片
+        TileType groundTile = chunkManager.getGroundTile(chopTileX, chopTileY);
+        chunkManager.setTile(chopTileX, chopTileY,
+                groundTile != null ? groundTile : TileType.GRASS);
+        chunkManager.clearVegetation(chopTileX, chopTileY);
+
+        // 生成掉落物
+        int dropCount = ChopTreeAction.generateDrops(chopSpeciesId, world, chopTileX, chopTileY);
+
+        // 日志
+        String vegName = (chopOriginalTile == TileType.TREE) ? "树" : "灌木";
+        if (dropCount > 0) {
+            GameLog.getInstance().log(String.format("你砍倒了一棵%s，获得了 %d 件物品", vegName, dropCount));
+        } else {
+            GameLog.getInstance().log(String.format("你砍倒了一棵%s", vegName));
+        }
+    }
+
+    /**
+     * 渲染砍伐进度（FALLING 阶段：树木倒下动画）。
+     */
+    private void renderChopProgress(Renderer renderer, int tileW, int tileH) {
+        if (chopPhase != ChopPhase.FALLING) return;
+
+        // 计算目标瓦片的屏幕坐标
+        int viewX = chopTileX * tileW - (int) camera.getX();
+        int viewY = chopTileY * tileH - (int) camera.getY();
+
+        // 进度条尺寸
+        int barWidth = tileW;
+        int barHeight = 4;
+        int barX = viewX;
+        int barY = viewY - barHeight - 6;
+
+        // 进度比例（倒地音效播放进度）
+        long elapsed = System.currentTimeMillis() - chopPhaseStartMs;
+        float progress = Math.min(1.0f, (float) elapsed / Constants.FALL_SOUND_DURATION_MS);
+
+        // 背景（深灰）
+        renderer.setColor(new Color(50, 50, 50));
+        renderer.fillRect(barX, barY, barWidth, barHeight);
+
+        // 前景（橙色 — 表示倒下中）
+        renderer.setColor(new Color(255, 165, 0));
+        renderer.fillRect(barX, barY, (int) (barWidth * progress), barHeight);
+
+        // 文字提示
+        renderer.setFont(new Font("Monospaced", Font.PLAIN, 10));
+        renderer.setColor(Color.WHITE);
+        String text = "倒下...";
+        int textX = barX + (barWidth - renderer.getTextWidth(text)) / 2;
+        renderer.drawText(text, textX, barY - 2);
+    }
+
     // ── 输入处理 ──────────────────────────────────
 
     @Override
     public void onKeyPressed(int keyCode) {
         if (!initialized) return;
+
+        // ── 砍伐期间拦截所有输入（ESC 可取消） ──
+        if (isChopping()) {
+            if (keyCode == KeyEvent.VK_ESCAPE) {
+                cancelChopping();
+            }
+            return;
+        }
 
         // ── 等待动作（时间流逝但不做其他事） ──
         if (handleWait(keyCode)) return;
@@ -337,6 +566,12 @@ public class GameScene extends Scene {
 
         if (target != null) {
             // 近战攻击（消耗 ATTACK_BASE_TIME）
+            // 攻击时停止行走音效
+            var attackAudio = EngineServices.audio;
+            if (attackAudio != null) {
+                attackAudio.stopActionSound(WALK_ACTION);
+            }
+            lastMoveTimeMs = 0;
             player.meleeAttack(target);
             turnManager.addAction(player, Constants.ATTACK_BASE_TIME);
             metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);
@@ -353,11 +588,13 @@ public class GameScene extends Scene {
         // 无生物 → 正常移动
         // 回合制：玩家行动后推进时间
         if (player.move(dx, dy)) {
-            // 播放行走音效
+            // 播放行走音效（循环，由看门狗在 update 中自动停止）
             var audio = EngineServices.audio;
             if (audio != null) {
-                audio.playSFX("audio/sfx/walk.mp3", false, 0.6f);
+                audio.playActionSound(WALK_ACTION, "audio/sfx/walk.mp3", 0.6f);
             }
+            // 续期看门狗：记录本次移动时间
+            lastMoveTimeMs = System.currentTimeMillis();
             turnManager.addAction(player, Constants.MOVE_BASE_TIME);
             metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);
             metabolismManager.update();
@@ -384,6 +621,12 @@ public class GameScene extends Scene {
      */
     public boolean handleWait(int keyCode) {
         if (keyCode == KeyEvent.VK_5) {
+            // 等待时停止行走音效
+            var waitAudio = EngineServices.audio;
+            if (waitAudio != null) {
+                waitAudio.stopActionSound(WALK_ACTION);
+            }
+            lastMoveTimeMs = 0;
             turnManager.addAction(player, Constants.WAIT_BASE_TIME);
             requestCreatureTurns();
             turnManager.processRound();
@@ -396,6 +639,12 @@ public class GameScene extends Scene {
             return true;
         }
         if (keyCode == KeyEvent.VK_MINUS || keyCode == KeyEvent.VK_SUBTRACT) {
+            // 等待时停止行走音效
+            var waitAudio = EngineServices.audio;
+            if (waitAudio != null) {
+                waitAudio.stopActionSound(WALK_ACTION);
+            }
+            lastMoveTimeMs = 0;
             for (int i = 0; i < 10; i++) {
                 turnManager.addAction(player, Constants.WAIT_BASE_TIME);
                 requestCreatureTurns();
@@ -472,17 +721,25 @@ public class GameScene extends Scene {
             return;
         }
 
-        // 视口覆盖的瓦片范围（相对玩家）
-        int maxDx = viewport.getWidth() / tileW;
-        int maxDy = viewport.getHeight() / tileH;
+        // 基于摄像机实际可见范围（与 moveLookCursor 一致）
+        int zoomedVW = camera.getZoomedViewportWidth();
+        int zoomedVH = camera.getZoomedViewportHeight();
+        int camStartCol = Math.floorDiv(camera.getX(), tileW);
+        int camStartRow = Math.floorDiv(camera.getY(), tileH);
+        int camEndCol = Math.floorDiv(camera.getX() + zoomedVW, tileW);
+        int camEndRow = Math.floorDiv(camera.getY() + zoomedVH, tileH);
+
+        int playerTileX = player.getTileX();
+        int playerTileY = player.getTileY();
 
         visibleNpcList = new ArrayList<>();
         for (com.github.game.cdda.npc.Npc npc : world.getNpcManager().getAllNpcs()) {
             if (!npc.isAlive()) continue;
-            int dx = npc.getTileX() - player.getTileX();
-            int dy = npc.getTileY() - player.getTileY();
-            // 视口范围内
-            if (Math.abs(dx) <= maxDx && Math.abs(dy) <= maxDy) {
+            int npcTileX = npc.getTileX();
+            int npcTileY = npc.getTileY();
+            // 摄像机可见范围内
+            if (npcTileX >= camStartCol && npcTileX <= camEndCol
+                    && npcTileY >= camStartRow && npcTileY <= camEndRow) {
                 visibleNpcList.add(npc);
             }
         }
@@ -589,12 +846,26 @@ public class GameScene extends Scene {
         int tileH = tileMap.getTileHeight();
         if (tileW == 0 || tileH == 0) return;
 
-        // 视口范围内可移动的瓦片数
-        int maxDx = viewport.getWidth() / tileW;
-        int maxDy = viewport.getHeight() / tileH;
+        // 基于摄像机实际可见范围计算光标移动边界（而非视口像素尺寸）
+        // 这确保光标范围与实际渲染的瓦片范围一致，避免偏移
+        int zoomedVW = camera.getZoomedViewportWidth();
+        int zoomedVH = camera.getZoomedViewportHeight();
+        int camStartCol = Math.floorDiv(camera.getX(), tileW);
+        int camStartRow = Math.floorDiv(camera.getY(), tileH);
+        int camEndCol = Math.floorDiv(camera.getX() + zoomedVW, tileW);
+        int camEndRow = Math.floorDiv(camera.getY() + zoomedVH, tileH);
 
-        lookCursorDx = Math.max(-maxDx, Math.min(maxDx, lookCursorDx + dx));
-        lookCursorDy = Math.max(-maxDy, Math.min(maxDy, lookCursorDy + dy));
+        int playerTileX = player.getTileX();
+        int playerTileY = player.getTileY();
+
+        // 光标偏移范围 = 可见格子范围相对于玩家位置的偏移
+        int minDx = camStartCol - playerTileX;
+        int maxDx = camEndCol - playerTileX;
+        int minDy = camStartRow - playerTileY;
+        int maxDy = camEndRow - playerTileY;
+
+        lookCursorDx = Math.max(minDx, Math.min(maxDx, lookCursorDx + dx));
+        lookCursorDy = Math.max(minDy, Math.min(maxDy, lookCursorDy + dy));
 
         // 光标移动后重置生物循环
         creatureCycleIndex = -1;
@@ -904,33 +1175,46 @@ public class GameScene extends Scene {
         renderer.drawText(hint, 4, barY + 18);
     }
 
-    // ── 地面物品渲染 ──────────────────────────────────
+    // ── TileLayerRenderer 实现（逐 tile 图层回调） ──────────────────────────────────
 
     /**
-     * 渲染所有地面物品。
-     * 物品显示为 '~' 字符（黄色），在生物和玩家之下渲染。
+     * 绘制指定瓦片上的地面物品（图层2）。
+     * 通过 GroundItemManager 的空间索引 O(1) 查询该位置的物品。
      */
-    private void renderGroundItems(Renderer renderer, int tileW, int tileH) {
+    @Override
+    public void drawGroundItems(Renderer renderer, Camera camera,
+                                int tileCol, int tileRow,
+                                int scaledTileW, int scaledTileH) {
         if (groundItemManager == null) return;
 
+        List<GroundItem> items = groundItemManager.getItemsAt(tileCol, tileRow);
+        if (items.isEmpty()) return;
+
         int ascent = renderer.getFontMetrics().getAscent();
-        double zoom = camera.getZoom();
-        int scaledW = (int) (tileW * zoom);
-        int scaledH = (int) (tileH * zoom);
-        for (GroundItem gi : groundItemManager.getAllGroundItems()) {
-            int worldX = gi.getTileX() * tileW;
-            int worldY = gi.getTileY() * tileH;
-            int viewX = camera.toViewX(worldX);
-            int viewY = camera.toViewY(worldY);
+        int viewX = camera.toViewX(tileCol * tileMap.getTileWidth());
+        int viewY = camera.toViewY(tileRow * tileMap.getTileHeight());
 
-            // 边界检查（使用缩放后的视口尺寸）
-            if (viewX < -scaledW || viewX >= viewport.getWidth()
-                    || viewY < -scaledH || viewY >= viewport.getHeight()) {
-                continue;
-            }
-
-            renderer.setColor(Color.YELLOW);
+        renderer.setColor(Color.YELLOW);
+        for (GroundItem gi : items) {
             renderer.drawText(String.valueOf(Constants.GROUND_ITEM_CHAR), viewX, viewY + ascent);
+        }
+    }
+
+    /**
+     * 绘制指定瓦片上的生物（图层3）。
+     * 通过 CreatureManager 的空间查询获取该位置的存活生物。
+     * 排除玩家（玩家由 render() 单独绘制在生物层之上）。
+     */
+    @Override
+    public void drawCreatures(Renderer renderer, Camera camera,
+                              int tileCol, int tileRow,
+                              int scaledTileW, int scaledTileH) {
+        List<Creature> creatures = creatureManager.getAliveCreaturesAt(tileCol, tileRow);
+        int tileW = tileMap.getTileWidth();
+        int tileH = tileMap.getTileHeight();
+        for (Creature creature : creatures) {
+            if (creature == player) continue; // 玩家单独渲染
+            creature.render(renderer, camera, tileW, tileH);
         }
     }
 

@@ -1,0 +1,10 @@
+{
+  "id": 1091,
+  "name": "rye_seed",
+  "description": "黑麦种子 — 播种在耕地上可种植黑麦",
+  "weightGrams": 5,
+  "volumeMl": 20,
+  "maxStackSize": 20,
+  "producesCrop": "rye",
+  "tags": ["seed", "sowing"]
+}

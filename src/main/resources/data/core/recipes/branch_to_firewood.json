@@ -1,6 +1,7 @@
 {
   "id": "branch_to_firewood",
   "name": "整理树枝为柴",
+  "category": "material",
   "inputItemId": "small_branch",
   "inputCount": 2,
   "toolRequired": null,

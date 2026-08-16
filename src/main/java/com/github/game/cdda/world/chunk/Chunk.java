@@ -869,6 +869,15 @@ public class Chunk {
     }
 
     /**
+     * 设置局部坐标处的植被物种 ID。
+     */
+    public void setVegetation(int localCol, int localRow, String speciesId) {
+        if (vegetationMap != null) {
+            vegetationMap.setVegetation(localCol, localRow, speciesId);
+        }
+    }
+
+    /**
      * 设置局部坐标处的生长状态。
      */
     public void setGrowthState(int localCol, int localRow, VegetationState state) {

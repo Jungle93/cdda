@@ -1,0 +1,13 @@
+{
+  "id": 1103,
+  "name": "turnip_soup",
+  "description": "芜菁汤 — 用芜菁煮成的清汤，易消化",
+  "weightGrams": 350,
+  "volumeMl": 400,
+  "maxStackSize": 3,
+  "consumableTypes": 1,
+  "calories": 120,
+  "satiety": 50,
+  "waterContent": 200,
+  "tags": ["cooked"]
+}

@@ -6,15 +6,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CDDA is a lightweight Java 17 Swing-based 2D game engine for card/strategy games. Uses SLF4J for logging (with slf4j-simple binding). Window is 600×400 fixed-size, landscape orientation.
 
+### Key Game Features
+
+- **回合制时间系统** — 时间仅在玩家行动时流逝，能量制调度支持多实体
+- **完整日历系统** — 年/月/日/时/分，四季变换（30天/月、12月/年）
+- **三层环境温度** — 月均温 + 日内正弦波动 + 平滑随机漂移
+- **人体代谢模拟** — 能量池（卡路里）、体温调节（缓冲机制）、基础代谢 + 环境代偿
+- **口渴/水分系统** — 基础流失 + 温度倍率 + 动作倍率，与体温系统联动
+- **无限区块地图** — Perlin 噪声地形生成，按需加载/卸载，支持 mod 扩展
+- **音频系统** — 多通道混音（BGM/SFX/AMBIENT），支持淡入淡出和交叉淡入切换
+
 ## Build & Run
 
 ```bash
 mvn compile                    # Compile
-mvn package                    # Package JAR
+mvn test                       # Run tests (JUnit 5)
+mvn test -Dtest=ClassName      # Run specific test class
+mvn package                    # Package uber-JAR with dependencies
 java -cp target/cdda-1.0-SNAPSHOT.jar com.github.game.cdda.CddaGame   # Run
 ```
 
-No exec plugin or test framework is configured yet.
+The project uses Maven Shade Plugin to create an executable uber-JAR with all dependencies bundled.
+
+## Technology Stack
+
+- **Java 17** — Language version
+- **Swing** — GUI framework (CPU-only rendering)
+- **SLF4J 2.0.13 + slf4j-simple** — Logging
+- **Gson 2.10.1** — JSON parsing (creature configs, etc.)
+- **MP3SPI 1.9.5.4** — MP3 decoding via JavaSound
+- **JUnit 5.10.2** — Unit testing framework
+- **Maven** — Build tool with Shade Plugin for uber-JAR
 
 ## Architecture
 
@@ -136,6 +158,15 @@ com.github.game.cdda.mod            — ModLoader (Mod 加载器)
 - No threading beyond Swing EDT — avoid introducing background threads for game logic
 - Demo/concrete screens go in `com.github.game.cdda.screen`, engine internals in `com.github.game.engine.core`
 
+### 时间与回合约定
+
+- **所有时间/回合数值统一使用 `long` 类型**（GameClock.totalSeconds、Entity.speed/energy、TurnManager.currentRound、Constants 中的时间常量等）
+- **统一使用回合制**：行动消耗的是"回合数"（如 `MOVE_BASE_TIME = 10` 表示移动一步消耗 10 回合），游戏时钟累计的也是回合数
+- `GameClock.advance(long)` 推进时钟，`TurnManager.addAction(entity, long)` 执行行动并消耗回合
+- `Entity.getActionTime(long baseTurns)` 根据速度计算实际消耗回合：`baseTurns × 100 / speed`
+- 代谢/水分/温度等管理器基于游戏时钟的时间差（`dt`，`long` 类型）计算变化量
+- 避免使用 `int` 表示时间/回合值，防止长期游戏运行时的溢出风险
+
 ## 设计要求
 - 代码要考虑可扩展性
 - 游戏引擎那块代码尽可能参考优秀的游戏引擎设计理念
@@ -143,3 +174,34 @@ com.github.game.cdda.mod            — ModLoader (Mod 加载器)
 - 代码要尽量高内聚、低耦合
 - 算法类的代码关键位置要注释
 - 如果计算量大尽量考虑并行计算
+
+## Development Guidelines
+
+### Testing
+
+- Tests use JUnit 5 (`org.junit.jupiter`)
+- Test files go in `src/test/java/` mirroring the main source structure
+- Run all tests: `mvn test`
+- Run specific test: `mvn test -Dtest=OceanWaterConsistencyTest`
+- Tests should be pure unit tests (no Swing EDT dependencies)
+
+### Adding New Features
+
+- **New Screen**: Extend `Screen` in `com.github.game.cdda.screen`, use `ScreenManager.switchScreen()` or `pushScreen()`
+- **New Item Action**: Implement `ItemAction` interface, register in `ItemActionRegistry`
+- **New Tile Type**: Register via `TileType.register()` for mod support
+- **New Creature**: Add JSON config in `src/main/resources/data/creatures/`, auto-loaded by `CreatureRegistry`
+- **New Audio**: Place files in `src/main/resources/audio/` or `music/`, use `AudioEngine` API
+
+### Resource Paths
+
+- Use `"classpath:path"` for JAR resources (src/main/resources/)
+- Use `"file:path"` for external files (configurable via `resource.base` system property)
+- No prefix = auto-detect (classpath first, then external file)
+
+### Common Patterns
+
+- **Subsystem Access**: Via `GameWorld` singleton → `world.getTurnManager()`, `world.getTemperatureManager()`, etc.
+- **Time Advancement**: Use `TurnManager.addAction(entity, baseTurns)`, never manipulate clock directly
+- **Logging**: Use SLF4J `LoggerFactory.getLogger(ClassName.class)`, all comments/logs in Chinese
+- **Entity Actions**: Calculate time cost via `entity.getActionTime(baseTurns)` which factors in speed

@@ -1,0 +1,15 @@
+{
+  "id": "cook_bean_stew",
+  "name": "炖菜豆",
+  "category": "food",
+  "inputItemId": "bean",
+  "inputCount": 5,
+  "toolRequired": "cooking",
+  "processingTime": 100,
+  "outputs": [
+    { "itemId": "bean_stew", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "water_bottle", "count": 1 }
+  ]
+}

@@ -76,7 +76,7 @@ public class CreatureManager {
     private static final int BUBBLE_RADIUS = 40;
 
     /** 上次全局繁殖检查的回合数 */
-    private int lastReproductionCheckRound = 0;
+    private long lastReproductionCheckRound = 0;
     /** 气泡外繁殖检查间隔（回合数） */
     private static final int OUT_OF_BUBBLE_CHECK_INTERVAL = 500;
 
@@ -109,7 +109,7 @@ public class CreatureManager {
     private final AtomicBoolean computingTurns = new AtomicBoolean(false);
 
     /** 上次请求回合处理时的回合数（防止重复提交） */
-    private volatile int lastRequestedRound = -1;
+    private volatile long lastRequestedRound = -1;
 
     /**
      * 创建生物管理器。
@@ -309,7 +309,7 @@ public class CreatureManager {
      * @param context 行动上下文（提供玩家位置等信息）
      */
     public void requestTurnProcessing(CreatureActionContext context) {
-        int currentRound = turnManager.getCurrentRound();
+        long currentRound = turnManager.getCurrentRound();
         if (currentRound <= 0) return;
 
         // 防止重复提交同一回合
@@ -320,8 +320,8 @@ public class CreatureManager {
 
         lastRequestedRound = currentRound;
 
-        final int round = currentRound;
-        final int lastRepro = lastReproductionCheckRound;
+        final long round = currentRound;
+        final long lastRepro = lastReproductionCheckRound;
         final long lastReproInterval = OUT_OF_BUBBLE_CHECK_INTERVAL;
         final int bx = bubbleCenterX;
         final int by = bubbleCenterY;
@@ -356,7 +356,7 @@ public class CreatureManager {
      * 后台计算：执行所有生物的回合。
      */
     private void computeTurns(List<Animal> animals, CreatureActionContext context,
-                              int currentRound, int lastReproductionCheckRound,
+                              long currentRound, long lastReproductionCheckRound,
                               long checkInterval, int bubbleCenterX, int bubbleCenterY,
                               int bubbleRadius) {
         // 注入快照（AI 的 findNearestPrey 使用此快照而非全列表扫描）
@@ -478,7 +478,7 @@ public class CreatureManager {
     // 回合处理（繁殖、迁徙 —— 供后台线程调用）
     // ═══════════════════════════════════════════════
 
-    private Animal tryReproduce(Animal animal, int currentRound) {
+    private Animal tryReproduce(Animal animal, long currentRound) {
         // 密度检查：使用空间索引，O(相邻区块) 而非 O(全列表)
         int sameCount = creatureGrid.countSameSpeciesNearby(animal, 5);
         if (sameCount >= MAX_NEARBY_SAME_SPECIES) return null;
@@ -514,7 +514,7 @@ public class CreatureManager {
     }
 
     private void processMigrationSpawning(CreatureActionContext context) {
-        int currentRound = turnManager.getCurrentRound();
+        long currentRound = turnManager.getCurrentRound();
         if (currentRound % 100 != 0) return;
 
         int playerTileX = context.getPlayerTileX();
@@ -688,6 +688,18 @@ public class CreatureManager {
     // ═══════════════════════════════════════════════
     // 渲染（使用空间索引，仅渲染可见区域）
     // ═══════════════════════════════════════════════
+
+    /**
+     * 查询指定瓦片上的所有存活生物（通过空间索引 O(1)）。
+     * 用于按 tile 图层循环渲染。
+     *
+     * @param tileX 瓦片 X
+     * @param tileY 瓦片 Y
+     * @return 该位置的存活生物列表（可能为空）
+     */
+    public List<Creature> getAliveCreaturesAt(int tileX, int tileY) {
+        return creatureGrid.getAllAtTile(tileX, tileY);
+    }
 
     /**
      * 渲染可见范围内的生物。

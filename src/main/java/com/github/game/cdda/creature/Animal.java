@@ -266,7 +266,7 @@ public class Animal extends Creature {
      * @param random      随机数生成器
      * @return 后代动物，繁殖失败返回 null
      */
-    public Animal tryReproduce(int currentTurn, Random random) {
+    public Animal tryReproduce(long currentTurn, Random random) {
         CreatureDefinition.Reproduction repro = definition.reproduction;
         if (repro == null) return null;
 
@@ -335,12 +335,16 @@ public class Animal extends Creature {
         int scaledW = (int) (tileWidth * zoom);
         int scaledH = (int) (tileHeight * zoom);
 
-        // 优先使用精灵渲染
+        // 优先使用精灵渲染（支持可变尺寸）
         if (SpriteManager.hasActivePack()) {
             String spriteId = "creature." + definition.id;
             Sprite sprite = SpriteManager.getSprite(spriteId);
             if (sprite != null) {
-                renderer.drawImage(sprite.getImage(), viewX, viewY, scaledW, scaledH);
+                int drawW = (int) (scaledW * sprite.getTileWidth());
+                int drawH = (int) (scaledH * sprite.getTileHeight());
+                int offsetX = (int) (sprite.getAnchorX() * drawW);
+                int offsetY = (int) (sprite.getAnchorY() * drawH);
+                renderer.drawImage(sprite.getImage(), viewX - offsetX, viewY - offsetY, drawW, drawH);
                 return;
             }
         }
@@ -575,14 +579,14 @@ public class Animal extends Creature {
      * 耐力耗尽时，加成消失（疲惫的逃跑者）。
      */
     @Override
-    public int getActionTime(int baseTime) {
-        int effectiveSpeed = speed;
+    public long getActionTime(long baseTurns) {
+        long effectiveSpeed = speed;
         if (fleeStamina > 0 && maxFleeStamina > 0) {
             double ratio = getFleeStaminaRatio();
-            effectiveSpeed = (int) (speed * (1.0 + FLEE_SPEED_BOOST_FACTOR * ratio));
+            effectiveSpeed = (long) (speed * (1.0 + FLEE_SPEED_BOOST_FACTOR * ratio));
         }
-        if (effectiveSpeed <= 0) return baseTime;
-        return baseTime * 100 / effectiveSpeed;
+        if (effectiveSpeed <= 0) return baseTurns;
+        return baseTurns * 100 / effectiveSpeed;
     }
 
     /**

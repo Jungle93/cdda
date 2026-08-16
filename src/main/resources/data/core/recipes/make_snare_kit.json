@@ -1,0 +1,15 @@
+{
+  "id": "make_snare_kit",
+  "name": "制作圈套组件",
+  "category": "material",
+  "inputItemId": "fiber_cord",
+  "inputCount": 2,
+  "toolRequired": null,
+  "processingTime": 80,
+  "outputs": [
+    { "itemId": "snare_kit", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "small_branch", "count": 2 }
+  ]
+}

@@ -63,11 +63,12 @@ public class ProcessItemAction implements ItemAction {
             return;
         }
 
-        // 查找第一个有效配方（输入数量足够 + 有所需工具）
+        // 查找第一个有效配方（输入数量足够 + 有所需工具 + 有额外材料）
         ProcessingRecipe selectedRecipe = null;
         for (ProcessingRecipe recipe : recipes) {
             if (material.getCount() < recipe.inputCount) continue;
             if (!hasRequiredTool(player, recipe)) continue;
+            if (!hasAdditionalInputs(player, recipe)) continue;
             selectedRecipe = recipe;
             break;
         }
@@ -81,6 +82,13 @@ public class ProcessItemAction implements ItemAction {
         player.getInventory().removeItem(
                 player.getInventory().getItems().indexOf(material),
                 selectedRecipe.inputCount);
+
+        // 消耗额外输入物品
+        if (selectedRecipe.additionalInputs != null) {
+            for (ProcessingRecipe.Output extra : selectedRecipe.additionalInputs) {
+                consumeItemFromInventory(player, extra.itemId, extra.count);
+            }
+        }
 
         // 生成输出物品
         for (ProcessingRecipe.Output output : selectedRecipe.outputs) {
@@ -96,7 +104,7 @@ public class ProcessItemAction implements ItemAction {
         }
 
         // 消耗加工时间
-        int timeCost = selectedRecipe.processingTime > 0
+        long timeCost = selectedRecipe.processingTime > 0
                 ? selectedRecipe.processingTime
                 : Constants.CRAFT_BASE_TIME;
         world.getTurnManager().addAction(player, timeCost);
@@ -119,6 +127,48 @@ public class ProcessItemAction implements ItemAction {
             }
         }
         return false;
+    }
+
+    /**
+     * 检查玩家是否拥有配方的额外输入材料。
+     */
+    private boolean hasAdditionalInputs(Player player, ProcessingRecipe recipe) {
+        if (recipe.additionalInputs == null || recipe.additionalInputs.isEmpty()) return true;
+
+        for (ProcessingRecipe.Output extra : recipe.additionalInputs) {
+            if (countItemInInventory(player, extra.itemId) < extra.count) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 统计背包中指定物品的总数量。
+     */
+    private int countItemInInventory(Player player, String itemId) {
+        int total = 0;
+        for (ItemStack stack : player.getInventory().getItems()) {
+            if (stack != null && stack.getType().getName().equals(itemId)) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+
+    /**
+     * 从背包中消耗指定数量的物品。
+     */
+    private void consumeItemFromInventory(Player player, String itemId, int count) {
+        List<ItemStack> items = player.getInventory().getItems();
+        int remaining = count;
+        for (int i = items.size() - 1; i >= 0 && remaining > 0; i--) {
+            ItemStack stack = items.get(i);
+            if (stack == null || !stack.getType().getName().equals(itemId)) continue;
+            int take = Math.min(stack.getCount(), remaining);
+            player.getInventory().removeItem(i, take);
+            remaining -= take;
+        }
     }
 
     /**

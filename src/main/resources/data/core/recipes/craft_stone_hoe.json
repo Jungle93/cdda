@@ -1,0 +1,16 @@
+{
+  "id": "craft_stone_hoe",
+  "name": "制作石锄",
+  "category": "tool",
+  "inputItemId": "oak_plank",
+  "inputCount": 2,
+  "toolRequired": "cutting",
+  "processingTime": 100,
+  "outputs": [
+    { "itemId": "stone_hoe", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "stone_tip", "count": 1 },
+    { "itemId": "fiber_cord", "count": 1 }
+  ]
+}

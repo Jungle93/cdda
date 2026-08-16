@@ -1,0 +1,15 @@
+{
+  "id": "cook_grain_porridge",
+  "name": "煮谷物粥",
+  "category": "food",
+  "inputItemId": "barley_grain",
+  "inputCount": 5,
+  "toolRequired": "cooking",
+  "processingTime": 80,
+  "outputs": [
+    { "itemId": "grain_porridge", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "water_bottle", "count": 1 }
+  ]
+}

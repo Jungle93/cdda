@@ -1,0 +1,12 @@
+{
+  "id": "bake_potato",
+  "name": "烤马铃薯",
+  "category": "food",
+  "inputItemId": "potato",
+  "inputCount": 2,
+  "toolRequired": "cooking",
+  "processingTime": 60,
+  "outputs": [
+    { "itemId": "baked_potato", "count": 2 }
+  ]
+}

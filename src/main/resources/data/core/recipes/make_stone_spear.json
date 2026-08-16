@@ -1,0 +1,16 @@
+{
+  "id": "make_stone_spear",
+  "name": "制作石矛",
+  "category": "weapon",
+  "inputItemId": "wooden_spear",
+  "inputCount": 1,
+  "toolRequired": "cutting",
+  "processingTime": 100,
+  "outputs": [
+    { "itemId": "stone_spear", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "stone_tip", "count": 1 },
+    { "itemId": "fiber_cord", "count": 1 }
+  ]
+}

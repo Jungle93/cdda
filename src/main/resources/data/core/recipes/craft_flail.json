@@ -1,0 +1,15 @@
+{
+  "id": "craft_flail",
+  "name": "制作连枷",
+  "category": "tool",
+  "inputItemId": "small_branch",
+  "inputCount": 3,
+  "toolRequired": "cutting",
+  "processingTime": 80,
+  "outputs": [
+    { "itemId": "flail", "count": 1 }
+  ],
+  "additionalInputs": [
+    { "itemId": "fiber_cord", "count": 1 }
+  ]
+}

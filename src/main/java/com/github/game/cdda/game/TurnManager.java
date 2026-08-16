@@ -13,14 +13,14 @@ import java.util.List;
  * <p>核心职责：
  * <ul>
  *   <li>维护参与回合系统的所有实体列表</li>
- *   <li>执行行动时计算实际耗时并推进游戏时钟</li>
+ *   <li>执行行动时计算实际消耗回合并推进游戏时钟</li>
  *   <li>每回合开始时为所有实体恢复能量</li>
  *   <li>为未来 NPC/敌人预留调度接口</li>
  * </ul>
  *
  * <h3>回合流程：</h3>
  * <ol>
- *   <li>玩家按键 → 若有足够能量 → 执行动作 → {@link #addAction(Entity, int)}</li>
+ *   <li>玩家按键 → 若有足够能量 → 执行动作 → {@link #addAction(Entity, long)}</li>
  *   <li>调用 {@link #processRound()} → 所有实体 energy += speed</li>
  *   <li>未来扩展：NPC/敌人按 energy 顺序行动</li>
  * </ol>
@@ -37,7 +37,7 @@ import java.util.List;
 public class TurnManager {
 
     /** 每次行动消耗的基础能量 */
-    public static final int ENERGY_PER_ACTION = 100;
+    public static final long ENERGY_PER_ACTION = 100;
 
     /** 游戏时钟 */
     private final GameCalendar gameTime;
@@ -46,7 +46,7 @@ public class TurnManager {
     private final List<Entity> entities = new ArrayList<>();
 
     /** 当前回合数 */
-    private int currentRound = 0;
+    private long currentRound = 0;
 
     /**
      * 创建回合管理器。
@@ -92,17 +92,17 @@ public class TurnManager {
     // ── 行动处理 ──────────────────────────────────
 
     /**
-     * 执行一个行动：计算耗时、推进时钟、消耗能量。
+     * 执行一个行动：计算消耗回合、推进时钟、消耗能量。
      *
-     * @param entity   执行行动的实体
-     * @param baseTime 基础行动时间（游戏秒）
+     * @param entity    执行行动的实体
+     * @param baseTurns 基础行动回合数
      */
-    public void addAction(Entity entity, int baseTime) {
-        // 计算实际耗时（受速度影响）
-        int actualTime = entity.getActionTime(baseTime);
+    public void addAction(Entity entity, long baseTurns) {
+        // 计算实际消耗回合（受速度影响）
+        long actualTurns = entity.getActionTime(baseTurns);
 
         // 推进游戏时钟
-        gameTime.advance(actualTime);
+        gameTime.advance(actualTurns);
 
         // 消耗能量
         entity.spendEnergy(ENERGY_PER_ACTION);
@@ -145,7 +145,7 @@ public class TurnManager {
      *
      * @return 回合数（从0开始）
      */
-    public int getCurrentRound() {
+    public long getCurrentRound() {
         return currentRound;
     }
 }

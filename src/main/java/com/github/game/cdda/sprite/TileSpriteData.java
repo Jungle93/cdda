@@ -92,7 +92,10 @@ public final class TileSpriteData {
 
         String spriteId = "tile." + id;
         logger.info("从 {} 加载地形贴图: {} ({}x{})", source, spriteId, size, size);
-        return new Sprite(spriteId, image);
+        Sprite sprite = new Sprite(spriteId, image);
+        // 设置锚点为左上角 (0, 0)：精灵的左上角对齐瓦片位置，精灵覆盖瓦片
+        sprite.setAnchor(0.0, 0.0);
+        return sprite;
     }
 
     // ==================== 程序化回退（向后兼容）====================

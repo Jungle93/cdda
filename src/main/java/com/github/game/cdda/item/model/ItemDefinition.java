@@ -52,6 +52,8 @@ public class ItemDefinition {
     public String[] tags = new String[0];
     /** 图标字符（可选，用于 UI 展示；未设置时使用 displayName 首字回退） */
     public String icon = null;
+    /** 种子种出的作物物种 ID（仅种子物品使用，如 "barley"、"rye"） */
+    public String producesCrop = null;
     /** 热量（千卡 kcal） */
     public double calories = 0;
     /** 饱腹度（0-100 相对值） */
@@ -92,6 +94,10 @@ public class ItemDefinition {
 
         if (icon != null && !icon.isEmpty()) {
             builder.icon(icon);
+        }
+
+        if (producesCrop != null && !producesCrop.isEmpty()) {
+            builder.producesCrop(producesCrop);
         }
 
         if (calories > 0 || satiety > 0 || waterContent > 0) {

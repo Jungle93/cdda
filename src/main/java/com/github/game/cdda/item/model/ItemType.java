@@ -36,6 +36,8 @@ public class ItemType {
     private final Set<String> tags;
     /** 图标字符（可选，用于 UI 展示；未设置时使用 displayName 首字回退） */
     private final String icon;
+    /** 种子种出的作物物种 ID（仅种子物品有意义，如 "barley"） */
+    private final String producesCrop;
 
     // ── 营养值（仅对食物/饮品有意义） ──
     /** 热量（千卡 kcal） */
@@ -62,6 +64,7 @@ public class ItemType {
                 ? Collections.emptySet()
                 : Collections.unmodifiableSet(new HashSet<>(b.tags));
         this.icon = b.icon;
+        this.producesCrop = b.producesCrop;
         this.calories = b.calories;
         this.satiety = b.satiety;
         this.waterContent = b.waterContent;
@@ -151,6 +154,14 @@ public class ItemType {
         return "?";
     }
 
+    /**
+     * 获取种子种出的作物物种 ID。
+     * 仅种子物品（带有 "seed" 标签）有意义。
+     *
+     * @return 作物物种 ID（如 "barley"），非种子物品返回 null
+     */
+    public String getProducesCrop() { return producesCrop; }
+
     // ── 显示（带单位转换） ──
     /** 获取格式化重量（按指定单位） */
     public String formatWeight(DisplayUnit unit) {
@@ -197,6 +208,7 @@ public class ItemType {
         private double satiety = 0;
         private double waterContent = 0;
         private String icon = null;
+        private String producesCrop = null;
 
         /** 创建 Builder（id 和 name 必填） */
         public Builder(int id, String name) {
@@ -285,6 +297,15 @@ public class ItemType {
          * @return 当前 Builder 实例（链式调用）
          */
         public Builder icon(String icon) { this.icon = icon; return this; }
+
+        /**
+         * 设置种子种出的作物物种 ID。
+         * 仅种子物品使用。
+         *
+         * @param cropSpeciesId 作物物种 ID（如 "barley"）
+         * @return 当前 Builder 实例（链式调用）
+         */
+        public Builder producesCrop(String cropSpeciesId) { this.producesCrop = cropSpeciesId; return this; }
 
         /**
          * 构建 ItemType 实例（不注册）。

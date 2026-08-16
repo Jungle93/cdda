@@ -92,7 +92,10 @@ public final class CreatureSpriteData {
 
         String spriteId = "creature." + id;
         logger.info("从 {} 加载生物贴图: {} ({}x{})", source, spriteId, size, size);
-        return new Sprite(spriteId, image);
+        Sprite sprite = new Sprite(spriteId, image);
+        // 设置锚点为左上角 (0, 0)：精灵的左上角对齐瓦片位置，精灵覆盖瓦片
+        sprite.setAnchor(0.0, 0.0);
+        return sprite;
     }
 
     // ==================== 程序化回退（向后兼容）====================
@@ -353,10 +356,15 @@ public final class CreatureSpriteData {
         String playerSpriteId = "player";
         Sprite playerFromPng = loadFromPng("player", size);
         if (playerFromPng != null) {
+            // 设置锚点为左上角 (0, 0)：精灵的左上角对齐瓦片位置，精灵覆盖瓦片
+            playerFromPng.setAnchor(0.0, 0.0);
             sprites.put(playerSpriteId, playerFromPng);
         } else {
             logger.debug("PNG 不存在，回退到程序化生成: {}", playerSpriteId);
-            sprites.put(playerSpriteId, PixelArt.createSprite(playerSpriteId, playerPattern(), playerPalette()));
+            Sprite playerSprite = PixelArt.createSprite(playerSpriteId, playerPattern(), playerPalette());
+            // 设置锚点为左上角 (0, 0)：精灵的左上角对齐瓦片位置，精灵覆盖瓦片
+            playerSprite.setAnchor(0.0, 0.0);
+            sprites.put(playerSpriteId, playerSprite);
         }
 
         return sprites;

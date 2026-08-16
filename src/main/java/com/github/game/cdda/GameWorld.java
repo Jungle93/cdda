@@ -68,6 +68,7 @@ public class GameWorld {
     private final GroundItemManager groundItemManager;
     private final EnergyFlowManager energyFlowManager;
     private final PlantGrowthSystem plantGrowthSystem;
+    private final com.github.game.cdda.trap.TrapManager trapManager;
 
     // ── 玩家 ──────────────────────────────────
     private final Player player;
@@ -116,6 +117,9 @@ public class GameWorld {
         groundItemManager = new GroundItemManager();
         creatureManager.setGroundItemManager(groundItemManager);
 
+        // 7.6) 陷阱系统
+        trapManager = new com.github.game.cdda.trap.TrapManager(groundItemManager, creatureManager);
+
         // 7.5) 能量流动系统
         energyFlowManager = new EnergyFlowManager();
         creatureManager.setEnergyFlowManager(energyFlowManager);
@@ -146,6 +150,14 @@ public class GameWorld {
         }
         if (axe != null) {
             player.getInventory().addItem(new ItemStack(axe, 1));
+        }
+        // 开局种子（让玩家能立即尝试农业）
+        String[] seedNames = {"barley_seed", "turnip_seed", "bean_seed"};
+        for (String seedName : seedNames) {
+            ItemType seed = ItemRegistry.getByName(seedName);
+            if (seed != null) {
+                player.getInventory().addItem(new ItemStack(seed, 5));
+            }
         }
     }
 
@@ -254,6 +266,7 @@ public class GameWorld {
     public GroundItemManager getGroundItemManager() { return groundItemManager; }
     public EnergyFlowManager getEnergyFlowManager() { return energyFlowManager; }
     public PlantGrowthSystem getPlantGrowthSystem() { return plantGrowthSystem; }
+    public com.github.game.cdda.trap.TrapManager getTrapManager() { return trapManager; }
     public Player getPlayer() { return player; }
 
     /**

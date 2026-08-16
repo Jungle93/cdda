@@ -1,0 +1,13 @@
+{
+  "id": 1101,
+  "name": "baked_potato",
+  "description": "烤马铃薯 — 外皮焦脆，内里绵软，饱腹感极强",
+  "weightGrams": 150,
+  "volumeMl": 200,
+  "maxStackSize": 5,
+  "consumableTypes": 1,
+  "calories": 150,
+  "satiety": 75,
+  "waterContent": 20,
+  "tags": ["cooked"]
+}

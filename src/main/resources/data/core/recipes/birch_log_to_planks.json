@@ -1,6 +1,7 @@
 {
   "id": "birch_log_to_planks",
   "name": "制作桦木板",
+  "category": "material",
   "inputItemId": "birch_log",
   "inputCount": 1,
   "toolRequired": "chopping",

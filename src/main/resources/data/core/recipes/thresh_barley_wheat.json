@@ -1,0 +1,13 @@
+{
+  "id": "thresh_barley_wheat",
+  "name": "大麦脱粒",
+  "category": "material",
+  "inputItemId": "barley_wheat",
+  "inputCount": 5,
+  "toolRequired": "threshing",
+  "processingTime": 40,
+  "outputs": [
+    { "itemId": "barley_grain", "count": 3 },
+    { "itemId": "chaff", "count": 2 }
+  ]
+}

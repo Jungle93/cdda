@@ -79,6 +79,14 @@ public class TileType {
     /** 岩石块 — 不可通过（覆盖物，散布在沙漠/草地等地面上） */
     public static final TileType ROCK = register(18, "rock", 'o', new Color(140, 140, 140), false, true);
 
+    // ── 农田 ────
+    /** 农田 — 可通过（用铲子翻耕过的土地，用于种植农作物） */
+    public static final TileType FARMLAND = register(19, "farmland", '≡', new Color(101, 67, 33), true, false);
+
+    // ── 农作物覆盖层 ────
+    /** 农作物 — 可通过（种在农田上的作物，通用覆盖层） */
+    public static final TileType CROP_PLANT = register(20, "crop_plant", 'Ψ', new Color(120, 180, 60), true, true);
+
     // ── 字段 ──────────────────────────────────────────
 
     /** 稳定数字标识 */

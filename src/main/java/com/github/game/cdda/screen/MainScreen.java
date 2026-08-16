@@ -3,6 +3,7 @@ package com.github.game.cdda.screen;
 import com.github.game.cdda.config.ConfigManager;
 import com.github.game.cdda.input.InputStateMachine;
 import com.github.game.cdda.item.world.GroundItem;
+import com.github.game.cdda.screen.overlay.CraftingScreen;
 import com.github.game.cdda.screen.overlay.DebugMenuScreen;
 import com.github.game.cdda.screen.overlay.DropScreen;
 import com.github.game.cdda.screen.overlay.EatingScreen;
@@ -248,6 +249,12 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         engine.getScreenManager().pushScreen(
                 new InventoryScreen(engine, gameWorld.getPlayer(),
                         gameWorld, inputStateMachine));
+    }
+
+    @Override
+    public void pushCraftingScreen() {
+        engine.getScreenManager().pushScreen(
+                new CraftingScreen(engine, gameWorld));
     }
 
     @Override

@@ -723,6 +723,7 @@ public class PlantGrowthSystem {
             case SHRUB -> TileType.BUSH;
             case GRASS, MOSS -> TileType.TALL_GRASS;
             case AQUATIC -> TileType.REEDS;
+            case CROP -> TileType.CROP_PLANT;
         };
     }
 
@@ -732,7 +733,8 @@ public class PlantGrowthSystem {
     private boolean canGrowOn(TileType tile) {
         return tile == TileType.GRASS
                 || tile == TileType.DIRT
-                || tile == TileType.MUD;
+                || tile == TileType.MUD
+                || tile == TileType.FARMLAND;
     }
 
     /**

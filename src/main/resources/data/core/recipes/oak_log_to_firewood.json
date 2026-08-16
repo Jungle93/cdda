@@ -1,6 +1,7 @@
 {
   "id": "oak_log_to_firewood",
   "name": "劈橡木柴",
+  "category": "material",
   "inputItemId": "oak_log",
   "inputCount": 1,
   "toolRequired": "chopping",

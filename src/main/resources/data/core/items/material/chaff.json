@@ -1,0 +1,9 @@
+{
+  "id": 1110,
+  "name": "chaff",
+  "description": "谷壳 — 脱粒的副产品，可作家畜饲料或堆肥",
+  "weightGrams": 2,
+  "volumeMl": 10,
+  "maxStackSize": 50,
+  "tags": ["crafting"]
+}

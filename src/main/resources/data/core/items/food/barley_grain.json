@@ -1,0 +1,13 @@
+{
+  "id": 1095,
+  "name": "barley_grain",
+  "description": "大麦粒 — 可磨粉或煮粥，是重要的粮食作物",
+  "weightGrams": 3,
+  "volumeMl": 10,
+  "maxStackSize": 30,
+  "consumableTypes": 1,
+  "calories": 20,
+  "satiety": 10,
+  "waterContent": 0,
+  "tags": ["grain", "processing"]
+}

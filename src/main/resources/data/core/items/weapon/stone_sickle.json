@@ -1,0 +1,9 @@
+{
+  "id": 1106,
+  "name": "stone_sickle",
+  "description": "石镰 — 收割庄稼的弯刃农具",
+  "weightGrams": 400,
+  "volumeMl": 150,
+  "unique": true,
+  "tags": ["harvesting", "cutting"]
+}

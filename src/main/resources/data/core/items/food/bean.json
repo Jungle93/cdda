@@ -1,0 +1,13 @@
+{
+  "id": 1099,
+  "name": "bean",
+  "description": "菜豆 — 富含蛋白质的豆荚，煮熟后食用",
+  "weightGrams": 10,
+  "volumeMl": 20,
+  "maxStackSize": 20,
+  "consumableTypes": 1,
+  "calories": 30,
+  "satiety": 20,
+  "waterContent": 10,
+  "tags": ["vegetable", "processing"]
+}

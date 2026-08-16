@@ -121,6 +121,9 @@ public final class ItemSpriteData {
 
         String spriteId = "item." + name;
         logger.info("从 {} 加载物品贴图: {} ({}x{})", source, spriteId, SPRITE_SIZE, SPRITE_SIZE);
-        return new Sprite(spriteId, image);
+        Sprite sprite = new Sprite(spriteId, image);
+        // 设置锚点为左上角 (0, 0)：精灵的左上角对齐瓦片位置，精灵覆盖瓦片
+        sprite.setAnchor(0.0, 0.0);
+        return sprite;
     }
 }

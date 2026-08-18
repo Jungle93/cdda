@@ -289,6 +289,8 @@ public class CreatureManager {
         creatures.add(creature);
         creatureGrid.add(creature);
         turnManager.addEntity(creature);
+        // 初始满移动点，使生物出生后即可行动
+        creature.addMoves(creature.getSpeed());
     }
 
     public void removeCreature(Creature creature) {
@@ -379,10 +381,10 @@ public class CreatureManager {
             }
 
             if (inBubble) {
-                // 气泡内：检查能量并执行 AI（while 循环，用完所有积攒的能量）
+                // 气泡内：检查移动点并执行 AI（while 循环，用完所有积攒的移动点）
                 while (turnManager.canAct(animal)) {
                     animal.takeTurn(context);
-                    animal.spendEnergy(com.github.game.cdda.game.TurnManager.ENERGY_PER_ACTION);
+                    animal.spendMoves(com.github.game.cdda.Constants.MOVE_COST);
                 }
                 // 繁殖检查
                 Animal baby = tryReproduce(animal, currentRound);

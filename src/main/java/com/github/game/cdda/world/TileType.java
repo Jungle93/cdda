@@ -40,10 +40,10 @@ public class TileType {
     public static final TileType STONE = register(4, "stone", '*', new Color(160, 160, 160), false, false);
 
     // ── 植物（覆盖层，渲染在地面之上） ──────────────────
-    /** 树木 — 不可通过 */
-    public static final TileType TREE = register(5, "tree", '&', new Color(0, 120, 0), false, true);
-    /** 灌木 — 不可通过 */
-    public static final TileType BUSH = register(6, "bush", '%', new Color(0, 128, 0), false, true);
+    /** 树木 — 不可通过（无贴图时显示白色 'F'） */
+    public static final TileType TREE = register(5, "tree", 'F', Color.WHITE, false, true);
+    /** 灌木 — 不可通过（无贴图时显示白色 'F'） */
+    public static final TileType BUSH = register(6, "bush", 'F', Color.WHITE, false, true);
     /** 花 — 可通过 */
     public static final TileType FLOWER = register(7, "flower", '"', Color.MAGENTA, true, true);
     /** 高草 — 可通过 */

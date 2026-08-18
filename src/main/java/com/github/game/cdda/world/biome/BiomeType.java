@@ -1,9 +1,13 @@
 package com.github.game.cdda.world.biome;
 
+import com.github.game.cdda.world.TileType;
+
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,43 +39,100 @@ public class BiomeType {
 
     /** 海洋 — 大面积水域，无法通行 */
     public static final BiomeType OCEAN = register(0, "ocean", '~',
-            new Color(40, 100, 200), 0.0f, 0.0f, 0.0f, 1.0f, -0.5f);
+            new Color(40, 100, 200), 0.0f, 0.0f, 0.0f, 1.0f, -0.5f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.MUD, 4),
+                    new GroundCoverEntry(TileType.SAND, 2));
 
     /** 平原 — 开阔草地，稀疏植被（中等海拔，水易流走） */
     public static final BiomeType PLAINS = register(1, "plains", '.',
-            new Color(100, 190, 40), 0.0f, 0.20f, 0.0f, 0.0f, 0.15f);
+            new Color(100, 190, 40), 0.0f, 0.20f, 0.0f, 0.0f, 0.15f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.GRASS, 12),
+                    new GroundCoverEntry(TileType.DIRT, 1));
 
     /** 森林 — 密集树木 */
-    public static final BiomeType FOREST = register(2, "forest", '&',
-            new Color(0, 110, 0), 0.35f, 0.12f, 0.0f, 0.0f, 0.05f);
+    public static final BiomeType FOREST = register(2, "forest", 'F',
+            Color.WHITE, 0.35f, 0.12f, 0.0f, 0.0f, 0.05f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.GRASS, 8),
+                    new GroundCoverEntry(TileType.DIRT, 1));
 
     /** 密林 — 非常密集的树林 */
     public static final BiomeType DENSE_FOREST = register(3, "dense_forest", '♣',
-            new Color(0, 80, 0), 0.55f, 0.08f, 0.0f, 0.0f, 0.00f);
+            new Color(0, 80, 0), 0.55f, 0.08f, 0.0f, 0.0f, 0.00f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.GRASS, 6),
+                    new GroundCoverEntry(TileType.MUD, 1),
+                    new GroundCoverEntry(TileType.DIRT, 1));
 
     /** 沼泽 — 水与植被混合（低海拔，易积水） */
     public static final BiomeType SWAMP = register(4, "swamp", '≈',
-            new Color(80, 130, 60), 0.08f, 0.25f, 0.0f, 0.25f, -0.20f);
+            new Color(80, 130, 60), 0.08f, 0.25f, 0.0f, 0.25f, -0.20f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.MUD, 2),
+                    new GroundCoverEntry(TileType.DIRT, 2),
+                    new GroundCoverEntry(TileType.GRASS, 3));
 
     /** 丘陵 — 略有起伏，稀疏树木（较高海拔） */
     public static final BiomeType HILLS = register(5, "hills", '∩',
-            new Color(120, 160, 80), 0.06f, 0.10f, 0.15f, 0.0f, 0.25f);
+            new Color(120, 160, 80), 0.06f, 0.10f, 0.15f, 0.0f, 0.25f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.GRASS, 10),
+                    new GroundCoverEntry(TileType.DIRT, 2),
+                    new GroundCoverEntry(TileType.SAND, 1));
 
     /** 山地 — 多岩石，高海拔（河流源头） */
     public static final BiomeType MOUNTAIN = register(6, "mountain", '▲',
-            new Color(140, 140, 140), 0.01f, 0.02f, 0.50f, 0.0f, 0.40f);
+            new Color(140, 140, 140), 0.01f, 0.02f, 0.50f, 0.0f, 0.40f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.DIRT, 5),
+                    new GroundCoverEntry(TileType.SAND, 3),
+                    new GroundCoverEntry(TileType.GRASS, 2));
 
     /** 沙漠 — 干旱，几乎无植被（中等偏高海拔） */
     public static final BiomeType DESERT = register(7, "desert", '∴',
-            new Color(220, 200, 140), 0.0f, 0.02f, 0.05f, 0.0f, 0.20f);
+            new Color(220, 200, 140), 0.0f, 0.02f, 0.05f, 0.0f, 0.20f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.SAND, 12),
+                    new GroundCoverEntry(TileType.DIRT, 1));
 
     /** 草原 — 开阔草地，中等海拔，高草密度 */
     public static final BiomeType GRASSLAND = register(8, "grassland", '∶',
-            new Color(140, 185, 60), 0.02f, 0.30f, 0.0f, 0.0f, 0.10f);
+            new Color(140, 185, 60), 0.02f, 0.30f, 0.0f, 0.0f, 0.10f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.GRASS, 12),
+                    new GroundCoverEntry(TileType.DIRT, 1));
 
     /** 高原 — 高海拔平地，稀疏植被，多岩石 */
     public static final BiomeType PLATEAU = register(9, "plateau", '▬',
-            new Color(170, 160, 120), 0.02f, 0.05f, 0.20f, 0.0f, 0.35f);
+            new Color(170, 160, 120), 0.02f, 0.05f, 0.20f, 0.0f, 0.35f)
+            .withGroundCover(
+                    new GroundCoverEntry(TileType.GRASS, 5),
+                    new GroundCoverEntry(TileType.SAND, 3),
+                    new GroundCoverEntry(TileType.DIRT, 1));
+
+    // ── 地面覆盖条目（加权列表） ────────────────────
+
+    /**
+     * 地面覆盖条目：一种地形类型及其在加权池中的权重。
+     *
+     * <p>当 biome 的"默认地面"需要解析时，通过加权随机从地面覆盖池中选取。
+     * 权重越高的地形出现概率越大。
+     *
+     * <p>设计借鉴 Cataclysm-DDA 的 region_groundcover 间接解析模式。
+     */
+    public static class GroundCoverEntry {
+        /** 地形类型 */
+        public final TileType type;
+        /** 权重（正整数，越大概率越高） */
+        public final int weight;
+
+        public GroundCoverEntry(TileType type, int weight) {
+            this.type = type;
+            this.weight = weight;
+        }
+    }
 
     // ── 实例字段 ────────────────────────────
 
@@ -90,6 +151,15 @@ public class BiomeType {
     private final float waterLevel;
     /** 基础海拔偏移（排水算法用）。越高水越易流走，越低越易积水 */
     private final float baseElevation;
+
+    /**
+     * 地面覆盖加权池（pseudo-terrain indirection）。
+     *
+     * <p>当 biome 的"默认地面"需要解析时，通过加权随机从该池中选取。
+     * 使不同 biome 的"普通地面"看起来不同（森林有泥土/泥地斑块，沙漠以沙为主）。
+     * 若为 null 或空，则 classifyTerrain() 默认返回 GRASS。
+     */
+    private List<GroundCoverEntry> groundCover;
 
     private BiomeType(int id, String name, char mapChar, Color color,
                       float treeDensity, float grassDensity,
@@ -152,6 +222,39 @@ public class BiomeType {
     public float getRockiness() { return rockiness; }
     public float getWaterLevel() { return waterLevel; }
     public float getBaseElevation() { return baseElevation; }
+
+    /**
+     * 获取地面覆盖加权池。
+     *
+     * @return 地面覆盖条目列表（不可变视图），null 表示使用默认（GRASS）
+     */
+    public List<GroundCoverEntry> getGroundCover() {
+        return groundCover == null ? null : Collections.unmodifiableList(groundCover);
+    }
+
+    /**
+     * 设置地面覆盖加权池（builder pattern，链式调用）。
+     *
+     * <p>用于为 biome 配置 pseudo-terrain indirection。
+     * 典型用法：
+     * <pre>
+     * register(2, "forest", ...)
+     *     .withGroundCover(
+     *         new GroundCoverEntry(TileType.GRASS, 6),
+     *         new GroundCoverEntry(TileType.DIRT, 3),
+     *         new GroundCoverEntry(TileType.MUD, 1));
+     * </pre>
+     *
+     * @param entries 地面覆盖条目（地形类型 + 权重）
+     * @return this（支持链式调用）
+     */
+    public BiomeType withGroundCover(GroundCoverEntry... entries) {
+        this.groundCover = new ArrayList<>(entries.length);
+        for (GroundCoverEntry e : entries) {
+            this.groundCover.add(e);
+        }
+        return this;
+    }
 
     /** 该群落是否以水域为主（waterLevel > 0.5） */
     public boolean isAquatic() { return waterLevel > 0.5f; }

@@ -12,6 +12,7 @@ import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -52,6 +53,10 @@ public class Chunk {
     private static final double TERRAIN_FREQ = 0.023;
     /** 植被密度噪声频率（特征跨度 ~29 格，形成自然聚簇） */
     private static final double VEG_FREQ = 0.035;
+    /** 冠层噪声频率（大尺度，定义"哪里有植被"）— VEG_FREQ × 0.6 */
+    private static final double CANOPY_FREQ = VEG_FREQ * 0.6;
+    /** 间隙噪声频率（小尺度，定义"哪里有林窗"）— VEG_FREQ × 1.8 */
+    private static final double CLEARING_FREQ = VEG_FREQ * 1.8;
     /** 地形 fBm 参数 */
     private static final int TERRAIN_OCTAVES = 4;
     /** 植被 fBm 参数（少一层，够用） */
@@ -155,7 +160,8 @@ public class Chunk {
 
                 tiles[row][col] = classifyTerrain(
                         elevation, temperature, humidity, tileMoisture,
-                        biome, rockThreshold, biome.getWaterLevel());
+                        biome, rockThreshold, biome.getWaterLevel(),
+                        globalX, globalY);
             }
         }
 
@@ -193,29 +199,33 @@ public class Chunk {
      *   <li>低海拔 + 中等湿度 → 泥土</li>
      *   <li>干燥 + 低湿度噪声 → 沙地</li>
      *   <li>高海拔 + 低温 → 泥土（高原冻土，不再产生 STONE 地面）</li>
-     *   <li>默认 → 草地</li>
+     *   <li>默认 → 通过 biome 地面覆盖池加权随机解析（pseudo-terrain indirection）</li>
      * </ol>
      *
      * <p>注意：STONE 不再由地形生成（改为 ROCK 覆盖物散布）。
      * <p>群落 waterLevel 会降低低地阈值，使海洋/沼泽群落产生更多泥地，
      * 便于后续 {@link #carveWaterFeatures} 在这些区域放置水域。
+     *
+     * @param globalX 全局瓦片 X（地面覆盖池解析用）
+     * @param globalY 全局瓦片 Y（地面覆盖池解析用）
      */
     private TileType classifyTerrain(double elevation, double temperature,
                                       double humidity, double moisture,
                                       BiomeType biome, double rockThreshold,
-                                      float waterLevel) {
+                                      float waterLevel,
+                                      int globalX, int globalY) {
         // waterLevel 越高，低地阈值越宽松（海洋 waterLevel=1.0 → 阈值 +0.30）
         // 使海洋/沼泽群落更容易产生泥地，便于后续水域雕刻
         double waterBonus = waterLevel * 0.30;
 
         // 低海拔 + 高湿度 → 泥地（沼泽边缘/海底）
-        if (elevation < -0.10 + waterBonus && humidity > 0.6) {
+        if (elevation < -0.10 + waterBonus && humidity > 0.8) {
             return TileType.MUD;
         }
 
         // 低海拔 + 中等湿度 → 泥土地
         if (elevation < -0.05 + waterBonus && humidity > 0.3) {
-            return humidity > 0.5 ? TileType.MUD : TileType.DIRT;
+            return humidity > 0.7 ? TileType.MUD : TileType.DIRT;
         }
 
         // 干燥环境 → 沙地
@@ -228,8 +238,49 @@ public class Chunk {
             return TileType.DIRT;
         }
 
-        // 默认 → 草地
-        return TileType.GRASS;
+        // 默认 → biome 地面覆盖池加权随机解析
+        // 使不同 biome 的"普通地面"视觉不同（森林有泥土/泥地斑块，沙漠以沙为主）
+        return resolveGroundCover(biome, globalX, globalY);
+    }
+
+    /**
+     * 通过 biome 地面覆盖池加权随机解析地面类型。
+     *
+     * <p>设计借鉴 pseudo-terrain indirection 模式：
+     * 每个 biome 定义一个地形类型加权池，解析时根据确定性哈希做加权随机选取。
+     *
+     * <p>使用 {@link #tileHash(int, int)} 保证相同坐标始终返回相同结果（确定性生成）。
+     *
+     * @param biome   当前 biome
+     * @param globalX 全局瓦片 X（哈希输入）
+     * @param globalY 全局瓦片 Y（哈希输入）
+     * @return 解析后的地面地形类型；池为空时回退到 GRASS
+     */
+    private TileType resolveGroundCover(BiomeType biome, int globalX, int globalY) {
+        List<BiomeType.GroundCoverEntry> pool = biome.getGroundCover();
+        if (pool == null || pool.isEmpty()) {
+            return TileType.GRASS;
+        }
+
+        // 计算总权重
+        int totalWeight = 0;
+        for (BiomeType.GroundCoverEntry entry : pool) {
+            totalWeight += entry.weight;
+        }
+        if (totalWeight <= 0) {
+            return TileType.GRASS;
+        }
+
+        // 确定性加权随机（使用偏移哈希，避免与 tileHash(col, row) 产生相关性）
+        double roll = tileHash(globalX + 1000, globalY + 2000) * totalWeight;
+        int cumulative = 0;
+        for (BiomeType.GroundCoverEntry entry : pool) {
+            cumulative += entry.weight;
+            if (roll < cumulative) {
+                return entry.type;
+            }
+        }
+        return pool.get(pool.size() - 1).type;
     }
 
     // ── 边界混合（第五遍） ────────────────────
@@ -257,7 +308,8 @@ public class Chunk {
     private void blendChunkEdges(Chunk[][] neighbors, WorldMap worldMap) {
         if (neighbors == null) return;
 
-        int blendWidth = 2;
+        // 混合宽度 5 格（原为 2 格），更宽的过渡区使 biome 边界更自然
+        int blendWidth = 5;
 
         // 4 个方向：上(-Y)、下(+Y)、左(-X)、右(+X)
         for (int dir = 0; dir < 4; dir++) {
@@ -273,6 +325,7 @@ public class Chunk {
             }
 
             // 第二层：读取邻居边缘瓦片数据（小地图），进行混合
+            // 传入邻居的 biome 用于 biome 感知规则
             blendWithNeighborTiles(dir, neighbor, blendWidth);
         }
     }
@@ -280,19 +333,26 @@ public class Chunk {
     /**
      * 与相邻区块边缘瓦片进行混合。
      *
+     * <p>使用指数衰减的混合因子：越靠近边界受邻居影响越大。
+     * 公式：{@code blendFactor = pow(distance_ratio, 1.5)}，
+     * 产生比线性更自然的过渡（边界处急剧，向内部迅速衰减）。
+     *
      * @param dir        方向：0=上, 1=下, 2=左, 3=右
      * @param neighbor   相邻区块
      * @param blendWidth 混合宽度（格数）
      */
     private void blendWithNeighborTiles(int dir, Chunk neighbor, int blendWidth) {
+        BiomeType neighborBiome = neighbor.getBiome();
         for (int i = 0; i < SIZE; i++) {
             for (int j = 1; j <= blendWidth; j++) {
                 // 从邻居区块获取对应边缘瓦片
                 TileType neighborTile = neighbor.getTileAtEdge(dir, i);
                 if (neighborTile == null) continue;
 
-                // 混合因子：距离边缘越近，受邻居影响越大
-                double blendFactor = (double) (blendWidth + 1 - j) / (blendWidth + 1);
+                // 指数衰减混合因子：边界处急剧，向内部迅速衰减
+                // pow(x, 1.5) 使过渡比线性更自然（CDDA 设计模式）
+                double linearRatio = (double) (blendWidth + 1 - j) / (blendWidth + 1);
+                double blendFactor = Math.pow(linearRatio, 1.5);
 
                 // 确定当前区块中对应边缘的瓦片坐标
                 int[] selfPos = getEdgeTilePos(dir, i, j - 1);
@@ -301,8 +361,8 @@ public class Chunk {
 
                 TileType selfTile = tiles[selfRow][selfCol];
 
-                // 根据邻居瓦片类型决定混合策略
-                TileType blended = blendTile(selfTile, neighborTile, blendFactor, dir);
+                // 根据邻居瓦片类型 + biome 决定混合策略
+                TileType blended = blendTile(selfTile, neighborTile, blendFactor, dir, neighborBiome);
                 if (blended != null) {
                     tiles[selfRow][selfCol] = blended;
                 }
@@ -329,16 +389,24 @@ public class Chunk {
     }
 
     /**
-     * 根据邻居瓦片类型和混合因子决定当前瓦片的混合结果。
+     * 根据邻居瓦片类型、混合因子和邻居 biome 决定当前瓦片的混合结果。
      *
-     * @param selfTile    当前瓦片
-     * @param neighborTile 邻居瓦片
-     * @param blendFactor  混合因子 (0~1，越大越倾向于采纳邻居类型)
-     * @param dir          方向
+     * <p>混合策略分两层：
+     * <ol>
+     *   <li><b>tile-based 规则</b>：根据邻居瓦片类型（WATER→SAND，SAND→扩展等）</li>
+     *   <li><b>biome-aware 规则</b>：根据邻居 biome 类型增强/补充转换
+     *       （FOREST→TREE 蔓延，DESERT→SAND 蔓延，MOUNTAIN→ROCK 蔓延）</li>
+     * </ol>
+     *
+     * @param selfTile      当前瓦片
+     * @param neighborTile  邻居瓦片
+     * @param blendFactor   混合因子 (0~1，越大越倾向于采纳邻居类型)
+     * @param dir           方向
+     * @param neighborBiome 邻居生物群落（biome-aware 规则用）
      * @return 混合后的瓦片类型（null 表示不改变）
      */
     private TileType blendTile(TileType selfTile, TileType neighborTile,
-                                double blendFactor, int dir) {
+                                double blendFactor, int dir, BiomeType neighborBiome) {
         // 使用确定性哈希决定是否采纳混合
         int globalX = chunkX * SIZE;
         int globalY = chunkY * SIZE;
@@ -401,6 +469,31 @@ public class Chunk {
             return null;
         }
 
+        // ── biome-aware 规则（补充 tile-based 规则的不足） ──
+
+        // 邻居 biome 是森林 + 自身是 GRASS → 森林边缘树木蔓延
+        // 即使邻居边缘瓦片不是 TREE（可能是 GRASS），森林 biome 也会使我们的边缘长出树
+        if (neighborBiome != null && neighborBiome.isWooded() && selfTile == TileType.GRASS) {
+            double treeEncroach = neighborBiome.getTreeDensity() * blendFactor * 0.3;
+            if (randomVal < treeEncroach) {
+                return TileType.TREE;
+            }
+        }
+
+        // 邻居 biome 是沙漠 + 自身是 GRASS → 沙地蔓延
+        if (neighborBiome == BiomeType.DESERT && selfTile == TileType.GRASS) {
+            if (randomVal < blendFactor * 0.25) {
+                return TileType.SAND;
+            }
+        }
+
+        // 邻居 biome 是山地 + 自身是 GRASS → 岩石/泥土蔓延
+        if (neighborBiome == BiomeType.MOUNTAIN && selfTile == TileType.GRASS) {
+            if (randomVal < blendFactor * 0.15) {
+                return randomVal < blendFactor * 0.08 ? TileType.ROCK : TileType.DIRT;
+            }
+        }
+
         return null;
     }
 
@@ -423,12 +516,14 @@ public class Chunk {
     }
 
     /**
-     * 在基底地形上放置植被（环境适配版）。
+     * 在基底地形上放置植被（环境适配 + 双噪声层聚类）。
      *
-     * <p>使用三层机制：
+     * <p>使用四层机制：
      * <ol>
      *   <li><b>环境查询</b> — 获取每瓦片的温度、湿度、土壤深度</li>
-     *   <li><b>噪声区域层</b>（中频 fbm）— 决定哪些区域"可能"有植被</li>
+     *   <li><b>冠层噪声</b>（低频 fbm）— 大尺度定义"哪里有植被区域"</li>
+     *   <li><b>间隙噪声</b>（高频 fbm）— 小尺度定义"哪里有林间空地"，
+     *       通过噪声减法（{@code max(0, canopy² - clearing³×0.5)}）产生聚簇效果</li>
      *   <li><b>物种选择</b> — 根据环境从 VegetationRegistry 选择适生物种</li>
      * </ol>
      *
@@ -447,6 +542,12 @@ public class Chunk {
         float treeD = biome.getTreeDensity();
         float grassD = biome.getGrassDensity();
 
+        // 方向性植被密度梯度修正（CDDA forest_increase 模式）
+        // 北方森林更密，东方轻微增密
+        double densityModifier = worldMap.getForestDensityModifier(chunkX, chunkY);
+        treeD = (float) Math.max(0.0, treeD + densityModifier);
+        grassD = (float) Math.max(0.0, grassD + densityModifier * 0.5); // 草密度受影响较小
+
         // 使用区块坐标作为随机种子（确定性生成）
         Random vegRandom = new Random(chunkX * 374761393L + chunkY * 668265263L);
 
@@ -461,13 +562,23 @@ public class Chunk {
                 // 确定性哈希（每瓦片独立伪随机，0~1）
                 double hash = tileHash(globalX, globalY);
 
-                // ── 噪声区域层：中频 fbm（-1 ~ 1） ──
-                double zone = noise.fbm(
-                        globalX * VEG_FREQ + 2000.0,
-                        globalY * VEG_FREQ + 2000.0,
-                        VEG_OCTAVES, PERSISTENCE, LACUNARITY
-                );
-                double zoneFactor = (zone + 1.0) * 0.5;
+                // ── 双噪声层聚类（noise subtraction 模式） ──
+                // 冠层噪声：大尺度 fbm，定义"哪里有植被区域"
+                double canopy = (noise.fbm(
+                        globalX * CANOPY_FREQ + 2000.0,
+                        globalY * CANOPY_FREQ + 2000.0,
+                        3, PERSISTENCE, LACUNARITY) + 1.0) * 0.5;
+                canopy = canopy * canopy; // 锐化峰值（pow(2)）
+
+                // 间隙噪声：小尺度 fbm，定义"哪里有林间空地"
+                double clearing = (noise.fbm(
+                        globalX * CLEARING_FREQ + 5000.0,
+                        globalY * CLEARING_FREQ + 5000.0,
+                        2, PERSISTENCE, LACUNARITY) + 1.0) * 0.5;
+                clearing = clearing * clearing * clearing; // 锐化（pow(3)）
+
+                // 减法 → 聚簇效果：冠层定义森林区域，间隙噪声在其中挖出空地
+                double densityFactor = Math.max(0.0, canopy - clearing * 0.5);
 
                 // ── 查询环境参数 ──
                 double temperature = worldMap.getTemperatureAt(globalX, globalY);
@@ -475,7 +586,7 @@ public class Chunk {
                 double soilDepth = worldMap.getSoilDepthAt(globalX, globalY);
 
                 // ── 树木 ──
-                double treeProb = treeD * (0.3 + 0.7 * zoneFactor);
+                double treeProb = treeD * (0.3 + 0.7 * densityFactor);
                 if (hash < treeProb) {
                     // 从注册表选择适生树种
                     VegetationDefinition treeDef = VegetationRegistry.selectForEnvironment(
@@ -496,7 +607,7 @@ public class Chunk {
                 }
 
                 // ── 灌木 ──
-                double shrubProb = treeD * 0.25 * (0.3 + 0.7 * zoneFactor);
+                double shrubProb = treeD * 0.25 * (0.3 + 0.7 * densityFactor);
                 double subHash = tileHash(globalX + 7919, globalY + 104729);
                 if (subHash < shrubProb) {
                     VegetationDefinition shrubDef = VegetationRegistry.selectForEnvironment(
@@ -509,7 +620,7 @@ public class Chunk {
                 }
 
                 // ── 草 / 花 / 苔藓 ──
-                double grassProb = grassD * (0.3 + 0.7 * zoneFactor);
+                double grassProb = grassD * (0.3 + 0.7 * densityFactor);
                 if (hash < treeProb + grassProb) {
                     double flowerHash = tileHash(globalX + 131, globalY + 523);
 

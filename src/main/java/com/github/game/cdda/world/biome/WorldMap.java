@@ -548,4 +548,87 @@ public class WorldMap {
         // 噪声值约 -1 ~ 1，归一化到 0 ~ 1
         return Math.max(0.0, Math.min(1.0, (moisture + 1.0) * 0.5));
     }
+
+    /**
+     * 获取指定区块坐标的植被密度偏移量。
+     *
+     * <p>由方向梯度驱动：北方（+Y）森林更密，东方（+X）轻微增密。
+     * 用于 {@code Chunk.placeVegetation()} 修正 biome 的 treeDensity/grassDensity。
+     *
+     * <p>设计借鉴 Cataclysm-DDA 的 {@code forest_increase[N,E,S,W]} 模式：
+     * 全局尺度上，植被密度在某个方向上有系统性变化，产生地理差异。
+     *
+     * @param chunkX 区块 X 坐标
+     * @param chunkY 区块 Y 坐标
+     * @return 植被密度偏移（叠加到 biome.treeDensity 上）
+     */
+    public double getForestDensityModifier(int chunkX, int chunkY) {
+        return gradients.getForestDensityOffset(chunkX, chunkY);
+    }
+
+    // ── 区块级水域特征（大地图渲染用） ────────────────
+
+    /**
+     * 区块级水域特征类型（大地图渲染用）。
+     *
+     * <p>由 {@link #getWaterFeatureAtChunk(int, int)} 返回，
+     * 用于在世界地图上叠加渲染水域覆盖层（河流/湖泊/海洋）。
+     */
+    public enum WaterFeatureType {
+        /** 无水域 */
+        NONE,
+        /** 河流（waterFeature 0.3~1.0） */
+        RIVER,
+        /** 湖泊（waterFeature > 1.0） */
+        LAKE,
+        /** 海洋（biome 为 OCEAN 时直接返回） */
+        OCEAN
+    }
+
+    /**
+     * 获取区块级水域特征类型（大地图渲染用）。
+     *
+     * <p>在区块内多点采样（中心 + 四方向偏移），取最大水域梯度，
+     * 避免窄河流正好穿过采样间隙。
+     *
+     * <p>设计借鉴 Cataclysm-DDA 的 overmap 水域渲染：
+     * 在区块级粒度上叠加水域信息，使河流/湖泊在大地图上可见。
+     *
+     * @param chunkX 区块 X 坐标
+     * @param chunkY 区块 Y 坐标
+     * @return 水域特征类型
+     */
+    public WaterFeatureType getWaterFeatureAtChunk(int chunkX, int chunkY) {
+        // 海洋 biome 直接返回 OCEAN
+        BiomeType biome = getBiomeAtChunk(chunkX, chunkY);
+        if (biome != null && biome.isAquatic()) {
+            return WaterFeatureType.OCEAN;
+        }
+
+        // 区块中心瓦片坐标
+        int centerX = chunkX * Chunk.SIZE + Chunk.SIZE / 2;
+        int centerY = chunkY * Chunk.SIZE + Chunk.SIZE / 2;
+
+        // 5 点十字采样（覆盖区块中心区域，避免窄河流穿过间隙）
+        // 偏移量 8 瓦片（1/4 chunk），覆盖区块中部 50% 范围
+        int offset = Chunk.SIZE / 4;
+        double[][] samples = {
+                {centerX, centerY},
+                {centerX + offset, centerY},
+                {centerX - offset, centerY},
+                {centerX, centerY + offset},
+                {centerX, centerY - offset}
+        };
+
+        double maxWater = 0.0;
+        for (double[] s : samples) {
+            double wf = getWaterFeature((int) s[0], (int) s[1]);
+            maxWater = Math.max(maxWater, wf);
+        }
+
+        // 分类
+        if (maxWater > 1.0) return WaterFeatureType.LAKE;
+        if (maxWater > 0.3) return WaterFeatureType.RIVER;
+        return WaterFeatureType.NONE;
+    }
 }

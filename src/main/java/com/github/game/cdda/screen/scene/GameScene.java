@@ -113,31 +113,17 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
     /** 获取当前活跃的 GameScene 实例 */
     public static GameScene getActiveInstance() { return activeInstance; }
 
-    // ── 砍伐状态机 ──────────────────────────────────
+    // ── 玩家活动系统 ──────────────────────────────────
 
     /** 砍伐音效动作名 */
     private static final String CHOP_ACTION = "chop";
 
-    /** 砍伐阶段 */
-    private enum ChopPhase { IDLE, FALLING }
-
-    /** 当前砍伐阶段 */
-    private ChopPhase chopPhase = ChopPhase.IDLE;
-
-    /** 砍伐目标瓦片坐标 */
-    private int chopTileX, chopTileY;
-
-    /** 砍伐需要的总回合数（用于日志） */
-    private long chopRoundsTotal;
-
-    /** FALLING 阶段开始时间（现实毫秒） */
-    private long chopPhaseStartMs;
-
-    /** 植被物种 ID（用于掉落计算） */
-    private String chopSpeciesId;
-
-    /** 原始瓦片类型（TREE / BUSH，用于区分回合数和日志） */
-    private TileType chopOriginalTile;
+    /**
+     * 当前活跃的玩家活动（多回合长动作）。
+     * 非 null 时阻止玩家其他输入（仅 ESC 可取消）。
+     * 活动每回合前进一步，期间生物正常行动。
+     */
+    private com.github.game.cdda.screen.Activity activeActivity;
 
     /**
      * 创建游戏世界场景。
@@ -260,22 +246,52 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
             }
         }
 
-        // 6) 砍伐状态机：驱动回合推进和阶段转换
-        updateChopStateMachine();
+        // 6) 玩家活动状态更新（完成检测）
+        updateActiveActivity();
     }
 
     /**
-     * 砍伐状态机更新（每帧调用）。
-     * 仅处理 FALLING 阶段：等待倒地音效播放完毕后执行 completeChopping()。
-     * CHOPPING 阶段的回合推进在 startChopping() 中一次性完成。
+     * 活动状态更新（每帧调用）。
+     * 检查当前活动是否完成，完成则调用 finish() 并清除。
+     *
+     * <p>FallingActivity 是例外 — 它基于实时，直接在 update() 中检查完成。
+     *
+     * <p>其他活动（如砍伐）每帧自动推进：玩家被锁定无法动作，
+     * 所以需要在这里自动触发回合处理（生物行动 + 补满移动点 + 活动前进一步）。
      */
-    private void updateChopStateMachine() {
-        if (chopPhase != ChopPhase.FALLING) return;
+    private void updateActiveActivity() {
+        if (activeActivity == null) return;
 
-        long now = System.currentTimeMillis();
-        if (now - chopPhaseStartMs >= Constants.FALL_SOUND_DURATION_MS) {
-            completeChopping();
-            chopPhase = ChopPhase.IDLE;
+        // FallingActivity 是实时动画，每帧检查是否完成
+        if (activeActivity instanceof FallingActivity) {
+            if (activeActivity.isComplete()) {
+                activeActivity.finish();
+                activeActivity = null;
+                // 活动结束后恢复玩家移动点，允许玩家行动
+                player.addMoves(player.getSpeed());
+            }
+            return;
+        }
+
+        // 其他活动（如砍伐）：玩家被锁定，自动推进回合
+        // 1. 如果玩家有剩余移动点，先耗尽（确保能触发回合处理）
+        if (turnManager.hasMoves(player)) {
+            player.spendMoves(player.getMoves());
+        }
+        // 2. 触发生物行动 + 补满移动点
+        requestCreatureTurns();
+        turnManager.processRound();
+        // 3. 活动前进一步（内部会消耗移动点、推进时钟、检查完成）
+        if (!activeActivity.isComplete()) {
+            activeActivity.update();
+        }
+
+        // 砍伐完成后转换为倒地动画（在 update 之后检查，避免同一帧内渲染两个进度条）
+        if (activeActivity instanceof ChopActivity chopActivity
+                && chopActivity.shouldTransitionToFalling()) {
+            activeActivity = new FallingActivity(
+                    chopActivity.getTileX(), chopActivity.getTileY(),
+                    chopActivity.getSpeciesId(), chopActivity.getOriginalTile());
         }
     }
 
@@ -288,7 +304,10 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
             audio.stopActionSound(CHOP_ACTION);
         }
         lastMoveTimeMs = 0;
-        chopPhase = ChopPhase.IDLE;
+        if (activeActivity != null) {
+            activeActivity.cancel();
+            activeActivity = null;
+        }
     }
 
     @Override
@@ -305,8 +324,10 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         // 渲染玩家（在生物层之上）
         player.render(renderer, camera, tileW, tileH);
 
-        // 渲染砍伐进度条（在目标瓦片上方）
-        renderChopProgress(renderer, tileW, tileH);
+        // 渲染活动相关的 UI（砍伐进度条、倒地动画等）
+        if (activeActivity != null) {
+            activeActivity.render(renderer, tileW, tileH);
+        }
 
         // 渲染调试信息（场景局部坐标，左上角）
         renderDebugInfo(renderer);
@@ -399,19 +420,20 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         renderer.drawText(thirstStr, 4, metabY + (debugFontSize + 2));
     }
 
-    // ── 砍伐状态机方法 ──────────────────────────────────
+    // ── 玩家活动系统方法 ──────────────────────────────────
 
     /**
-     * 是否正在砍伐（含 CHOPPING 和 FALLING 阶段）。
-     * 砍伐期间玩家不能移动或执行其他动作。
+     * 是否正在进行多回合活动（阻止玩家输入）。
+     * 活动期间玩家不能移动或执行其他动作，仅 ESC 可取消。
      */
     public boolean isChopping() {
-        return chopPhase != ChopPhase.IDLE;
+        return activeActivity != null && activeActivity.blocksInput();
     }
 
     /**
      * 开始砍伐。由 ChopTreeAction 调用。
-     * 立即推进所有游戏回合（世界时间 + 生物行动 + 代谢），然后进入 FALLING 阶段等待倒地音效。
+     * 创建 ChopActivity 并分配给玩家。活动每回合前进一步，
+     * 期间生物正常行动、世界正常更新。
      *
      * @param tileX     目标瓦片 X
      * @param tileY     目标瓦片 Y
@@ -419,113 +441,269 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
      * @param tile      原始瓦片类型（TREE 或 BUSH）
      */
     public void startChopping(int tileX, int tileY, String speciesId, TileType tile) {
-        chopTileX = tileX;
-        chopTileY = tileY;
-        chopSpeciesId = speciesId;
-        chopOriginalTile = tile;
-        chopRoundsTotal = (tile == TileType.TREE)
-                ? Constants.CHOP_ROUNDS_TREE
-                : Constants.CHOP_ROUNDS_BUSH;
+        activeActivity = new ChopActivity(tileX, tileY, speciesId, tile);
+        // 耗尽玩家移动点，确保 endOfPlayerRound() 能触发活动推进
+        player.spendMoves(player.getMoves());
+        activeActivity.start();
+    }
 
-        // 停止行走音效（砍伐时不能移动）
-        var audio = EngineServices.audio;
-        if (audio != null) {
-            audio.stopActionSound(WALK_ACTION);
-            audio.playActionSound(CHOP_ACTION, "audio/sfx/felling.mp3", 0.7f);
+    /** 取消当前活动（ESC 触发）。已消耗的回合不退。 */
+    private void cancelChopping() {
+        if (activeActivity != null) {
+            activeActivity.cancel();
+            activeActivity = null;
         }
-        lastMoveTimeMs = 0;
+    }
 
-        // 立即推进所有游戏回合（时间 + 生物 + 代谢）
-        for (int i = 0; i < chopRoundsTotal; i++) {
-            turnManager.addAction(player, Constants.CHOP_BASE_TIME);
-            metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);
-            metabolismManager.update();
-            hydrationManager.addAction(Constants.ADD_THIRST_COMBAT);
-            hydrationManager.update();
+    /**
+     * 回合结束处理。
+     * 当玩家移动点耗尽时调用：触发生物行动 → 补满移动点 → 推进活动 → 植物生长。
+     *
+     * <p>活动每回合前进一步（CDDA 模式），使生物在每步之间正常行动。
+     * 取代了旧的"所有动作在同步循环中一次性完成"的设计。
+     */
+    private void endOfPlayerRound() {
+        if (!turnManager.hasMoves(player)) {
             requestCreatureTurns();
             turnManager.processRound();
+
+            // 活动前进一步（在移动点补满之后，为下一步消耗准备）
+            if (activeActivity != null && !activeActivity.isComplete()) {
+                activeActivity.update();
+            }
+        }
+        world.updatePlantGrowth();
+    }
+
+    // ── 活动内部类 ──────────────────────────────────
+
+    /**
+     * 砍树活动。多回合活动，每回合前进一步。
+     * 完成后转为 FallingActivity（实时倒地动画）。
+     *
+     * <p>设计借鉴 Cataclysm-DDA 的 chop_tree_activity_actor 模式。
+     */
+    private class ChopActivity implements com.github.game.cdda.screen.Activity {
+        private final int tileX, tileY;
+        private final String speciesId;
+        private final TileType originalTile;
+        private final long roundsTotal;
+        private long progress = 0;
+
+        ChopActivity(int tileX, int tileY, String speciesId, TileType originalTile) {
+            this.tileX = tileX;
+            this.tileY = tileY;
+            this.speciesId = speciesId;
+            this.originalTile = originalTile;
+            this.roundsTotal = originalTile == TileType.TREE
+                    ? Constants.CHOP_ROUNDS_TREE : Constants.CHOP_ROUNDS_BUSH;
+        }
+
+        @Override
+        public void start() {
+            var audio = EngineServices.audio;
+            if (audio != null) {
+                audio.stopActionSound(WALK_ACTION);
+                audio.playActionSound(CHOP_ACTION, "audio/sfx/felling.mp3", 0.7f);
+            }
+            lastMoveTimeMs = 0;
+            String vegName = originalTile == TileType.TREE ? "树" : "灌木";
+            GameLog.getInstance().log(String.format("开始砍伐%s（需要 %d 回合）...", vegName, roundsTotal));
+        }
+
+        @Override
+        public void update() {
+            // 推进游戏时钟
+            turnManager.addAction(player, Constants.CHOP_BASE_TIME);
+            // 代谢消耗
+            metabolismManager.addActionCost(Constants.MOVE_CALORIE_COST);
+            metabolismManager.update();
+            // 水分消耗
+            hydrationManager.addAction(Constants.ADD_THIRST_COMBAT);
+            hydrationManager.update();
+            // 回合处理（生物行动 + 移动点补满）已在 updateActiveActivity() 中完成
+            // 植物生长在 GameScene.update() 中每帧处理
             world.updatePlantGrowth();
+
+            progress++;
+            if (progress >= roundsTotal) {
+                // 砍伐完成 — 播放倒地音效
+                // 实际的 FallingActivity 创建由 updateActiveActivity() 处理，
+                // 避免在同一帧内同时渲染 ChopActivity 和 FallingActivity 的进度条
+                var audio = EngineServices.audio;
+                if (audio != null) {
+                    audio.stopActionSound(CHOP_ACTION);
+                    audio.playSFX("audio/sfx/tree_fallen.mp3", false, 0.8f);
+                }
+                String vegName = originalTile == TileType.TREE ? "树" : "灌木";
+                GameLog.getInstance().log(String.format("经过 %d 回合的砍伐，%s终于倒下了...", roundsTotal, vegName));
+            }
         }
 
-        // 伐木完成 → 停止伐木声，播放倒地声，进入 FALLING 阶段
-        if (audio != null) {
-            audio.stopActionSound(CHOP_ACTION);
-            audio.playSFX("audio/sfx/tree_fallen.mp3", false, 0.8f);
+        /**
+         * 砍伐完成后是否需要转换为倒地动画。
+         * 由 updateActiveActivity() 检查并执行转换。
+         */
+        public boolean shouldTransitionToFalling() {
+            return progress >= roundsTotal;
         }
-        chopPhase = ChopPhase.FALLING;
-        chopPhaseStartMs = System.currentTimeMillis();
 
-        String vegName = tile == TileType.TREE ? "树" : "灌木";
-        GameLog.getInstance().log(String.format("经过 %d 回合的砍伐，%s终于倒下了...", chopRoundsTotal, vegName));
-    }
+        /** 获取目标瓦片 X 坐标（用于创建 FallingActivity） */
+        public int getTileX() { return tileX; }
+        /** 获取目标瓦片 Y 坐标（用于创建 FallingActivity） */
+        public int getTileY() { return tileY; }
+        /** 获取植被物种 ID（用于创建 FallingActivity） */
+        public String getSpeciesId() { return speciesId; }
+        /** 获取原始瓦片类型（用于创建 FallingActivity） */
+        public TileType getOriginalTile() { return originalTile; }
 
-    /** 取消砍伐（ESC 触发）。已消耗的回合不退。 */
-    private void cancelChopping() {
-        var audio = EngineServices.audio;
-        if (audio != null) {
-            audio.stopActionSound(CHOP_ACTION);
+        @Override
+        public boolean isComplete() {
+            return progress >= roundsTotal;
         }
-        chopPhase = ChopPhase.IDLE;
-        GameLog.getInstance().log("砍伐被取消了");
+
+        @Override
+        public void finish() {
+            // 由 FallingActivity 接手 — 不应直接调用
+        }
+
+        @Override
+        public void cancel() {
+            var audio = EngineServices.audio;
+            if (audio != null) {
+                audio.stopActionSound(CHOP_ACTION);
+            }
+            GameLog.getInstance().log("砍伐被取消了");
+        }
+
+        @Override
+        public void render(Renderer renderer, int tileW, int tileH) {
+            // 计算目标瓦片的屏幕坐标
+            int viewX = tileX * tileW - (int) camera.getX();
+            int viewY = tileY * tileH - (int) camera.getY();
+
+            // 进度条尺寸
+            int barWidth = tileW;
+            int barHeight = 4;
+            int barX = viewX;
+            int barY = viewY - barHeight - 6;
+
+            // 进度比例（砍伐进度）
+            float progressRatio = (roundsTotal > 0)
+                    ? Math.min(1.0f, (float) progress / roundsTotal)
+                    : 0f;
+
+            // 背景（深灰）
+            renderer.setColor(new Color(50, 50, 50));
+            renderer.fillRect(barX, barY, barWidth, barHeight);
+
+            // 前景（黄色 — 表示砍伐中）
+            renderer.setColor(new Color(255, 215, 0));
+            renderer.fillRect(barX, barY, (int) (barWidth * progressRatio), barHeight);
+
+            // 文字提示
+            renderer.setFont(new Font("Monospaced", Font.PLAIN, 10));
+            renderer.setColor(Color.WHITE);
+            String text = String.format("砍伐 %d/%d", progress, roundsTotal);
+            int textX = barX + (barWidth - renderer.getTextWidth(text)) / 2;
+            renderer.drawText(text, textX, barY - 2);
+        }
     }
 
     /**
-     * 砍伐完成：移除植被、生成掉落物、推进游戏时间。
-     * 在 FALLING 阶段结束后调用。
+     * 树木倒地活动。实时动画（等待倒地音效播放完毕后完成）。
+     * 完成后移除植被、生成掉落物。
      */
-    private void completeChopping() {
-        // 恢复地面层瓦片
-        TileType groundTile = chunkManager.getGroundTile(chopTileX, chopTileY);
-        chunkManager.setTile(chopTileX, chopTileY,
-                groundTile != null ? groundTile : TileType.GRASS);
-        chunkManager.clearVegetation(chopTileX, chopTileY);
+    private class FallingActivity implements com.github.game.cdda.screen.Activity {
+        private final int tileX, tileY;
+        private final String speciesId;
+        private final TileType originalTile;
+        private final long startMs;
 
-        // 生成掉落物
-        int dropCount = ChopTreeAction.generateDrops(chopSpeciesId, world, chopTileX, chopTileY);
-
-        // 日志
-        String vegName = (chopOriginalTile == TileType.TREE) ? "树" : "灌木";
-        if (dropCount > 0) {
-            GameLog.getInstance().log(String.format("你砍倒了一棵%s，获得了 %d 件物品", vegName, dropCount));
-        } else {
-            GameLog.getInstance().log(String.format("你砍倒了一棵%s", vegName));
+        FallingActivity(int tileX, int tileY, String speciesId, TileType originalTile) {
+            this.tileX = tileX;
+            this.tileY = tileY;
+            this.speciesId = speciesId;
+            this.originalTile = originalTile;
+            this.startMs = System.currentTimeMillis();
         }
-    }
 
-    /**
-     * 渲染砍伐进度（FALLING 阶段：树木倒下动画）。
-     */
-    private void renderChopProgress(Renderer renderer, int tileW, int tileH) {
-        if (chopPhase != ChopPhase.FALLING) return;
+        @Override
+        public void start() {
+            // 音效已在 ChopActivity 完成时播放
+        }
 
-        // 计算目标瓦片的屏幕坐标
-        int viewX = chopTileX * tileW - (int) camera.getX();
-        int viewY = chopTileY * tileH - (int) camera.getY();
+        @Override
+        public void update() {
+            // 实时活动 — 由 GameScene.update() 每帧检查完成
+        }
 
-        // 进度条尺寸
-        int barWidth = tileW;
-        int barHeight = 4;
-        int barX = viewX;
-        int barY = viewY - barHeight - 6;
+        @Override
+        public boolean isComplete() {
+            return System.currentTimeMillis() - startMs >= Constants.FALL_SOUND_DURATION_MS;
+        }
 
-        // 进度比例（倒地音效播放进度）
-        long elapsed = System.currentTimeMillis() - chopPhaseStartMs;
-        float progress = Math.min(1.0f, (float) elapsed / Constants.FALL_SOUND_DURATION_MS);
+        @Override
+        public void finish() {
+            // 恢复地面层瓦片
+            TileType groundTile = chunkManager.getGroundTile(tileX, tileY);
+            chunkManager.setTile(tileX, tileY,
+                    groundTile != null ? groundTile : TileType.GRASS);
+            chunkManager.clearVegetation(tileX, tileY);
 
-        // 背景（深灰）
-        renderer.setColor(new Color(50, 50, 50));
-        renderer.fillRect(barX, barY, barWidth, barHeight);
+            // 生成掉落物
+            int dropCount = ChopTreeAction.generateDrops(speciesId, world, tileX, tileY);
 
-        // 前景（橙色 — 表示倒下中）
-        renderer.setColor(new Color(255, 165, 0));
-        renderer.fillRect(barX, barY, (int) (barWidth * progress), barHeight);
+            // 日志
+            String vegName = originalTile == TileType.TREE ? "树" : "灌木";
+            if (dropCount > 0) {
+                GameLog.getInstance().log(String.format("你砍倒了一棵%s，获得了 %d 件物品", vegName, dropCount));
+            } else {
+                GameLog.getInstance().log(String.format("你砍倒了一棵%s", vegName));
+            }
+        }
 
-        // 文字提示
-        renderer.setFont(new Font("Monospaced", Font.PLAIN, 10));
-        renderer.setColor(Color.WHITE);
-        String text = "倒下...";
-        int textX = barX + (barWidth - renderer.getTextWidth(text)) / 2;
-        renderer.drawText(text, textX, barY - 2);
+        @Override
+        public void cancel() {
+            // 倒地阶段不可取消
+        }
+
+        @Override
+        public boolean blocksInput() {
+            return true; // 倒地动画期间玩家仍被锁定
+        }
+
+        @Override
+        public void render(Renderer renderer, int tileW, int tileH) {
+            // 计算目标瓦片的屏幕坐标
+            int viewX = tileX * tileW - (int) camera.getX();
+            int viewY = tileY * tileH - (int) camera.getY();
+
+            // 进度条尺寸
+            int barWidth = tileW;
+            int barHeight = 4;
+            int barX = viewX;
+            int barY = viewY - barHeight - 6;
+
+            // 进度比例（倒地音效播放进度）
+            long elapsed = System.currentTimeMillis() - startMs;
+            float progress = Math.min(1.0f, (float) elapsed / Constants.FALL_SOUND_DURATION_MS);
+
+            // 背景（深灰）
+            renderer.setColor(new Color(50, 50, 50));
+            renderer.fillRect(barX, barY, barWidth, barHeight);
+
+            // 前景（橙色 — 表示倒下中）
+            renderer.setColor(new Color(255, 165, 0));
+            renderer.fillRect(barX, barY, (int) (barWidth * progress), barHeight);
+
+            // 文字提示
+            renderer.setFont(new Font("Monospaced", Font.PLAIN, 10));
+            renderer.setColor(Color.WHITE);
+            String text = "倒下...";
+            int textX = barX + (barWidth - renderer.getTextWidth(text)) / 2;
+            renderer.drawText(text, textX, barY - 2);
+        }
     }
 
     // ── 输入处理 ──────────────────────────────────
@@ -544,6 +722,12 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
 
         // ── 等待动作（时间流逝但不做其他事） ──
         if (handleWait(keyCode)) return;
+
+        // ── 移动点检查：无移动点时无法行动 ──
+        if (!turnManager.hasMoves(player)) {
+            GameLog.getInstance().log("你太累了，先休息一下吧...");
+            return;
+        }
 
         // ── 网格式移动：每次按键移动恰好一个瓦片（仅方向键） ──
         // 移动即攻击：先检查目标位置是否有生物
@@ -578,10 +762,8 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
             metabolismManager.update();
             hydrationManager.addAction(Constants.ADD_THIRST_COMBAT);
             hydrationManager.update();
-            // 处理生物回合（异步，立即返回）
-            requestCreatureTurns();
-            turnManager.processRound();
-            world.updatePlantGrowth();
+            // 回合结束处理（移动点耗尽时触发：生物行动 + 补满 + 推进活动）
+            endOfPlayerRound();
             return;
         }
 
@@ -600,10 +782,8 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
             metabolismManager.update();
             hydrationManager.addAction(Constants.ADD_THIRST_WALK);
             hydrationManager.update();
-            // 处理生物回合（异步，立即返回）
-            requestCreatureTurns();
-            turnManager.processRound();
-            world.updatePlantGrowth();
+            // 回合结束处理（移动点耗尽时触发：生物行动 + 补满 + 推进活动）
+            endOfPlayerRound();
         }
     }
 
@@ -616,44 +796,58 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
      * 处理等待动作按键（5 = 等待一回合，- = 等待十回合）。
      * 由输入状态机在 NORMAL 模式下调用。
      *
+     * <p>等待 = 主动耗尽所有移动点 → 触发生物回合 → 补满。
+     *
      * @param keyCode 按键码
      * @return true 如果按键被消耗（是等待键），false 否则
      */
     public boolean handleWait(int keyCode) {
         if (keyCode == KeyEvent.VK_5) {
+            // 无移动点时无法等待
+            if (!turnManager.hasMoves(player)) {
+                GameLog.getInstance().log("你太累了，先休息一下吧...");
+                return true;
+            }
             // 等待时停止行走音效
             var waitAudio = EngineServices.audio;
             if (waitAudio != null) {
                 waitAudio.stopActionSound(WALK_ACTION);
             }
             lastMoveTimeMs = 0;
+            // 消耗等待时间（推进时钟）
             turnManager.addAction(player, Constants.WAIT_BASE_TIME);
-            requestCreatureTurns();
-            turnManager.processRound();
-            world.updatePlantGrowth();
             metabolismManager.addActionCost(0);
             metabolismManager.update();
             hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
             hydrationManager.update();
+            // 主动耗尽剩余移动点 → 回合结束处理
+            player.spendMoves(player.getMoves());
+            endOfPlayerRound();
             GameLog.getInstance().log("等待了一回合...");
             return true;
         }
         if (keyCode == KeyEvent.VK_MINUS || keyCode == KeyEvent.VK_SUBTRACT) {
+            // 无移动点时无法等待
+            if (!turnManager.hasMoves(player)) {
+                GameLog.getInstance().log("你太累了，先休息一下吧...");
+                return true;
+            }
             // 等待时停止行走音效
             var waitAudio = EngineServices.audio;
             if (waitAudio != null) {
                 waitAudio.stopActionSound(WALK_ACTION);
             }
             lastMoveTimeMs = 0;
+            // 持续等待 10 轮：每轮消耗 WAIT_BASE_TIME 时钟 + 耗尽移动点 + 回合处理
             for (int i = 0; i < 10; i++) {
                 turnManager.addAction(player, Constants.WAIT_BASE_TIME);
-                requestCreatureTurns();
                 metabolismManager.update();
                 hydrationManager.addAction(Constants.ADD_THIRST_IDLE);
                 hydrationManager.update();
+                // 主动耗尽剩余移动点 → 回合结束处理
+                player.spendMoves(player.getMoves());
+                endOfPlayerRound();
             }
-            turnManager.processRound();
-            world.updatePlantGrowth();
             GameLog.getInstance().log("持续等待了10回合...");
             return true;
         }

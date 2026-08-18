@@ -9,9 +9,12 @@ import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.screen.menu.MenuScreen;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
+import com.github.game.engine.core.sprite.Sprite;
+import com.github.game.engine.core.sprite.SpriteManager;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,6 +44,9 @@ public class DropScreen extends MenuScreen {
     private boolean quantityInputMode = false;
     /** 数量输入缓冲 */
     private StringBuilder numberBuffer = new StringBuilder();
+
+    /** 是否正在查看物品详情 */
+    private boolean showingDetail = false;
 
     public DropScreen(GameEngine engine, Player player, GroundItemManager groundItemManager) {
         super(engine);
@@ -80,6 +86,14 @@ public class DropScreen extends MenuScreen {
             return;
         }
 
+        // ── 物品详情查看 ──
+        if (showingDetail) {
+            if (keyCode == KeyEvent.VK_ESCAPE) {
+                showingDetail = false;
+            }
+            return;
+        }
+
         // ── 数量输入模式 ──
         if (quantityInputMode) {
             handleQuantityInput(keyCode);
@@ -88,6 +102,12 @@ public class DropScreen extends MenuScreen {
 
         // ── 选择模式 ──
         switch (keyCode) {
+            case KeyEvent.VK_E:
+                // 查看物品详情
+                if (selectedIndex >= 0 && selectedIndex < inventory.getItemCount()) {
+                    showingDetail = true;
+                }
+                return;
             case KeyEvent.VK_ENTER:
                 if (isCurrentStackable()) {
                     // 可堆叠物品：进入数量输入模式
@@ -159,6 +179,12 @@ public class DropScreen extends MenuScreen {
 
     @Override
     protected void renderMenu(Renderer renderer) {
+        // 物品详情查看模式
+        if (showingDetail) {
+            renderItemDetail(renderer);
+            return;
+        }
+
         renderer.setColor(new Color(10, 10, 20, 240));
         renderer.fillRect(0, 0, getWidth(), getHeight());
 
@@ -257,8 +283,8 @@ public class DropScreen extends MenuScreen {
             drawHintBar(renderer, "数字键输入 | Backspace 删除 | Enter 确认 | Esc 取消");
         } else {
             String hint = isCurrentStackable()
-                    ? "↑↓ 选择 | Enter 输入数量 | Esc 返回"
-                    : "↑↓ 选择 | Enter 整件丢弃 | Esc 返回";
+                    ? "↑↓ 选择 | Enter 输入数量 | E 查看 | Esc 返回"
+                    : "↑↓ 选择 | Enter 整件丢弃 | E 查看 | Esc 返回";
             drawHintBar(renderer, hint);
         }
     }
@@ -293,5 +319,170 @@ public class DropScreen extends MenuScreen {
     @Override
     protected void onCancel() {
         engine.getScreenManager().popScreen();
+    }
+
+    // ── 物品详情渲染 ──────────────────────────────
+
+    /** 渲染物品详情查看面板 */
+    private void renderItemDetail(Renderer renderer) {
+        int height = getHeight();
+        int width = getWidth();
+
+        renderer.setColor(Color.BLACK);
+        renderer.fillRect(0, 0, width, height);
+
+        ItemStack stack = inventory.getItem(selectedIndex);
+        if (stack == null) {
+            showingDetail = false;
+            return;
+        }
+
+        // ── 居中面板 ──
+        int panelW = Math.min(400, width - 40);
+        int panelH = Math.min(340, height - 40);
+        int panelX = (width - panelW) / 2;
+        int panelY = (height - panelH) / 2;
+
+        renderer.setColor(new Color(15, 15, 25));
+        renderer.fillRect(panelX, panelY, panelW, panelH);
+        renderer.setColor(new Color(80, 80, 110));
+        renderer.drawRect(panelX, panelY, panelW, panelH);
+
+        int contentX = panelX + 20;
+        int contentW = panelW - 40;
+        int curY = panelY + 16;
+
+        // ── 图标 ──
+        String spriteId = "item." + stack.getType().getName();
+        Sprite sprite = SpriteManager.hasActivePack()
+                ? SpriteManager.getSprite(spriteId) : null;
+
+        if (sprite != null) {
+            int iconSize = 48;
+            int iconX = panelX + (panelW - iconSize) / 2;
+            renderer.drawImage(sprite.getImage(), iconX, curY, iconSize, iconSize);
+            curY += iconSize + 16;
+        } else {
+            String icon = stack.getType().getIcon();
+            renderer.setFont(new Font("Monospaced", Font.BOLD, 36));
+            renderer.setColor(new Color(255, 220, 100));
+            int iconX = panelX + (panelW - renderer.getTextWidth(icon)) / 2;
+            renderer.drawText(icon, iconX, curY + 36);
+            curY += 52;
+        }
+
+        // ── 物品名称 ──
+        String name = stack.getType().getDisplayName();
+        renderer.setFont(new Font("Monospaced", Font.BOLD, 18));
+        renderer.setColor(Color.YELLOW);
+        int nameX = panelX + (panelW - renderer.getTextWidth(name)) / 2;
+        renderer.drawText(name, nameX, curY);
+        curY += 12;
+
+        // ── 分隔线 ──
+        curY += 10;
+        renderer.setColor(new Color(60, 60, 80));
+        renderer.drawLine(contentX, curY, contentX + contentW, curY);
+        curY += 14;
+
+        // ── 描述 ──
+        String desc = stack.getType().getDescription();
+        if (desc != null && !desc.isBlank()) {
+            renderer.setFont(new Font("Monospaced", Font.PLAIN, 13));
+            List<String> lines = wrapText(renderer, desc, contentW);
+            renderer.setColor(new Color(200, 200, 210));
+            for (String line : lines) {
+                renderer.drawText(line, contentX, curY);
+                curY += 18;
+            }
+        } else {
+            renderer.setFont(new Font("Monospaced", Font.PLAIN, 13));
+            renderer.setColor(Color.GRAY);
+            renderer.drawText("（无描述）", contentX, curY);
+            curY += 18;
+        }
+
+        curY += 8;
+
+        // ── 分隔线 ──
+        renderer.setColor(new Color(60, 60, 80));
+        renderer.drawLine(contentX, curY, contentX + contentW, curY);
+        curY += 16;
+
+        // ── 物品属性 ──
+        renderer.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        renderer.setColor(new Color(140, 200, 255));
+
+        String countLine = String.format("数量: %d", stack.getCount());
+        renderer.drawText(countLine, contentX, curY);
+        curY += 18;
+
+        int weight = (int) stack.getTotalWeightGrams();
+        String weightLine = String.format("重量: %dg", weight);
+        renderer.drawText(weightLine, contentX, curY);
+        if (stack.getCount() > 1) {
+            int unitWeight = (int) stack.getType().getWeightGrams();
+            renderer.setColor(new Color(120, 120, 140));
+            renderer.drawText(String.format("(单件 %dg)", unitWeight),
+                    contentX + renderer.getTextWidth(weightLine) + 8, curY);
+            renderer.setColor(new Color(140, 200, 255));
+        }
+        curY += 18;
+
+        double volume = stack.getTotalVolumeMl();
+        if (volume > 0) {
+            renderer.drawText(String.format("体积: %.0fml", volume), contentX, curY);
+            curY += 18;
+        }
+
+        if (stack.getType().isConsumable()) {
+            curY += 4;
+            renderer.setColor(new Color(100, 200, 140));
+            renderer.drawText("── 营养 ──", contentX, curY);
+            curY += 18;
+            renderer.setFont(new Font("Monospaced", Font.PLAIN, 12));
+            double cal = stack.getTotalCalories();
+            double sat = stack.getTotalSatiety();
+            double water = stack.getTotalWaterContent();
+            if (cal > 0) { renderer.drawText(String.format("热量: %.0fkcal", cal), contentX, curY); curY += 18; }
+            if (sat > 0) { renderer.drawText(String.format("饱腹: %.0f", sat), contentX, curY); curY += 18; }
+            if (water > 0) { renderer.drawText(String.format("水分: %.0fml", water), contentX, curY); curY += 18; }
+        }
+
+        drawHintBar(renderer, "Esc 返回");
+    }
+
+    /** 文本自动换行 */
+    private List<String> wrapText(Renderer renderer, String text, int maxWidth) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isEmpty()) return lines;
+        String[] paragraphs = text.split("\n");
+        for (String paragraph : paragraphs) {
+            if (paragraph.isEmpty()) { lines.add(""); continue; }
+            String[] words = paragraph.split("(?<=\\s)|(?=\\s)");
+            StringBuilder cur = new StringBuilder();
+            for (String word : words) {
+                String test = cur + word;
+                if (renderer.getTextWidth(test) <= maxWidth) {
+                    cur.append(word);
+                } else {
+                    if (cur.length() > 0) { lines.add(cur.toString()); cur = new StringBuilder(word); }
+                    else {
+                        for (int i = 0; i < word.length(); ) {
+                            int cp = word.codePointAt(i);
+                            String ch = new String(Character.toChars(cp));
+                            i += Character.charCount(cp);
+                            if (renderer.getTextWidth(cur + ch) <= maxWidth) { cur.append(ch); }
+                            else {
+                                if (cur.length() > 0) { lines.add(cur.toString()); cur = new StringBuilder(ch); }
+                                else { cur.append(ch); lines.add(cur.toString()); cur = new StringBuilder(); }
+                            }
+                        }
+                    }
+                }
+            }
+            if (cur.length() > 0) lines.add(cur.toString());
+        }
+        return lines;
     }
 }

@@ -6,10 +6,10 @@ package com.github.game.cdda.world.vegetation;
  */
 public enum VegetationType {
     /** 树木 — 不可通过，可砍伐掉落原木 */
-    TREE("树木", '&'),
+    TREE("树木", 'F'),
 
     /** 灌木 — 不可通过，可采集获取树枝 */
-    SHRUB("灌木", '%'),
+    SHRUB("灌木", 'F'),
 
     /** 草 — 可通过，可采集 */
     GRASS("草", ';'),

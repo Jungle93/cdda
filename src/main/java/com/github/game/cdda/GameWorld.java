@@ -176,12 +176,13 @@ public class GameWorld {
     }
 
     /**
-     * 将玩家注册到回合系统，设置初始能量。
+     * 将玩家注册到回合系统，设置初始移动点。
      * 须在 initPlayerForRendering 之后调用。
      */
     public void registerPlayerToTurnSystem() {
         turnManager.addEntity(player);
-        player.addEnergy(TurnManager.ENERGY_PER_ACTION);
+        // 初始满移动点，使玩家在第一回合即可行动
+        player.addMoves(player.getSpeed());
     }
 
     /**

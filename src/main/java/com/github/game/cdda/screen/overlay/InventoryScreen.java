@@ -435,7 +435,7 @@ public class InventoryScreen extends MenuScreen {
             int iconSize = 48;
             int iconX = panelX + (panelW - iconSize) / 2;
             renderer.drawImage(sprite.getImage(), iconX, curY, iconSize, iconSize);
-            curY += iconSize + 4;
+            curY += iconSize + 16;
         } else {
             // 字符回退
             String icon = stack.getType().getIcon();

@@ -41,12 +41,13 @@ public final class Constants {
     // 注：玩家速度已迁移到时间系统常量 ENTITY_DEFAULT_SPEED
 
     // ── 回合系统 ──────────────────────────────────────
-    /** 默认实体速度（= 正常步行） */
+    /** 默认实体速度（= 正常步行），决定每轮获得的移动点数 */
     public static final long ENTITY_DEFAULT_SPEED = 100;
-    /** 移动一步的基础回合数。speed=100时每步=10回合 */
+    /** 移动一步的基础回合数（时钟推进用）。speed=100时每步=10回合 */
     public static final long MOVE_BASE_TIME = 10;
-    /** 每次行动消耗的能量点数 */
-    public static final long ENERGY_PER_ACTION = 100;
+    /** 每次行动消耗的移动点数（固定成本，不随速度变化）。
+     *  speed=100 → 每轮100点 → 1次行动/轮；speed=200 → 每轮200点 → 2次行动/轮 */
+    public static final long MOVE_COST = 100;
 
     // ── 温度系统 ──────────────────────────────────────
     /** 日内温度波动振幅（°C）。14:00 峰值+amplitude，02:00 谷值-amplitude */

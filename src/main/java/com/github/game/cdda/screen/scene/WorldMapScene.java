@@ -176,6 +176,12 @@ public class WorldMapScene extends Scene {
                 renderer.setColor(biome.getColor());
                 renderer.fillRect(screenX, screenY, cs, cs);
 
+                // 水域覆盖层（大地图显示河流/湖泊/海洋）
+                // 借鉴 CDDA overmap 水域渲染：在 biome 颜色上叠加蓝色
+                WorldMap.WaterFeatureType waterFeature =
+                        worldMap.getWaterFeatureAtChunk(chunkX, chunkY);
+                renderWaterOverlay(renderer, screenX, screenY, cs, waterFeature);
+
                 // 区块边界线（缩放较大时显示）
                 if (cs >= 8) {
                     renderer.setColor(new Color(0, 0, 0, 40));
@@ -208,6 +214,65 @@ public class WorldMapScene extends Scene {
 
         // 7. 操作提示（左上角）
         renderHints(renderer);
+    }
+
+    /**
+     * 渲染水域覆盖层（河流/湖泊/海洋）。
+     *
+     * <p>在 biome 颜色上叠加半透明蓝色：
+     * <ul>
+     *   <li>OCEAN — 深蓝微调（biome 本身已是蓝色，轻微加深）</li>
+     *   <li>LAKE — 中蓝半透明填充 + ≋ 字符</li>
+     *   <li>RIVER — 浅蓝半透明填充 + - 字符</li>
+     * </ul>
+     *
+     * <p>设计借鉴 Cataclysm-DDA overmap 水域渲染：
+     * 在 biome 色块上叠加水域信息层，使河流/湖泊在大地图上可见。
+     */
+    private void renderWaterOverlay(Renderer renderer, int screenX, int screenY, int cs,
+                                     WorldMap.WaterFeatureType waterFeature) {
+        if (waterFeature == WorldMap.WaterFeatureType.NONE) return;
+
+        Color waterColor;
+        int alpha;
+        char waterChar = ' ';
+
+        switch (waterFeature) {
+            case OCEAN:
+                // 海洋 — biome 本身已是蓝色，用深蓝微调加深
+                waterColor = new Color(30, 80, 180);
+                alpha = 60;
+                break;
+            case LAKE:
+                // 湖泊 — 中蓝半透明
+                waterColor = new Color(50, 120, 220);
+                alpha = 140;
+                waterChar = '≋';
+                break;
+            case RIVER:
+                // 河流 — 浅蓝半透明
+                waterColor = new Color(80, 160, 255);
+                alpha = 120;
+                waterChar = '-';
+                break;
+            default:
+                return;
+        }
+
+        // 半透明水域填充
+        renderer.setColor(new Color(waterColor.getRed(), waterColor.getGreen(),
+                waterColor.getBlue(), alpha));
+        renderer.fillRect(screenX, screenY, cs, cs);
+
+        // 水域字符（高缩放时显示）
+        if (cs >= 12 && waterChar != ' ') {
+            renderer.setColor(new Color(220, 240, 255, 200));
+            renderer.setFont(new Font("Monospaced", Font.BOLD, Math.min(cs - 2, 14)));
+            String ch = String.valueOf(waterChar);
+            int tw = renderer.getTextWidth(ch);
+            int ascent = renderer.getFontMetrics().getAscent();
+            renderer.drawText(ch, screenX + (cs - tw) / 2, screenY + (cs + ascent) / 2 - 1);
+        }
     }
 
     /**
@@ -288,7 +353,7 @@ public class WorldMapScene extends Scene {
 
     /**
      * 渲染底部状态栏。
-     * 显示光标区块坐标 + 生物群落 + 玩家位置。
+     * 显示光标区块坐标 + 生物群落 + 水域类型 + 玩家位置。
      */
     private void renderStatusBar(Renderer renderer, int vpW, int vpH) {
         int barHeight = 20;
@@ -300,16 +365,49 @@ public class WorldMapScene extends Scene {
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 11));
 
         BiomeType cursorBiome = worldMap.getBiomeAtChunk(cursorChunkX, cursorChunkY);
+        WorldMap.WaterFeatureType cursorWater =
+                worldMap.getWaterFeatureAtChunk(cursorChunkX, cursorChunkY);
+
+        // 水域类型文本
+        String waterText;
+        Color waterColor;
+        switch (cursorWater) {
+            case OCEAN:
+                waterText = "海洋";
+                waterColor = new Color(80, 160, 255);
+                break;
+            case LAKE:
+                waterText = "湖泊";
+                waterColor = new Color(100, 180, 255);
+                break;
+            case RIVER:
+                waterText = "河流";
+                waterColor = new Color(120, 200, 255);
+                break;
+            default:
+                waterText = "";
+                waterColor = null;
+        }
 
         renderer.setColor(Color.CYAN);
         String cursorInfo = String.format("光标:(%d,%d) %s",
                 cursorChunkX, cursorChunkY, cursorBiome.getName());
         renderer.drawText(cursorInfo, 4, barY + 14);
 
+        int textX = 4 + renderer.getTextWidth(cursorInfo);
+
+        // 水域类型（如果有）
+        if (waterColor != null) {
+            renderer.setColor(waterColor);
+            String waterInfo = " [" + waterText + "]";
+            renderer.drawText(waterInfo, textX, barY + 14);
+            textX += renderer.getTextWidth(waterInfo);
+        }
+
         renderer.setColor(Color.YELLOW);
         String playerInfo = String.format("  玩家:(%d,%d)  缩放:%dpx/区块",
                 playerChunkX(), playerChunkY(), cellSize());
-        renderer.drawText(playerInfo, 4 + renderer.getTextWidth(cursorInfo), barY + 14);
+        renderer.drawText(playerInfo, textX, barY + 14);
     }
 
     /**

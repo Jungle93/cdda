@@ -6,7 +6,7 @@
   "volumeMl": 400,
   "maxStackSize": 3,
   "consumableTypes": 1,
-  "calories": 120,
+  "calories": 120000,
   "satiety": 50,
   "waterContent": 200,
   "tags": ["cooked"]

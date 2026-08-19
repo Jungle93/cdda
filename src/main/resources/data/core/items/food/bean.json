@@ -6,7 +6,7 @@
   "volumeMl": 20,
   "maxStackSize": 20,
   "consumableTypes": 1,
-  "calories": 30,
+  "calories": 30000,
   "satiety": 20,
   "waterContent": 10,
   "tags": ["vegetable", "processing"]

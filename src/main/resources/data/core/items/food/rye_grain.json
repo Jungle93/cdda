@@ -6,7 +6,7 @@
   "volumeMl": 10,
   "maxStackSize": 30,
   "consumableTypes": 1,
-  "calories": 20,
+  "calories": 20000,
   "satiety": 10,
   "waterContent": 0,
   "tags": ["grain", "processing"]

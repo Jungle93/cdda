@@ -106,20 +106,20 @@ public final class Constants {
     public static final int WEAPON_BONUS_AXE = 5;
 
     // ── 代谢系统 ──────────────────────────────────────
-    /** 最大能量储备（cal）。≈ 2500 kcal × 1000倍率，约2.5天基础消耗 */
-    public static final int CALORIE_MAX_POOL = 2_500_000;
+    /** 最大能量储备（cal）。≈ 7500 kcal × 1000倍率，约3天基础消耗 */
+    public static final int CALORIE_MAX_POOL = 7_500_000;
     /** 初始能量百分比（0.0~1.0）。游戏开始时不饿但也不满 */
     public static final double CALORIE_INITIAL_PERCENT = 0.8;
-    /** 基础代谢率（cal/回合）。28 × 86400 ≈ 2,419,200 cal/天 */
-    public static final long BASAL_METABOLISM_RATE = 28;
+    /** 基础代谢率（cal/回合）。9.3 × 8640 ≈ 803,520 cal/天 ≈ 800 kcal/天 */
+    public static final long BASAL_METABOLISM_RATE = 9;
     /** 舒适区温度下限（°C）。在此范围内无额外环境代偿消耗 */
-    public static final double COMFORT_TEMP_MIN = 18.0;
+    public static final double COMFORT_TEMP_MIN = 16.0;
     /** 舒适区温度上限（°C） */
-    public static final double COMFORT_TEMP_MAX = 25.0;
+    public static final double COMFORT_TEMP_MAX = 26.0;
     /** 环境代偿系数（cal/秒/°C）。偏离舒适区每°C的额外消耗 */
-    public static final double ENV_COMPENSATION_RATE = 5.0;
-    /** 移动一步消耗的热量（cal） */
-    public static final int MOVE_CALORIE_COST = 500;
+    public static final double ENV_COMPENSATION_RATE = 3.0;
+    /** 移动一步消耗的热量（cal）。步行约消耗 4-5 kcal/公里 */
+    public static final int MOVE_CALORIE_COST = 120;
     /** 正常体温（°C） */
     public static final double NORMAL_BODY_TEMP = 37.0;
     /** 体温漂移速率（°C/秒）。能量耗尽时体温向环境漂移的速度 */

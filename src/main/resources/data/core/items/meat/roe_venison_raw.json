@@ -6,7 +6,7 @@
   "volumeMl": 350,
   "maxStackSize": 5,
   "consumableTypes": 1,
-  "calories": 750,
+  "calories": 600000,
   "satiety": 65,
   "waterContent": 45
 }

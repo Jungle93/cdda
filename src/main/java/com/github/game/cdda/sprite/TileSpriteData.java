@@ -466,10 +466,13 @@ public final class TileSpriteData {
             }
         }
 
-        int pngCount = 0;
-        int fallbackCount = 0;
+        // 修正锚点：瓦片精灵应渲染在瓦片位置的精确对齐处（anchor=0,0），
+        // 而不是默认的底部对齐（anchorY=1.0 会使精灵向上偏移一整格）。
+        // 这对于覆盖层瓦片（rock、reeds 等）尤为重要，偏移会导致贴图与碰撞位置不一致。
         for (Sprite s : sprites.values()) {
-            // 简单判断：如果来自文件，日志已记录
+            if (s.getAnchorX() == 0.0 && s.getAnchorY() == 1.0) {
+                s.setAnchor(0.0, 0.0);
+            }
         }
 
         return sprites;

@@ -1,6 +1,7 @@
 package com.github.game.cdda.screen.scene;
 
 import com.github.game.cdda.creature.Player;
+import com.github.game.cdda.creature.Animal;
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.world.biome.BiomeType;
@@ -340,6 +341,9 @@ public class WorldMapScene extends Scene {
                 player.getTileX(), player.getTileY(), maxRangeTiles);
 
         for (Creature creature : creatures) {
+            // 小动物不在大地图上显示红点
+            if (creature instanceof Animal) continue;
+
             int cChunkX = Math.floorDiv(creature.getTileX(), Chunk.SIZE);
             int cChunkY = Math.floorDiv(creature.getTileY(), Chunk.SIZE);
             int screenX = chunkToScreenX(cChunkX) + cs / 2;

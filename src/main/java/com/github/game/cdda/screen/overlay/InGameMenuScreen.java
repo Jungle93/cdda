@@ -2,6 +2,7 @@ package com.github.game.cdda.screen.overlay;
 
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
+import com.github.game.cdda.save.SaveManager;
 import com.github.game.cdda.screen.menu.MenuScreen;
 
 import java.awt.*;
@@ -21,10 +22,11 @@ import java.awt.*;
 public class InGameMenuScreen extends MenuScreen {
 
     private static final String TITLE = "游戏菜单";
-    private static final String[] ITEMS = {"返回游戏", "设置", "退出游戏"};
+    private static final String[] ITEMS = {"返回游戏", "保存游戏", "设置", "退出游戏"};
     private static final int ITEM_RETURN = 0;
-    private static final int ITEM_SETTINGS = 1;
-    private static final int ITEM_QUIT = 2;
+    private static final int ITEM_SAVE = 1;
+    private static final int ITEM_SETTINGS = 2;
+    private static final int ITEM_QUIT = 3;
 
     /** 游戏场景引用（用于传递 Camera 到设置界面） */
     private final com.github.game.cdda.screen.scene.GameScene gameScene;
@@ -71,6 +73,13 @@ public class InGameMenuScreen extends MenuScreen {
         switch (index) {
             case ITEM_RETURN:
                 engine.getScreenManager().popScreen();
+                break;
+            case ITEM_SAVE:
+                if (gameScene != null && gameScene.getWorld() != null) {
+                    boolean success = SaveManager.saveGame(gameScene.getWorld(), 1);
+                    com.github.game.cdda.log.GameLog.getInstance().log(
+                            success ? "游戏已保存到槽位 1" : "保存失败，请查看日志");
+                }
                 break;
             case ITEM_SETTINGS:
                 // 打开游戏内设置（叠加在菜单之上）

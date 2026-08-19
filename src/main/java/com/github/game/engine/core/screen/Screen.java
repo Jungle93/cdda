@@ -162,6 +162,18 @@ public abstract class Screen {
     }
 
     /**
+     * 鼠标滚轮向上（远离用户）。默认空实现，子类可覆写。
+     * 通常用于缩放操作。
+     */
+    public void onMouseWheelUp() {}
+
+    /**
+     * 鼠标滚轮向下（朝向用户）。默认空实现，子类可覆写。
+     * 通常用于缩放操作。
+     */
+    public void onMouseWheelDown() {}
+
+    /**
      * 窗口尺寸变更通知。
      * 当用户拖拽调整窗口大小时，引擎通过 ScreenManager 调用此方法。
      * 默认空实现，子类可覆写以更新布局（如重新计算 Viewport 尺寸）。

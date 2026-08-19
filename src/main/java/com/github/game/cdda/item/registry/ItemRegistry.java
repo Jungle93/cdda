@@ -111,6 +111,28 @@ public final class ItemRegistry {
         return type;
     }
 
+    /**
+     * 从 ItemDefinition 加载并注册（供 ModLoader 调用）。
+     *
+     * @param def  物品定义
+     * @param name 物品名称（可能已被 ModLoader 添加了前缀）
+     */
+    public static void loadDefinition(ItemDefinition def, String name) {
+        if (def == null || name == null) return;
+        def.name = name;
+        // Mod 物品 ID 从 1000 开始，避免冲突
+        int nextId = 1000;
+        while (REGISTRY.containsKey(nextId)) nextId++;
+        def.id = nextId;
+        ItemType type = def.toItemType();
+        try {
+            validateAndPut(type);
+            logger.debug("注册 Mod 物品: {} (id={})", name, type.getId());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Mod 物品注册冲突: {}", e.getMessage());
+        }
+    }
+
     /** 核心注册逻辑（ID/name 冲突检查） */
     private static void validateAndPut(ItemType type) {
         if (REGISTRY.containsKey(type.getId())) {

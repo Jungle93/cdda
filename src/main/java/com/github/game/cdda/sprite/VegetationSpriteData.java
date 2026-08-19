@@ -73,7 +73,7 @@ public final class VegetationSpriteData {
             // 灌木
             "hazel", "holly", "gorse", "heather",
             // 草类
-            "tall_grass", "meadow_grass",
+            "tall_grass",
             // 苔藓
             "green_moss", "sphagnum",
             // 水生植物
@@ -324,7 +324,6 @@ public final class VegetationSpriteData {
                 secondaryColor = new Color(180, 80, 160); // 紫花
                 break;
             case "tall_grass":
-            case "meadow_grass":
                 primaryColor = new Color(90, 180, 70);
                 secondaryColor = new Color(120, 210, 90);
                 break;

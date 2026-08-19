@@ -1,0 +1,9 @@
+{
+  "id": "example_mod",
+  "name": "示例 Mod - 龙与魔法",
+  "version": "1.0.0",
+  "description": "添加龙、魔法物品和合成配方的示例 Mod",
+  "author": "CDDA Team",
+  "dependencies": [],
+  "loadOrder": 100
+}

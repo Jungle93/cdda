@@ -1,6 +1,11 @@
 package com.github.game.cdda.screen.menu;
 
+import com.github.game.cdda.GameWorld;
+import com.github.game.cdda.game.WorldSettings;
+import com.github.game.cdda.game.time.Month;
 import com.github.game.cdda.log.GameLog;
+import com.github.game.cdda.save.SaveManager;
+import com.github.game.cdda.screen.MainScreen;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
 
@@ -59,8 +64,7 @@ public class MainMenuScreen extends MenuScreen {
                 engine.getScreenManager().switchScreen(new GameSetupScreen(engine));
                 break;
             case ITEM_LOAD_GAME:
-                // 存档系统尚未实现，提示玩家
-                GameLog.getInstance().log("加载存档功能尚未实现");
+                loadGame();
                 break;
             case ITEM_SETTINGS:
                 engine.getScreenManager().switchScreen(new SettingsScreen(engine));
@@ -68,6 +72,22 @@ public class MainMenuScreen extends MenuScreen {
             case ITEM_QUIT:
                 System.exit(0);
                 break;
+        }
+    }
+
+    /**
+     * 加载存档（槽位 1）。
+     * 创建新的 GameWorld 并加载存档数据。
+     */
+    private void loadGame() {
+        GameWorld world = new GameWorld(new WorldSettings(), Month.MARCH, 8);
+        boolean success = SaveManager.loadGame(world, 1);
+        if (success) {
+            GameLog.getInstance().log("游戏已从槽位 1 加载");
+            engine.getScreenManager().switchScreen(new MainScreen(engine,
+                    world.getWorldSettings(), new com.github.game.cdda.game.CharacterSettings()));
+        } else {
+            GameLog.getInstance().log("加载失败，存档可能不存在");
         }
     }
 }

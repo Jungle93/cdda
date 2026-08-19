@@ -1,0 +1,10 @@
+{
+  "id": 1001,
+  "name": "example_mod:dragon_scale",
+  "displayName": "龙鳞",
+  "description": "从龙身上剥下的坚硬鳞片，可用于制作盔甲",
+  "weightGrams": 500,
+  "volumeMl": 200,
+  "maxStackSize": 10,
+  "unique": false
+}

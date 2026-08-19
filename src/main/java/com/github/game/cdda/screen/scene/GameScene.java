@@ -321,6 +321,9 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         // this 实现 TileLayerRenderer，提供物品和生物图层回调
         tileMap.render(renderer, camera, this);
 
+        // 渲染玩家高亮光环（在玩家角色之下，帮助快速定位）
+        renderPlayerHighlight(renderer, tileW, tileH);
+
         // 渲染玩家（在生物层之上）
         player.render(renderer, camera, tileW, tileH);
 
@@ -340,6 +343,40 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
 
         // 渲染方向选择提示
         renderDirectionSelectHint(renderer);
+
+        // 渲染昼夜色调叠加（覆盖整个游戏区域，营造昼夜氛围）
+        DayNightOverlay.render(renderer, world.getGameTime(),
+                viewport.getWidth(), viewport.getHeight());
+    }
+
+    /**
+     * 渲染玩家高亮光环。
+     * 在玩家脚下绘制半透明白色圆形光晕，帮助玩家在复杂地形中快速定位。
+     * 使用 fillOval + drawOval 组合，alpha 值较低以不遮挡地形。
+     */
+    private void renderPlayerHighlight(Renderer renderer, int tileW, int tileH) {
+        double zoom = camera.getZoom();
+        int scaledW = (int) (tileW * zoom);
+        int scaledH = (int) (tileH * zoom);
+
+        // 光环尺寸（1.3 倍瓦片）
+        int glowSize = (int) (scaledW * 1.3);
+        int viewX = camera.toViewX(player.getWorldX());
+        int viewY = camera.toViewY(player.getWorldY());
+        int glowX = viewX - (glowSize - scaledW) / 2;
+        int glowY = viewY - (glowSize - scaledH) / 2;
+
+        // 微弱脉冲动画（alpha 60-100）
+        long time = System.currentTimeMillis();
+        int alpha = 80 + (int) (20 * Math.sin(time / 500.0));
+
+        // 半透明白色填充圆
+        renderer.setColor(new Color(255, 255, 255, alpha));
+        renderer.fillOval(glowX, glowY, glowSize, glowSize);
+
+        // 白色边框（更明显）
+        renderer.setColor(new Color(255, 255, 255, Math.min(255, alpha + 80)));
+        renderer.drawOval(glowX, glowY, glowSize, glowSize);
     }
 
     /**

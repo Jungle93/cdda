@@ -1,0 +1,15 @@
+{
+  "id": "example_mod:craft_dragon_armor",
+  "name": "制作龙鳞甲",
+  "category": "armor",
+  "inputItemId": "example_mod:dragon_scale",
+  "inputCount": 10,
+  "toolRequired": "crafting",
+  "processingTime": 300,
+  "outputs": [
+    {
+      "itemId": "example_mod:dragon_armor",
+      "count": 1
+    }
+  ]
+}

@@ -191,7 +191,7 @@ public class TileMap {
                 int screenX = camera.toViewX(c * tileWidth);
                 int screenY = camera.toViewY(r * tileHeight);
 
-                // 图层1：地形
+                // 图层1：地形（使用非阻塞查询，区块未完成则跳过）
                 drawGroundTile(renderer, c, r, screenX, screenY,
                         scaledTileW, scaledTileH, useSprites);
 
@@ -209,7 +209,8 @@ public class TileMap {
         // ── 覆盖层 pass（扩展范围，含多瓦片植被精灵） ──
         for (int r = renderStartRow; r <= renderEndRow; r++) {
             for (int c = renderStartCol; c <= renderEndCol; c++) {
-                TileType tile = chunkManager.getTile(c, r);
+                // 使用非阻塞查询，区块未完成生成则跳过
+                TileType tile = chunkManager.getTileIfReady(c, r);
                 if (tile == null || !tile.isOverlay()) continue;
 
                 // 已被多瓦片精灵覆盖 → 跳过
@@ -222,7 +223,7 @@ public class TileMap {
 
                 if (useSprites) {
                     // 优先使用植被物种精灵（支持物种差异化和多瓦片）
-                    Sprite sprite = getVegetationSprite(c, r, tile);
+                    Sprite sprite = getVegetationSprite(c, r);
                     if (sprite != null) {
                         drawOverlaySprite(renderer, sprite, screenX, screenY,
                                 scaledTileW, scaledTileH, c, r,
@@ -257,12 +258,13 @@ public class TileMap {
                                 int screenX, int screenY,
                                 int scaledTileW, int scaledTileH,
                                 boolean useSprites) {
-        TileType tile = chunkManager.getTile(col, row);
+        // 使用非阻塞查询，区块未完成生成则跳过（避免渲染线程卡顿）
+        TileType tile = chunkManager.getTileIfReady(col, row);
         if (tile == null) return;
 
         // 覆盖层瓦片：渲染其下方的地面层
         TileType groundTile = tile.isOverlay()
-                ? chunkManager.getGroundTile(col, row)
+                ? chunkManager.getGroundTileIfReady(col, row)
                 : tile;
         if (groundTile == null) groundTile = tile;
 
@@ -290,11 +292,10 @@ public class TileMap {
      *
      * @param tileX 瓦片 X 坐标
      * @param tileY 瓦片 Y 坐标
-     * @param tile  瓦片类型
      * @return 植被精灵，无则 null
      */
-    private Sprite getVegetationSprite(int tileX, int tileY, TileType tile) {
-        String speciesId = chunkManager.getVegetation(tileX, tileY);
+    private Sprite getVegetationSprite(int tileX, int tileY) {
+        String speciesId = chunkManager.getVegetationIfReady(tileX, tileY);
         if (speciesId == null) return null;
         return SpriteManager.getSprite("vegetation." + speciesId);
     }

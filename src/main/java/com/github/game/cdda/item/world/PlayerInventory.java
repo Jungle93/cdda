@@ -191,4 +191,14 @@ public class PlayerInventory {
         if (index < 0 || index >= items.size()) return null;
         return items.get(index);
     }
+
+    /**
+     * 清空背包。
+     * 用于加载存档时重置背包状态。
+     */
+    public void clear() {
+        items.clear();
+        weight = 0;
+        volume = 0;
+    }
 }

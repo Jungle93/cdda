@@ -14,6 +14,8 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 
 /**
  * 游戏渲染面板，同时作为输入事件入口。
@@ -21,7 +23,7 @@ import java.awt.event.MouseMotionListener;
  * 尺寸和字体由 DisplayConfig 驱动（通过 GameEngine 获取），支持运行时动态调整。
  */
 public class GamePanel extends JPanel
-        implements MouseListener, MouseMotionListener, KeyListener {
+        implements MouseListener, MouseMotionListener, KeyListener, MouseWheelListener {
 
     private final GameEngine engine;
 
@@ -31,6 +33,7 @@ public class GamePanel extends JPanel
 
         addMouseListener(this);
         addMouseMotionListener(this);
+        addMouseWheelListener(this);
         addKeyListener(this);
 
         // 监听面板尺寸变化，通知配置层持久化 + 通知屏幕更新布局
@@ -131,4 +134,18 @@ public class GamePanel extends JPanel
 
     @Override
     public void keyTyped(KeyEvent e) { engine.getInputManager().onKeyTyped(e); }
+
+    // ── MouseWheelListener ──────────────────────────────
+
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        Screen screen = engine.getScreenManager().getCurrentScreen();
+        if (screen != null) {
+            if (e.getWheelRotation() < 0) {
+                screen.onMouseWheelUp();
+            } else {
+                screen.onMouseWheelDown();
+            }
+        }
+    }
 }

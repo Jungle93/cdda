@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * 单个区块（chunk）。持有 64×64 瓦片数据。
+ * 单个区块（chunk）。持有 32×32 瓦片数据。
  *
  * <p>地形生成由世界地图（WorldMap）提供的 {@link BiomeType} 驱动：
  * <ul>
@@ -24,20 +24,32 @@ import java.util.Random;
  *   <li><b>小地图</b>（Chunk）根据群落参数，用局部噪声生成具体地形细节</li>
  * </ul>
  *
- * <h3>两遍生成（ biome 驱动）：</h3>
+ * <p>区块地形分两阶段生成（由 {@link com.github.game.cdda.world.chunk.ChunkManager} 调度）：
  * <ol>
- *   <li><b>高程 → 基底地形</b>
- *       局部噪声生成地形起伏，阈值由群落的 {@code waterLevel} 和 {@code rockiness} 偏移。</li>
- *   <li><b>噪声 → 植被放置</b>
- *       植被密度噪声 + 群落参数（{@code treeDensity}, {@code grassDensity}）
- *       控制树木/草/花的密度和分布，形成聚簇效果。</li>
+ *   <li><b>阶段1 — generate()</b>：内部地形生成
+ *       <ul>
+ *         <li>高程 → 基底地形（阈值由群落的 waterLevel/rockiness 偏移）</li>
+ *         <li>噪声 → 植被放置（密度噪声 + 群落参数控制聚簇效果）</li>
+ *         <li>排水 → 水域处理（查询 WorldMap 决定水域位置）</li>
+ *         <li>水边植被（在水域边缘放置芦苇/香蒲）</li>
+ *       </ul></li>
+ *   <li><b>阶段2 — blendEdges()</b>：边界混合
+ *       检查相邻区块的群落类型和边缘瓦片数据，实现跨区块平滑过渡。
+ *       混合产生的 TREE/BUSH 会同步分配植被物种。</li>
  * </ol>
+ *
+ * <h3>线程安全：</h3>
+ * <ul>
+ *   <li>{@code generated} 标记为 volatile，保证渲染线程可见性</li>
+ *   <li>{@code generate()} 和 {@code blendEdges()} 均 synchronized，
+ *       防止后台生成线程与 EDT 同步生成路径并发执行</li>
+ *   <li>渲染路径通过 {@code isGenerated()} 非阻塞查询，不持锁</li>
+ * </ul>
  *
  * <h3>扩展点：</h3>
  * <ul>
  *   <li>新生物群落：注册 BiomeType 即可，无需修改 Chunk</li>
  *   <li>地形修饰器：后续可添加 {@code BiomeTerrainModifier} 接口，支持特殊地形规则</li>
- *   <li>群落过渡：区块边界可混合相邻群落参数（待实现）</li>
  * </ul>
  */
 public class Chunk {
@@ -87,18 +99,20 @@ public class Chunk {
     /** 土壤肥力地图（存储每个瓦片的肥力值） */
     private SoilFertility soilFertility;
 
-    /** 是否已生成 */
-    private boolean generated = false;
+    /** 是否已生成（volatile 保证跨线程可见性） */
+    private volatile boolean generated = false;
+
+    /** 边界混合是否已完成（两阶段生成：generate → blendEdges） */
+    private volatile boolean blended = false;
 
     /**
      * 创建区块（不立即生成，等待排水计算完成后调用 generate()）。
      *
      * @param chunkX 区块 X 坐标（以区块为单位）
      * @param chunkY 区块 Y 坐标（以区块为单位）
-     * @param noise  世界 Perlin 噪声生成器（地形 + 植被）
      * @param biome  此区块的生物群落（由 WorldMap 决定）
      */
-    public Chunk(int chunkX, int chunkY, PerlinNoise noise, BiomeType biome) {
+    public Chunk(int chunkX, int chunkY, BiomeType biome) {
         this.chunkX = chunkX;
         this.chunkY = chunkY;
         this.biome = biome;
@@ -108,9 +122,9 @@ public class Chunk {
     // ── 地形生成 ────────────────────────────
 
     /**
-     * 根据生物群落参数生成区块地形。
+     * 根据生物群落参数生成区块地形（阶段1）。
      *
-     * <p>四遍生成：
+     * <p>四遍生成（不含边界混合）：
      * <ol>
      *   <li><b>高程 + 环境 → 基底地形</b>
      *       局部噪声生成地形起伏，海拔/湿度/温度共同决定地形类型。</li>
@@ -121,21 +135,20 @@ public class Chunk {
      *       查询 WorldMap 决定水域位置。</li>
      *   <li><b>水边植被</b>
      *       在水域边缘放置芦苇/香蒲。</li>
-     *   <li><b>边界混合</b>
-     *       检查相邻区块的群落类型和边缘瓦片数据，实现跨区块平滑过渡。</li>
      * </ol>
+     *
+     * <p><b>边界混合</b>已拆分为独立的 {@link #blendEdges(Chunk[][], WorldMap)} 方法（阶段2），
+     * 由 {@link ChunkManager} 在所有区块生成完成后统一调用，解决生成时序导致的边界混合遗漏。
      *
      * @param noise       Perlin 噪声生成器
      * @param worldMap    世界地图（提供环境数据）
-     * @param neighbors   周围 5×5 邻居区块（可为 null）
      */
-    public void generate(PerlinNoise noise, WorldMap worldMap, Chunk[][] neighbors) {
+    public synchronized void generate(PerlinNoise noise, WorldMap worldMap) {
         if (generated) return;
         this.tiles = new TileType[SIZE][SIZE];
         this.groundTiles = new TileType[SIZE][SIZE];
         this.vegetationMap = new VegetationMap(chunkX, chunkY);
         this.soilFertility = new SoilFertility(chunkX, chunkY, biome);
-        generated = true;
 
         // 群落基数参数
         double rockThreshold = BASE_ROCK_LEVEL - biome.getRockiness() * 0.30;
@@ -184,8 +197,10 @@ public class Chunk {
         // ── 第四遍：水边放置水生植被（芦苇/香蒲）──
         placeAquaticVegetation(noise, worldMap);
 
-        // ── 第五遍：区块边界混合（双层级检查）──
-        blendChunkEdges(neighbors, worldMap);
+        // 边界混合已拆分到 blendEdges()（阶段2，由 ChunkManager 统一调度）
+
+        // 所有瓦片数据填充完毕后才标记完成（volatile 保证渲染线程可见性）
+        generated = true;
 
         logger.debug("区块 ({}, {}) 生成完成 — 群落: {}", chunkX, chunkY, biome.getName());
     }
@@ -283,11 +298,29 @@ public class Chunk {
         return pool.get(pool.size() - 1).type;
     }
 
-    // ── 边界混合（第五遍） ────────────────────
+    // ── 边界混合（阶段2，独立于 generate） ────────────────────
 
     /** 方向偏移：上、下、左、右 */
     private static final int[] BLEND_DIR_DX = {0, 0, -1, 1};
     private static final int[] BLEND_DIR_DY = {-1, 1, 0, 0};
+
+    /**
+     * 区块边界混合（阶段2）。
+     *
+     * <p>在所有邻居区块均完成 {@link #generate} 后调用，
+     * 对四个方向的相邻区块进行边缘瓦片混合，实现跨区块平滑过渡。
+     *
+     * <p>幂等性：首次调用后标记 {@code blended=true}，后续调用直接返回（不重复混合）。
+     * 混合时产生的 TREE/BUSH 瓦片会同步分配植被物种（修复无贴图问题）。
+     *
+     * @param neighbors 周围 5×5 邻居区块
+     * @param worldMap  世界地图（提供环境数据，用于植被物种选择）
+     */
+    public synchronized void blendEdges(Chunk[][] neighbors, WorldMap worldMap) {
+        if (blended) return;
+        blendChunkEdges(neighbors, worldMap);
+        blended = true;
+    }
 
     /**
      * 区块边界混合（双层级检查）。
@@ -325,8 +358,8 @@ public class Chunk {
             }
 
             // 第二层：读取邻居边缘瓦片数据（小地图），进行混合
-            // 传入邻居的 biome 用于 biome 感知规则
-            blendWithNeighborTiles(dir, neighbor, blendWidth);
+            // 传入邻居的 biome 用于 biome 感知规则，传入 worldMap 用于植被物种选择
+            blendWithNeighborTiles(dir, neighbor, blendWidth, worldMap);
         }
     }
 
@@ -341,7 +374,8 @@ public class Chunk {
      * @param neighbor   相邻区块
      * @param blendWidth 混合宽度（格数）
      */
-    private void blendWithNeighborTiles(int dir, Chunk neighbor, int blendWidth) {
+    private void blendWithNeighborTiles(int dir, Chunk neighbor, int blendWidth,
+                                         WorldMap worldMap) {
         BiomeType neighborBiome = neighbor.getBiome();
         for (int i = 0; i < SIZE; i++) {
             for (int j = 1; j <= blendWidth; j++) {
@@ -365,6 +399,17 @@ public class Chunk {
                 TileType blended = blendTile(selfTile, neighborTile, blendFactor, dir, neighborBiome);
                 if (blended != null) {
                     tiles[selfRow][selfCol] = blended;
+
+                    // 混合产生的 TREE/BUSH 需要分配植被物种（修复无贴图问题）
+                    // 原 placeVegetation 中 TREE 总是附带 vegetationMap 条目，
+                    // 但 blend 路径只设置了 tiles 未设置 vegetationMap，导致渲染时无精灵
+                    if ((blended == TileType.TREE || blended == TileType.BUSH)
+                            && vegetationMap.getVegetation(selfCol, selfRow) == null) {
+                        int globalX = chunkX * SIZE + selfCol;
+                        int globalY = chunkY * SIZE + selfRow;
+                        assignBlendedVegetation(selfCol, selfRow, globalX, globalY,
+                                blended, worldMap);
+                    }
                 }
             }
         }
@@ -494,6 +539,56 @@ public class Chunk {
             }
         }
 
+        return null;
+    }
+
+    /**
+     * 为边界混合产生的 TREE/BUSH 瓦片分配植被物种。
+     *
+     * <p>边界混合（{@link #blendTile}）只修改 {@code tiles[][]}，不同步设置 {@code vegetationMap}，
+     * 导致渲染时 {@code getVegetationIfReady()} 返回 null → 无精灵贴图。
+     * 本方法根据环境查询适生物种，补全植被数据。
+     *
+     * @param localCol      局部列号
+     * @param localRow      局部行号
+     * @param globalX       全局瓦片 X（环境查询 + 确定性哈希）
+     * @param globalY       全局瓦片 Y
+     * @param tileType      混合后的瓦片类型（TREE 或 BUSH）
+     * @param worldMap      世界地图（提供温度/湿度/土壤深度）
+     */
+    private void assignBlendedVegetation(int localCol, int localRow,
+                                          int globalX, int globalY,
+                                          TileType tileType,
+                                          WorldMap worldMap) {
+        VegetationType vegType = getBlendVegetationType(tileType);
+        if (vegType == null) return;
+
+        // 环境查询（与 placeVegetation 一致，使用 WorldMap 的实际环境值）
+        double temperature = worldMap.getTemperatureAt(globalX, globalY);
+        double humidity = worldMap.getHumidityAt(globalX, globalY);
+        double soilDepth = worldMap.getSoilDepthAt(globalX, globalY);
+
+        // 使用确定性哈希作为随机种子（与 tileHash 保持一致的分布）
+        double hash = tileHash(globalX + 31415, globalY + 27183);
+        VegetationDefinition def = VegetationRegistry.selectForEnvironment(
+                temperature, humidity, soilDepth,
+                vegType,
+                new Random((long)(hash * Long.MAX_VALUE)));
+        if (def != null) {
+            vegetationMap.setVegetation(localCol, localRow, def.id);
+        }
+    }
+
+    /**
+     * 根据混合产生的瓦片类型和邻居 biome 推断植被类型。
+     *
+     * <p>映射规则：TREE → TREE，BUSH → SHRUB，其他 → null。
+     *
+     * @return 植被类型，无法推断时返回 null
+     */
+    private VegetationType getBlendVegetationType(TileType tileType) {
+        if (tileType == TileType.TREE) return VegetationType.TREE;
+        if (tileType == TileType.BUSH) return VegetationType.SHRUB;
         return null;
     }
 

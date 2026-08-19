@@ -1,0 +1,43 @@
+{
+  "id": "example_mod:dragon",
+  "name": "Dragon",
+  "hp": 500,
+  "speed": 150,
+  "trophicLevel": "APEX_PREDATOR",
+  "energyValue": 200,
+  "stats": {
+    "strength": 50,
+    "agility": 30,
+    "endurance": 40
+  },
+  "perception": {
+    "vision": 30,
+    "hearing": 20
+  },
+  "displayChar": "D",
+  "displayColor": [255, 50, 50],
+  "lifeStages": [
+    {
+      "stage": "juvenile",
+      "name": "Young Dragon",
+      "hp": 100,
+      "growSeconds": 86400
+    },
+    {
+      "stage": "adult",
+      "name": "Adult Dragon",
+      "hp": 500,
+      "growSeconds": null
+    }
+  ],
+  "lootTable": {
+    "entries": [
+      {
+        "itemId": "dragon_scale",
+        "chance": 1.0,
+        "minCount": 3,
+        "maxCount": 8
+      }
+    ]
+  }
+}

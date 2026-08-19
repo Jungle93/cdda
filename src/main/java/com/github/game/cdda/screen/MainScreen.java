@@ -7,6 +7,7 @@ import com.github.game.cdda.screen.overlay.CraftingScreen;
 import com.github.game.cdda.screen.overlay.DebugMenuScreen;
 import com.github.game.cdda.screen.overlay.DropScreen;
 import com.github.game.cdda.screen.overlay.EatingScreen;
+import com.github.game.cdda.screen.overlay.HelpOverlay;
 import com.github.game.cdda.screen.overlay.InGameMenuScreen;
 import com.github.game.cdda.screen.overlay.InventoryScreen;
 import com.github.game.cdda.screen.overlay.ItemUseOverlay;
@@ -258,6 +259,14 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     }
 
     @Override
+    public void pushHelpOverlay() {
+        int infoPanelWidth = ConfigManager.getInstance().getInfoPanelWidth();
+        Viewport gameViewport = new Viewport(0, 0, getWidth() - infoPanelWidth, getHeight());
+        HelpOverlay overlay = new HelpOverlay(gameViewport);
+        showOverlay(overlay);
+    }
+
+    @Override
     public void pushEatingScreen() {
         engine.getScreenManager().pushScreen(
                 new EatingScreen(engine, gameWorld));
@@ -304,6 +313,20 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         if (gameScene != null && gameScene.getCamera() != null) {
             gameScene.getCamera().zoomOut();
         }
+    }
+
+    // ── 鼠标滚轮缩放 ──────────────────────────────────
+
+    @Override
+    public void onMouseWheelUp() {
+        // 滚轮向上 = 放大
+        zoomCameraIn();
+    }
+
+    @Override
+    public void onMouseWheelDown() {
+        // 滚轮向下 = 缩小
+        zoomCameraOut();
     }
 
     @Override

@@ -65,12 +65,6 @@
     "offsetX": 0,
     "offsetY": -6
   },
-  "meadow_grass": {
-    "width": 1.0,
-    "height": 1.0,
-    "offsetX": 0,
-    "offsetY": 0
-  },
   "green_moss": {
     "width": 1.0,
     "height": 1.0,

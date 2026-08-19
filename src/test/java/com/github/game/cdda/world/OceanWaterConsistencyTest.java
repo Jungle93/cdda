@@ -97,8 +97,8 @@ class OceanWaterConsistencyTest {
                 if (biome != BiomeType.OCEAN) continue;
 
                 oceanChunks++;
-                Chunk chunk = new Chunk(cx, cy, noise, biome);
-                chunk.generate(noise, worldMap, null);
+                Chunk chunk = new Chunk(cx, cy, biome);
+                chunk.generate(noise, worldMap);
 
                 int waterCount = 0;
                 int sandCount = 0;
@@ -161,8 +161,8 @@ class OceanWaterConsistencyTest {
                 if (biome != BiomeType.SWAMP) continue;
 
                 swampChunks++;
-                Chunk chunk = new Chunk(cx, cy, noise, biome);
-                chunk.generate(noise, worldMap, null);
+                Chunk chunk = new Chunk(cx, cy, biome);
+                chunk.generate(noise, worldMap);
 
                 int waterCount = 0;
                 for (int row = 0; row < CHUNK_SIZE; row++) {
@@ -202,8 +202,8 @@ class OceanWaterConsistencyTest {
                 BiomeType biome = worldMap.getBiomeAtChunk(cx, cy);
                 if (biome != BiomeType.OCEAN) continue;
 
-                Chunk chunk = new Chunk(cx, cy, noise, biome);
-                chunk.generate(noise, worldMap, null);
+                Chunk chunk = new Chunk(cx, cy, biome);
+                chunk.generate(noise, worldMap);
 
                 int waterCount = 0;
                 for (int row = 0; row < CHUNK_SIZE; row++) {

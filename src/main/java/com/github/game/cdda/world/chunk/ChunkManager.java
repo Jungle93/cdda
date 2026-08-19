@@ -96,23 +96,9 @@ public class ChunkManager {
      * @return 地形类型；区块未加载返回 null
      */
     public TileType getTile(int worldTileX, int worldTileY) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-
-        Chunk chunk = chunks.get(chunkKey(cx, cy));
-        if (chunk == null) {
-            chunk = loadChunk(cx, cy);
-        }
-
-        // 如果区块还未生成地形，同步生成（异步队列来不及时回退）
-        if (!chunk.isGenerated()) {
-            generateChunkSync(chunk, cx, cy);
-        }
-
-        // 局部坐标
-        int localCol = floorMod(worldTileX, Chunk.SIZE);
-        int localRow = floorMod(worldTileY, Chunk.SIZE);
-        return chunk.getTile(localCol, localRow);
+        Chunk chunk = getOrLoadChunk(worldTileX, worldTileY);
+        ensureGenerated(chunk, worldTileX, worldTileY);
+        return chunk.getTile(localCol(worldTileX), localRow(worldTileY));
     }
 
     /**
@@ -124,21 +110,9 @@ public class ChunkManager {
      * @return 地面层地形类型；区块未加载返回 null
      */
     public TileType getGroundTile(int worldTileX, int worldTileY) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-
-        Chunk chunk = chunks.get(chunkKey(cx, cy));
-        if (chunk == null) {
-            chunk = loadChunk(cx, cy);
-        }
-
-        if (!chunk.isGenerated()) {
-            generateChunkSync(chunk, cx, cy);
-        }
-
-        int localCol = floorMod(worldTileX, Chunk.SIZE);
-        int localRow = floorMod(worldTileY, Chunk.SIZE);
-        return chunk.getGroundTile(localCol, localRow);
+        Chunk chunk = getOrLoadChunk(worldTileX, worldTileY);
+        ensureGenerated(chunk, worldTileX, worldTileY);
+        return chunk.getGroundTile(localCol(worldTileX), localRow(worldTileY));
     }
 
     /**
@@ -149,17 +123,8 @@ public class ChunkManager {
      * @param type       新的地形类型
      */
     public void setTile(int worldTileX, int worldTileY, TileType type) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-
-        Chunk chunk = chunks.get(chunkKey(cx, cy));
-        if (chunk == null) {
-            chunk = loadChunk(cx, cy);
-        }
-
-        int localCol = floorMod(worldTileX, Chunk.SIZE);
-        int localRow = floorMod(worldTileY, Chunk.SIZE);
-        chunk.setTile(localCol, localRow, type);
+        Chunk chunk = getOrLoadChunk(worldTileX, worldTileY);
+        chunk.setTile(localCol(worldTileX), localRow(worldTileY), type);
     }
 
     /**
@@ -248,7 +213,7 @@ public class ChunkManager {
      */
     private Chunk loadChunk(int cx, int cy) {
         BiomeType biome = worldMap.getBiomeAtChunk(cx, cy);
-        Chunk chunk = new Chunk(cx, cy, noise, biome);
+        Chunk chunk = new Chunk(cx, cy, biome);
         chunks.put(chunkKey(cx, cy), chunk);
         return chunk;
     }
@@ -256,20 +221,18 @@ public class ChunkManager {
     /**
      * 提交预加载区域内所有区块的后台生成任务。
      *
-     * <p>每个区块独立生成，互不依赖（邻居引用在提交时快照）。
-     * 生成完成后通知生物管理器生成生物。
+     * <p><b>两阶段生成</b>（解决边界混合时序依赖）：
+     * <ol>
+     *   <li><b>Phase 1 — 生成</b>：所有区块独立生成内部地形（高程/植被/水域），
+     *       不做边界混合（因为邻居可能尚未生成）。</li>
+     *   <li><b>Phase 2 — 混合</b>：所有区块生成完成后，统一执行边界混合。
+     *       此时邻居都已生成，混合不会被跳过。</li>
+     * </ol>
+     *
+     * <p>修复了此前单阶段生成中，先生成的区块因邻居未就绪而跳过边界混合、
+     * 导致区块边界永久缺少树木的问题。
      */
     private void submitGeneration(int playerChunkX, int playerChunkY) {
-        // 构建 5×5 邻居区块引用（用于区块边界混合）
-        Chunk[][] neighbors = new Chunk[5][5];
-        for (int dy = -2; dy <= 2; dy++) {
-            for (int dx = -2; dx <= 2; dx++) {
-                int cx = playerChunkX + dx;
-                int cy = playerChunkY + dy;
-                neighbors[dy + 2][dx + 2] = chunks.get(chunkKey(cx, cy));
-            }
-        }
-
         // 收集待生成区块
         int totalToGenerate = 0;
         for (int dy = -preloadRadius; dy <= preloadRadius; dy++) {
@@ -285,27 +248,45 @@ public class ChunkManager {
         if (totalToGenerate == 0) return;
 
         pendingGeneration.set(totalToGenerate);
-        logger.debug("提交 {} 个区块后台生成", totalToGenerate);
+        logger.debug("提交 {} 个区块后台生成（两阶段）", totalToGenerate);
 
-        // 提交到后台线程（单线程队列顺序执行，保证 neighbor 引用稳定）
+        // 提交到后台线程（单线程队列执行，保证阶段顺序）
         generationExecutor.submit(() -> {
             long start = System.currentTimeMillis();
-            int generated = 0;
+            int generatedCount = 0;
+
+            // Phase 1: 生成所有区块的内部地形（不做边界混合）
             for (int dy = -preloadRadius; dy <= preloadRadius; dy++) {
                 for (int dx = -preloadRadius; dx <= preloadRadius; dx++) {
                     int cx = playerChunkX + dx;
                     int cy = playerChunkY + dy;
                     Chunk chunk = chunks.get(chunkKey(cx, cy));
                     if (chunk != null && !chunk.isGenerated()) {
-                        // 重新快照邻居（因为异步时 neighbors 可能已过时）
-                        Chunk[][] currentNeighbors = snapshotNeighbors(cx, cy);
-                        chunk.generate(noise, worldMap, currentNeighbors);
-                        generated++;
+                        chunk.generate(noise, worldMap);
+                        generatedCount++;
                     }
                 }
             }
+
+            // Phase 2: 所有区块生成完成后，统一执行边界混合
+            // 此时邻居均已生成，blendChunkEdges 不会再因邻居未就绪而跳过
+            int blendedCount = 0;
+            for (int dy = -preloadRadius; dy <= preloadRadius; dy++) {
+                for (int dx = -preloadRadius; dx <= preloadRadius; dx++) {
+                    int cx = playerChunkX + dx;
+                    int cy = playerChunkY + dy;
+                    Chunk chunk = chunks.get(chunkKey(cx, cy));
+                    if (chunk != null) {
+                        Chunk[][] neighbors = snapshotNeighbors(cx, cy);
+                        chunk.blendEdges(neighbors, worldMap);
+                        blendedCount++;
+                    }
+                }
+            }
+
             long elapsed = System.currentTimeMillis() - start;
-            logger.debug("区块生成完成：{}/{} 个，耗时 {}ms", generated, pendingGeneration.get(), elapsed);
+            logger.debug("区块生成完成：生成 {} 个，混合 {} 个，耗时 {}ms",
+                    generatedCount, blendedCount, elapsed);
 
             // 通知生物管理器在新生成的区块中按概率生成生物
             if (creatureManager != null) {
@@ -321,10 +302,117 @@ public class ChunkManager {
 
     /**
      * 同步生成单个区块（EDT 回退路径 + 后台线程主路径）。
+     * 对区块加锁，防止与后台线程同时 generate()。
+     *
+     * <p>注意：仅执行阶段1（内部地形生成），不含边界混合。
+     * 边界混合由后台线程的 Phase 2 统一处理。
      */
     private void generateChunkSync(Chunk chunk, int cx, int cy) {
-        Chunk[][] neighbors = snapshotNeighbors(cx, cy);
-        chunk.generate(noise, worldMap, neighbors);
+        synchronized (chunk) {
+            if (chunk.isGenerated()) return;
+            chunk.generate(noise, worldMap);
+        }
+    }
+
+    /**
+     * 查找指定世界坐标对应的区块（不检查生成状态）。
+     *
+     * @param worldTileX 世界瓦片 X
+     * @param worldTileY 世界瓦片 Y
+     * @return 区块对象；未加载时返回 null
+     */
+    private Chunk getChunkForTile(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+        return chunks.get(chunkKey(cx, cy));
+    }
+
+    /**
+     * 查找指定世界坐标对应的区块，仅在区块已生成完成时返回（非阻塞）。
+     *
+     * @param worldTileX 世界瓦片 X
+     * @param worldTileY 世界瓦片 Y
+     * @return 已生成的区块；未加载或未完成生成时返回 null
+     */
+    private Chunk getGeneratedChunkIfReady(int worldTileX, int worldTileY) {
+        Chunk chunk = getChunkForTile(worldTileX, worldTileY);
+        return (chunk != null && chunk.isGenerated()) ? chunk : null;
+    }
+
+    /**
+     * 获取指定世界坐标对应的区块，未加载时自动加载。
+     *
+     * @param worldTileX 世界瓦片 X
+     * @param worldTileY 世界瓦片 Y
+     * @return 区块对象（不会返回 null）
+     */
+    private Chunk getOrLoadChunk(int worldTileX, int worldTileY) {
+        int cx = floorDiv(worldTileX, Chunk.SIZE);
+        int cy = floorDiv(worldTileY, Chunk.SIZE);
+        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        return chunk != null ? chunk : loadChunk(cx, cy);
+    }
+
+    /**
+     * 确保区块已生成（未生成时同步生成，异步队列来不及时回退）。
+     *
+     * @param chunk      目标区块
+     * @param worldTileX 世界瓦片 X（用于计算区块坐标）
+     * @param worldTileY 世界瓦片 Y
+     */
+    private void ensureGenerated(Chunk chunk, int worldTileX, int worldTileY) {
+        if (!chunk.isGenerated()) {
+            int cx = floorDiv(worldTileX, Chunk.SIZE);
+            int cy = floorDiv(worldTileY, Chunk.SIZE);
+            generateChunkSync(chunk, cx, cy);
+        }
+    }
+
+    /** 计算世界坐标在区块内的局部列号 */
+    private static int localCol(int worldTileX) {
+        return floorMod(worldTileX, Chunk.SIZE);
+    }
+
+    /** 计算世界坐标在区块内的局部行号 */
+    private static int localRow(int worldTileY) {
+        return floorMod(worldTileY, Chunk.SIZE);
+    }
+
+    /**
+     * 尝试获取瓦片（渲染专用，非阻塞）。
+     * 区块未生成完成时返回 null，避免渲染线程被后台生成阻塞。
+     *
+     * @param worldTileX 世界瓦片 X
+     * @param worldTileY 世界瓦片 Y
+     * @return 瓦片类型；区块未加载或未完成生成时返回 null
+     */
+    public TileType getTileIfReady(int worldTileX, int worldTileY) {
+        Chunk chunk = getGeneratedChunkIfReady(worldTileX, worldTileY);
+        return chunk != null ? chunk.getTile(localCol(worldTileX), localRow(worldTileY)) : null;
+    }
+
+    /**
+     * 尝试获取地面层瓦片（渲染专用，非阻塞）。
+     *
+     * @param worldTileX 世界瓦片 X
+     * @param worldTileY 世界瓦片 Y
+     * @return 地面层瓦片类型；区块未加载或未完成生成时返回 null
+     */
+    public TileType getGroundTileIfReady(int worldTileX, int worldTileY) {
+        Chunk chunk = getGeneratedChunkIfReady(worldTileX, worldTileY);
+        return chunk != null ? chunk.getGroundTile(localCol(worldTileX), localRow(worldTileY)) : null;
+    }
+
+    /**
+     * 尝试获取植被信息（渲染专用，非阻塞）。
+     *
+     * @param worldTileX 世界瓦片 X
+     * @param worldTileY 世界瓦片 Y
+     * @return 植被物种 ID；区块未加载或未完成生成时返回 null
+     */
+    public String getVegetationIfReady(int worldTileX, int worldTileY) {
+        Chunk chunk = getGeneratedChunkIfReady(worldTileX, worldTileY);
+        return chunk != null ? chunk.getVegetation(localCol(worldTileX), localRow(worldTileY)) : null;
     }
 
     /**
@@ -382,12 +470,12 @@ public class ChunkManager {
      * @return 该瓦片所在区块是否已缓存
      */
     public boolean isChunkLoaded(int worldTileX, int worldTileY) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-        return chunks.containsKey(chunkKey(cx, cy));
+        return getChunkForTile(worldTileX, worldTileY) != null;
     }
 
+    /** 获取预加载半径 */
     public int getPreloadRadius() { return preloadRadius; }
+    /** 获取世界种子 */
     public long getWorldSeed() { return worldSeed; }
     public WorldMap getWorldMap() { return worldMap; }
 
@@ -402,15 +490,8 @@ public class ChunkManager {
      * @return 物种 ID，无植被或区块未加载返回 null
      */
     public String getVegetation(int worldTileX, int worldTileY) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-
-        Chunk chunk = chunks.get(chunkKey(cx, cy));
-        if (chunk == null) return null;
-
-        int localCol = floorMod(worldTileX, Chunk.SIZE);
-        int localRow = floorMod(worldTileY, Chunk.SIZE);
-        return chunk.getVegetation(localCol, localRow);
+        Chunk chunk = getChunkForTile(worldTileX, worldTileY);
+        return chunk != null ? chunk.getVegetation(localCol(worldTileX), localRow(worldTileY)) : null;
     }
 
     /**
@@ -421,15 +502,8 @@ public class ChunkManager {
      * @return 生长状态，无植被或未加载返回 null
      */
     public com.github.game.cdda.world.vegetation.VegetationState getGrowthState(int worldTileX, int worldTileY) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-
-        Chunk chunk = chunks.get(chunkKey(cx, cy));
-        if (chunk == null) return null;
-
-        int localCol = floorMod(worldTileX, Chunk.SIZE);
-        int localRow = floorMod(worldTileY, Chunk.SIZE);
-        return chunk.getGrowthState(localCol, localRow);
+        Chunk chunk = getChunkForTile(worldTileX, worldTileY);
+        return chunk != null ? chunk.getGrowthState(localCol(worldTileX), localRow(worldTileY)) : null;
     }
 
     /**
@@ -442,17 +516,12 @@ public class ChunkManager {
      */
     public void setVegetation(int worldTileX, int worldTileY, String speciesId,
                               com.github.game.cdda.world.vegetation.VegetationState state) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-
-        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        Chunk chunk = getChunkForTile(worldTileX, worldTileY);
         if (chunk == null) return;
-
-        int localCol = floorMod(worldTileX, Chunk.SIZE);
-        int localRow = floorMod(worldTileY, Chunk.SIZE);
-        chunk.setVegetation(localCol, localRow, speciesId);
+        int col = localCol(worldTileX), row = localRow(worldTileY);
+        chunk.setVegetation(col, row, speciesId);
         if (state != null) {
-            chunk.setGrowthState(localCol, localRow, state);
+            chunk.setGrowthState(col, row, state);
         }
     }
 
@@ -463,15 +532,10 @@ public class ChunkManager {
      * @param worldTileY 世界瓦片 Y 坐标
      */
     public void clearVegetation(int worldTileX, int worldTileY) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-
-        Chunk chunk = chunks.get(chunkKey(cx, cy));
-        if (chunk == null) return;
-
-        int localCol = floorMod(worldTileX, Chunk.SIZE);
-        int localRow = floorMod(worldTileY, Chunk.SIZE);
-        chunk.clearVegetation(localCol, localRow);
+        Chunk chunk = getChunkForTile(worldTileX, worldTileY);
+        if (chunk != null) {
+            chunk.clearVegetation(localCol(worldTileX), localRow(worldTileY));
+        }
     }
 
     /**
@@ -493,20 +557,10 @@ public class ChunkManager {
      * @return 肥力值（0~100），区块未加载返回 0
      */
     public double getSoilFertility(int worldTileX, int worldTileY) {
-        int cx = floorDiv(worldTileX, Chunk.SIZE);
-        int cy = floorDiv(worldTileY, Chunk.SIZE);
-
-        Chunk chunk = chunks.get(chunkKey(cx, cy));
+        Chunk chunk = getChunkForTile(worldTileX, worldTileY);
         if (chunk == null || chunk.getSoilFertility() == null) return 0.0;
-
-        int localCol = floorMod(worldTileX, Chunk.SIZE);
-        int localRow = floorMod(worldTileY, Chunk.SIZE);
-        return chunk.getSoilFertility().getFertility(localCol, localRow);
+        return chunk.getSoilFertility().getFertility(localCol(worldTileX), localRow(worldTileY));
     }
-
-    /**
-     * 获取指定区块的预加载半径（供 PlantGrowthSystem 遍历使用）。
-     */
 
     /**
      * 获取待生成区块数（调试用）。

@@ -1,6 +1,7 @@
 package com.github.game.cdda.creature.energy;
 
 import com.github.game.cdda.creature.Animal;
+import com.github.game.cdda.world.chunk.ChunkCoords;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,16 +65,19 @@ public class EnergyFlowManager {
      * 不掉落物品，尸体分解，能量回流。
      */
     public void recordNaturalDeath(Animal animal) {
-        long key = chunkKey(animal.getTileX(), animal.getTileY());
+        long key = ChunkCoords.key(animal.getTileX(), animal.getTileY());
         DeathRecord record = deathRecords.computeIfAbsent(key,
-                k -> new DeathRecord(animal.getTileX() >> 5, animal.getTileY() >> 5));
+                k -> new DeathRecord(ChunkCoords.toChunkX(animal.getTileX()), ChunkCoords.toChunkY(animal.getTileY())));
 
         record.addCorpse(animal.getBodyEnergy());
-        currentRound++;
-        record.decay(currentRound);
 
         // 检查是否触发迁徙
         checkMigration(key, record);
+
+        com.github.game.cdda.log.EcologyLog.getInstance().log(
+                com.github.game.cdda.log.EcologyLog.Category.DEATH,
+                String.format("%s 在 (%d,%d) 自然死亡",
+                        animal.getDefinition().name, animal.getTileX(), animal.getTileY()));
 
         logger.debug("自然死亡: {} at ({},{}), bodyEnergy={}",
                 animal.getDefinition().name, animal.getTileX(), animal.getTileY(),
@@ -97,6 +101,9 @@ public class EnergyFlowManager {
 
         if (actualGain > 0) {
             predator.addBodyEnergy(actualGain);
+            com.github.game.cdda.log.EcologyLog.getInstance().logPredation(
+                    predator.getDefinition().name, prey.getDefinition().name,
+                    String.format("(%d,%d)", prey.getTileX(), prey.getTileY()));
             logger.debug("捕食: {} 吃掉 {}，获得 {} 能量（base={}%, huntGain={}）",
                     predator.getDefinition().name, prey.getDefinition().name, actualGain,
                     (int) (TRANSFER_RATE * 100), huntGain);
@@ -108,12 +115,26 @@ public class EnergyFlowManager {
 
     /**
      * 记录玩家杀死。
-     * 掉落物品，能量不传递。
+     * 掉落物品，能量部分回流到植被（30%，低于自然死亡的 50%）。
      */
     public void recordPlayerKill(Animal animal) {
-        logger.debug("玩家杀死: {} at ({},{}), bodyEnergy={}",
+        // 30% 能量回流到植被（尸体部分被作为战利品带走）
+        int backflow = (int) (animal.getBodyEnergy() * 0.3);
+        if (backflow > 0) {
+            long key = ChunkCoords.key(animal.getTileX(), animal.getTileY());
+            DeathRecord record = deathRecords.computeIfAbsent(key,
+                    k -> new DeathRecord(ChunkCoords.toChunkX(animal.getTileX()), ChunkCoords.toChunkY(animal.getTileY())));
+            record.addCorpse(backflow);
+            checkMigration(key, record);
+            com.github.game.cdda.log.EcologyLog.getInstance().log(
+                    com.github.game.cdda.log.EcologyLog.Category.DEATH,
+                    String.format("%s 在 (%d,%d) 被玩家击杀",
+                            animal.getDefinition().name, animal.getTileX(), animal.getTileY()));
+        }
+
+        logger.debug("玩家杀死: {} at ({},{}), bodyEnergy={}, 回流={}",
                 animal.getDefinition().name, animal.getTileX(), animal.getTileY(),
-                animal.getBodyEnergy());
+                animal.getBodyEnergy(), backflow);
     }
 
     // ── 尸体分解 ──────────────────────────────────
@@ -206,15 +227,17 @@ public class EnergyFlowManager {
             }
         }
 
-        // 衰减植被加成
-        vegetationBoosts.entrySet().removeIf(entry -> {
+        // 衰减植被加成（ConcurrentHashMap 不支持在 removeIf 中 setValue，分两步处理）
+        java.util.List<Long> toRemove = new java.util.ArrayList<>();
+        for (Map.Entry<Long, Double> entry : vegetationBoosts.entrySet()) {
             double newBoost = entry.getValue() * 0.95;
             if (newBoost < 0.01) {
-                return true;
+                toRemove.add(entry.getKey());
+            } else {
+                vegetationBoosts.put(entry.getKey(), newBoost);
             }
-            entry.setValue(newBoost);
-            return false;
-        });
+        }
+        toRemove.forEach(vegetationBoosts::remove);
     }
 
     // ── 区块动物数量查询 ──────────────────────────────────
@@ -227,12 +250,6 @@ public class EnergyFlowManager {
     }
 
     // ── 辅助方法 ──────────────────────────────────
-
-    private long chunkKey(int tileX, int tileY) {
-        int cx = tileX >> 5; // /32
-        int cy = tileY >> 5;
-        return ((long) cx << 32) | (cy & 0xFFFFFFFFL);
-    }
 
     /** 获取当前回合数 */
     public long getCurrentRound() {

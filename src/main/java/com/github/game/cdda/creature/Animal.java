@@ -78,6 +78,22 @@ public class Animal extends Creature {
     /** 逃跑速度加成系数（基于耐力剩余比例，最大 +50%） */
     private static final double FLEE_SPEED_BOOST_FACTOR = 0.5;
 
+    // ── 疲劳系统 ──────────────────────────
+
+    /** 疲劳值（0-100），影响下次逃跑的最大耐力 */
+    private int fatigue = 0;
+
+    /** 疲劳恢复速率（每游戏分钟） */
+    private static final double FATIGUE_RECOVERY_PER_MINUTE = 0.1;
+
+    /** 上次疲劳更新的游戏时间（秒） */
+    private long lastFatigueUpdateSeconds = -1;
+
+    // ── AI 状态覆盖（用于群体惊扰等外部触发） ──────
+
+    /** AI 状态覆盖（非 null 时 AI 直接进入该状态） */
+    private transient com.github.game.cdda.creature.ai.AIState aiOverrideState;
+
     /** 能量流动管理器 */
     private transient EnergyFlowManager energyFlowManager;
 
@@ -170,7 +186,10 @@ public class Animal extends Creature {
             birthTime = currentGameSeconds;
         }
 
-        // AI 更新
+        // 疲劳恢复
+        updateFatigue(currentGameSeconds);
+
+        // AI 更新（AI 内部会检查 aiOverrideState）
         ai.update(this, context);
 
         // 代谢消耗
@@ -546,10 +565,13 @@ public class Animal extends Creature {
 
     /**
      * 进入逃跑状态，初始化逃跑耐力。
-     * 耐力基于 endurance 计算：endurance × 3。
+     * 耐力基于 endurance 和疲劳计算：endurance × 30 × (1.0 - fatigue × 0.5)。
      */
     public void startFleeing() {
-        maxFleeStamina = endurance * FLEE_STAMINA_PER_ENDURANCE;
+        // 疲劳影响最大耐力
+        double fatigueFactor = 1.0 - fatigue * 0.005; // 0-100 → 1.0-0.5
+        maxFleeStamina = (int) (endurance * FLEE_STAMINA_PER_ENDURANCE * fatigueFactor);
+        maxFleeStamina = Math.max(1, maxFleeStamina); // 至少 1
         fleeStamina = maxFleeStamina;
     }
 
@@ -611,10 +633,56 @@ public class Animal extends Creature {
     }
 
     /**
-     * 结束逃跑状态。
+     * 结束逃跑状态，累积疲劳。
+     * 根据消耗的耐力比例增加 fatigue（0-100）。
      */
     public void endFleeing() {
+        // 计算消耗的耐力比例
+        if (maxFleeStamina > 0 && fleeStamina >= 0) {
+            double consumedRatio = 1.0 - (double) fleeStamina / maxFleeStamina;
+            // 消耗越多，疲劳增加越多（最大 +30）
+            fatigue = Math.min(100, fatigue + (int) (consumedRatio * 30));
+        }
         fleeStamina = -1;
         maxFleeStamina = 0;
+    }
+
+    /**
+     * 获取当前疲劳值（0-100）。
+     */
+    public int getFatigue() {
+        return fatigue;
+    }
+
+    /**
+     * 更新疲劳恢复（每游戏分钟恢复 0.1）。
+     *
+     * @param currentGameSeconds 当前游戏时间（秒）
+     */
+    public void updateFatigue(long currentGameSeconds) {
+        if (lastFatigueUpdateSeconds < 0) {
+            lastFatigueUpdateSeconds = currentGameSeconds;
+            return;
+        }
+        long elapsedSeconds = currentGameSeconds - lastFatigueUpdateSeconds;
+        long elapsedMinutes = elapsedSeconds / 60;
+        if (elapsedMinutes > 0 && fatigue > 0) {
+            fatigue = Math.max(0, fatigue - (int) (elapsedMinutes * FATIGUE_RECOVERY_PER_MINUTE));
+            lastFatigueUpdateSeconds = currentGameSeconds;
+        }
+    }
+
+    // ── AI 状态覆盖 ──────────────────────────
+
+    /** 设置 AI 状态覆盖（用于群体惊扰等外部触发） */
+    public void setAiOverrideState(com.github.game.cdda.creature.ai.AIState state) {
+        this.aiOverrideState = state;
+    }
+
+    /** 获取并清除 AI 状态覆盖（消费型读取） */
+    public com.github.game.cdda.creature.ai.AIState consumeAiOverrideState() {
+        com.github.game.cdda.creature.ai.AIState state = this.aiOverrideState;
+        this.aiOverrideState = null;
+        return state;
     }
 }

@@ -23,6 +23,8 @@ public class TimePanel implements StatusPanel {
 
     /** 游戏时钟引用 */
     private final GameCalendar gameTime;
+    /** 温度管理器引用 */
+    private final com.github.game.cdda.game.TemperatureManager temperatureManager;
 
     /** 每行高度 */
     private final int lineHeight;
@@ -31,8 +33,8 @@ public class TimePanel implements StatusPanel {
     private static final int TIME_FONT_SIZE = 12;
     /** 内边距 */
     private static final int PADDING = 6;
-    /** 行数（年份+季节、月份+日期、时间） */
-    private static final int LINE_COUNT = 3;
+    /** 行数（年份+季节、月份+日期、时间、环境温度） */
+    private static final int LINE_COUNT = 4;
 
     /** 标签颜色（灰色） */
     private static final Color LABEL_COLOR = Color.GRAY;
@@ -45,10 +47,12 @@ public class TimePanel implements StatusPanel {
      * 创建时间面板。
      *
      * @param gameTime 游戏时钟实例
+     * @param temperatureManager 温度管理器实例
      * @param fontSize 基准字体大小（用于计算行高）
      */
-    public TimePanel(GameCalendar gameTime, int fontSize) {
+    public TimePanel(GameCalendar gameTime, com.github.game.cdda.game.TemperatureManager temperatureManager, int fontSize) {
         this.gameTime = gameTime;
+        this.temperatureManager = temperatureManager;
         this.lineHeight = fontSize + 4;
     }
 
@@ -93,6 +97,27 @@ public class TimePanel implements StatusPanel {
         r.drawText(timeLabel, textX, cy + ascent);
         r.setColor(TIME_COLOR);
         r.drawText(gameTime.formatTime(), textX + r.getTextWidth(timeLabel) + 4, cy + ascent);
+        cy += lineHeight;
+
+        // 第四行：环境温度（带颜色标识）
+        r.setColor(LABEL_COLOR);
+        String tempLabel = "气温:";
+        r.drawText(tempLabel, textX, cy + ascent);
+        if (temperatureManager != null) {
+            double temp = temperatureManager.getTemperature();
+            String tempStr = String.format("%.1f°C", temp);
+            // 颜色标识：舒适(16-26°C)=绿色，偏冷/偏热=黄色，危险(<5°C或>35°C)=红色
+            Color tempColor;
+            if (temp < 5 || temp > 35) {
+                tempColor = Color.RED;
+            } else if (temp < 16 || temp > 26) {
+                tempColor = Color.YELLOW;
+            } else {
+                tempColor = Color.GREEN;
+            }
+            r.setColor(tempColor);
+            r.drawText(tempStr, textX + r.getTextWidth(tempLabel) + 4, cy + ascent);
+        }
     }
 
     @Override

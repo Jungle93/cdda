@@ -158,6 +158,45 @@ public class NpcInventory {
         return addItem(stack);
     }
 
+    /**
+     * NPC 将物品卖给玩家（从 NPC 背包转移到玩家背包）。
+     *
+     * @param index         NPC 背包中的物品索引
+     * @param playerInv     玩家背包
+     * @param count         购买数量（1 = 整组）
+     * @return 是否成功
+     */
+    public boolean sellToPlayer(int index, com.github.game.cdda.item.world.PlayerInventory playerInv,
+                                int count) {
+        if (index < 0 || index >= items.size()) return false;
+        ItemStack stack = items.get(index);
+        if (stack == null || stack.isEmpty()) return false;
+
+        // 确定实际购买数量
+        int buyCount = Math.min(count, stack.getCount());
+        ItemStack toSell = new ItemStack(stack.getType(), buyCount);
+
+        // 检查玩家背包重量限制
+        if (playerInv != null && !playerInv.canCarry(toSell)) {
+            logger.debug("玩家背包超重/容量不足，无法购买 {}",
+                    stack.getType().getDisplayName());
+            return false;
+        }
+
+        // 转移物品
+        if (playerInv != null) {
+            playerInv.addItem(toSell);
+        }
+
+        // 从 NPC 背包移除
+        stack.setCount(stack.getCount() - buyCount);
+        if (stack.getCount() <= 0) {
+            items.remove(index);
+        }
+
+        return true;
+    }
+
     // ── 查询 ──────────────────────────────────
 
     /**

@@ -1,5 +1,7 @@
 package com.github.game.cdda.creature;
 
+import com.github.game.cdda.world.chunk.ChunkCoords;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,24 +28,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class CreatureGrid {
 
-    /** 区块大小（瓦片数），与 Chunk.SIZE 一致 */
+    /** 区块大小（瓦片数） */
     private static final int CHUNK_SIZE = 32;
 
     /** 区块 → 生物列表 */
     private final ConcurrentHashMap<Long, List<Creature>> chunkMap = new ConcurrentHashMap<>();
 
     /**
-     * 将区块坐标转为 long key。
-     */
-    private static long chunkKey(int cx, int cy) {
-        return ((long) cx << 32) | (cy & 0xFFFFFFFFL);
-    }
-
-    /**
-     * 获取瓦片所在的区块坐标。
+     * 将瓦片坐标转为区块坐标。
      */
     private static int tileToChunk(int tileCoord) {
-        return Math.floorDiv(tileCoord, CHUNK_SIZE);
+        return ChunkCoords.toChunkX(tileCoord);
     }
 
     /**
@@ -52,7 +47,7 @@ public class CreatureGrid {
     public void add(Creature creature) {
         int cx = tileToChunk(creature.getTileX());
         int cy = tileToChunk(creature.getTileY());
-        long key = chunkKey(cx, cy);
+        long key = ChunkCoords.key(cx, cy);
         chunkMap.computeIfAbsent(key, k -> new ArrayList<>()).add(creature);
     }
 
@@ -62,7 +57,7 @@ public class CreatureGrid {
     public void remove(Creature creature) {
         int cx = tileToChunk(creature.getTileX());
         int cy = tileToChunk(creature.getTileY());
-        long key = chunkKey(cx, cy);
+        long key = ChunkCoords.key(cx, cy);
         List<Creature> list = chunkMap.get(key);
         if (list != null) {
             list.remove(creature);
@@ -91,8 +86,8 @@ public class CreatureGrid {
         // 同一区块内移动，无需更新索引
         if (oldCx == newCx && oldCy == newCy) return;
 
-        long oldKey = chunkKey(oldCx, oldCy);
-        long newKey = chunkKey(newCx, newCy);
+        long oldKey = ChunkCoords.key(oldCx, oldCy);
+        long newKey = ChunkCoords.key(newCx, newCy);
 
         List<Creature> oldList = chunkMap.get(oldKey);
         if (oldList != null) {
@@ -113,7 +108,7 @@ public class CreatureGrid {
     public Creature getAtTile(int tileX, int tileY) {
         int cx = tileToChunk(tileX);
         int cy = tileToChunk(tileY);
-        long key = chunkKey(cx, cy);
+        long key = ChunkCoords.key(cx, cy);
         List<Creature> list = chunkMap.get(key);
         if (list == null) return null;
 
@@ -135,7 +130,7 @@ public class CreatureGrid {
     public List<Creature> getAllAtTile(int tileX, int tileY) {
         int cx = tileToChunk(tileX);
         int cy = tileToChunk(tileY);
-        long key = chunkKey(cx, cy);
+        long key = ChunkCoords.key(cx, cy);
         List<Creature> list = chunkMap.get(key);
         if (list == null) return List.of();
 
@@ -165,7 +160,7 @@ public class CreatureGrid {
         List<Creature> result = new ArrayList<>();
         for (int dx = -chunkRadius; dx <= chunkRadius; dx++) {
             for (int dy = -chunkRadius; dy <= chunkRadius; dy++) {
-                long key = chunkKey(cx + dx, cy + dy);
+                long key = ChunkCoords.key(cx + dx, cy + dy);
                 List<Creature> list = chunkMap.get(key);
                 if (list == null) continue;
 
@@ -190,7 +185,7 @@ public class CreatureGrid {
      * @return 生物列表
      */
     public List<Creature> getInChunk(int chunkX, int chunkY) {
-        long key = chunkKey(chunkX, chunkY);
+        long key = ChunkCoords.key(chunkX, chunkY);
         List<Creature> list = chunkMap.get(key);
         if (list == null) return List.of();
         List<Creature> result = new ArrayList<>(list.size());
@@ -217,7 +212,7 @@ public class CreatureGrid {
         int count = 0;
         for (int dx = -chunkRadius; dx <= chunkRadius; dx++) {
             for (int dy = -chunkRadius; dy <= chunkRadius; dy++) {
-                long key = chunkKey(cx + dx, cy + dy);
+                long key = ChunkCoords.key(cx + dx, cy + dy);
                 List<Creature> list = chunkMap.get(key);
                 if (list == null) continue;
 

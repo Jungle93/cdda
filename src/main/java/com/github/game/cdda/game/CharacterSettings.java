@@ -10,6 +10,8 @@ public class CharacterSettings {
     private String name;
     /** 角色性别 */
     private String gender;
+    /** 起始装备包 */
+    private StartingPackage startingPackage;
 
     /** 可用性别选项 */
     public static final String[] GENDERS = {"男", "女"};
@@ -20,12 +22,14 @@ public class CharacterSettings {
     public CharacterSettings() {
         this.name = "旅行者";
         this.gender = GENDERS[0];
+        this.startingPackage = StartingPackage.EXPLORER;
     }
 
     /** 从已有设置复制 */
     public CharacterSettings(CharacterSettings other) {
         this.name = other.name;
         this.gender = other.gender;
+        this.startingPackage = other.startingPackage;
     }
 
     // ── 访问器 ──────────────────────────────────────
@@ -48,5 +52,17 @@ public class CharacterSettings {
         }
         idx = (idx + direction + GENDERS.length) % GENDERS.length;
         gender = GENDERS[idx];
+    }
+
+    public StartingPackage getStartingPackage() { return startingPackage; }
+    public void setStartingPackage(StartingPackage pkg) { this.startingPackage = pkg; }
+
+    /** 切换到下一个起始包选项 */
+    public void cycleStartingPackage(int direction) {
+        if (startingPackage == null) {
+            startingPackage = StartingPackage.EXPLORER;
+            return;
+        }
+        startingPackage = startingPackage.cycle(direction);
     }
 }

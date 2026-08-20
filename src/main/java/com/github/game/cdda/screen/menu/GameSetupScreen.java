@@ -4,6 +4,7 @@ import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
 import com.github.game.cdda.game.CharacterSettings;
 import com.github.game.cdda.game.WorldSettings;
+import com.github.game.cdda.game.StartingPackage;
 import com.github.game.cdda.screen.MainScreen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,15 +31,16 @@ public class GameSetupScreen extends MenuScreen {
     private static final int ITEM_SEED = 0;
     private static final int ITEM_NAME = 1;
     private static final int ITEM_GENDER = 2;
-    private static final int ITEM_START = 3;
-    private static final int ITEM_BACK = 4;
-    private static final int ITEM_COUNT = 5;
+    private static final int ITEM_PACKAGE = 3;
+    private static final int ITEM_START = 4;
+    private static final int ITEM_BACK = 5;
+    private static final int ITEM_COUNT = 6;
 
     /** 布局参数 */
     private static final int TITLE_Y = 40;
     private static final int ITEMS_START_Y = 90;
     private static final int LINE_SPACING = 36;
-    private static final int ACTION_START_Y = ITEMS_START_Y + LINE_SPACING * 3 + 20;
+    private static final int ACTION_START_Y = ITEMS_START_Y + LINE_SPACING * 4 + 20;
 
     private final WorldSettings worldSettings;
     private final CharacterSettings characterSettings;
@@ -89,6 +91,9 @@ public class GameSetupScreen extends MenuScreen {
         renderMenuItem(renderer, ITEM_GENDER, "角色性别",
                 characterSettings.getGender(),
                 ITEMS_START_Y + LINE_SPACING * 2, 16);
+        renderMenuItem(renderer, ITEM_PACKAGE, "起始装备",
+                characterSettings.getStartingPackage().getDisplayName(),
+                ITEMS_START_Y + LINE_SPACING * 3, 16);
 
         // ── 操作按钮 ──
         renderMenuItem(renderer, ITEM_START, "开始游戏", null,
@@ -218,6 +223,9 @@ public class GameSetupScreen extends MenuScreen {
         switch (index) {
             case ITEM_GENDER:
                 characterSettings.cycleGender(direction);
+                break;
+            case ITEM_PACKAGE:
+                characterSettings.cycleStartingPackage(direction);
                 break;
         }
     }

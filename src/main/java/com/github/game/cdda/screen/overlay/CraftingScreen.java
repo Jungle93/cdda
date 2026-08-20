@@ -79,7 +79,7 @@ public class CraftingScreen extends MenuScreen {
         applyFilter();
     }
 
-    /** 按当前分类过滤配方（可制作的排在前面） */
+    /** 按当前分类过滤配方（可制作的排在前面，其次是接近可制作的） */
     private void applyFilter() {
         String categoryKey = CATEGORIES[currentCategory][0];
         List<ProcessingRecipe> matched = new ArrayList<>();
@@ -88,11 +88,11 @@ public class CraftingScreen extends MenuScreen {
                 matched.add(recipe);
             }
         }
-        // 排序：可制作的排前面，同类按名称排序
+        // 排序：READY → NEARLY → MISSING，同类按名称排序
         matched.sort((a, b) -> {
-            boolean ca = canCraft(a);
-            boolean cb = canCraft(b);
-            if (ca != cb) return ca ? -1 : 1;
+            CraftStatus sa = getCraftStatus(a);
+            CraftStatus sb = getCraftStatus(b);
+            if (sa != sb) return sa.ordinal() - sb.ordinal();
             return a.name.compareTo(b.name);
         });
         filteredRecipes = matched;
@@ -171,43 +171,96 @@ public class CraftingScreen extends MenuScreen {
 
     // ── 制作判定 ──────────────────────────────────────
 
-    /** 检查配方是否可制作 */
-    private boolean canCraft(ProcessingRecipe recipe) {
-        // 检查主输入
-        if (countItemInInventory(recipe.inputItemId) < recipe.inputCount) return false;
+    /** 配方制作状态 */
+    private enum CraftStatus {
+        /** 材料齐全 */
+        READY,
+        /** 缺失非关键材料（额外输入） */
+        NEARLY,
+        /** 缺失关键材料（主输入/工具） */
+        MISSING;
+
+        /** 列表显示颜色 */
+        Color getListColor(boolean selected) {
+            if (selected) return Color.YELLOW;
+            return switch (this) {
+                case READY -> new Color(100, 220, 100);
+                case NEARLY -> new Color(220, 200, 60);
+                case MISSING -> new Color(220, 100, 100);
+            };
+        }
+
+        /** 状态文本 */
+        String getLabel() {
+            return switch (this) {
+                case READY -> "可制作";
+                case NEARLY -> "材料不足";
+                case MISSING -> "缺关键材料";
+            };
+        }
+    }
+
+    /** 计算配方的制作状态 */
+    private CraftStatus getCraftStatus(ProcessingRecipe recipe) {
+        boolean mainOk = countItemInInventory(recipe.inputItemId) >= recipe.inputCount;
+        boolean toolOk = recipe.toolRequired == null || hasToolWithTag(recipe.toolRequired);
+
+        // 关键材料缺失 → RED
+        if (!mainOk || !toolOk) return CraftStatus.MISSING;
+
         // 检查额外输入
         if (recipe.additionalInputs != null) {
             for (ProcessingRecipe.Output extra : recipe.additionalInputs) {
-                if (countItemInInventory(extra.itemId) < extra.count) return false;
-            }
-        }
-        // 检查工具
-        if (recipe.toolRequired != null) {
-            return hasToolWithTag(recipe.toolRequired);
-        }
-        return true;
-    }
-
-    /** 获取不可制作的原因描述 */
-    private String getCraftFailureReason(ProcessingRecipe recipe) {
-        if (countItemInInventory(recipe.inputItemId) < recipe.inputCount) {
-            ItemType type = ItemRegistry.getByName(recipe.inputItemId);
-            String name = type != null ? type.getDisplayName() : recipe.inputItemId;
-            return "缺: " + name;
-        }
-        if (recipe.additionalInputs != null) {
-            for (ProcessingRecipe.Output extra : recipe.additionalInputs) {
                 if (countItemInInventory(extra.itemId) < extra.count) {
-                    ItemType type = ItemRegistry.getByName(extra.itemId);
-                    String name = type != null ? type.getDisplayName() : extra.itemId;
-                    return "缺: " + name;
+                    return CraftStatus.NEARLY; // 非关键材料缺失 → YELLOW
                 }
             }
         }
-        if (recipe.toolRequired != null && !hasToolWithTag(recipe.toolRequired)) {
-            return "缺工具";
+        return CraftStatus.READY;
+    }
+
+    /** 检查配方是否可制作 */
+    private boolean canCraft(ProcessingRecipe recipe) {
+        return getCraftStatus(recipe) == CraftStatus.READY;
+    }
+
+    /** 获取不可制作的原因描述（列出所有缺失材料） */
+    private String getCraftFailureReason(ProcessingRecipe recipe) {
+        java.util.List<String> missing = new java.util.ArrayList<>();
+        java.util.List<String> missingExtra = new java.util.ArrayList<>();
+
+        // 主输入
+        ItemType inputType = ItemRegistry.getByName(recipe.inputItemId);
+        String inputName = inputType != null ? inputType.getDisplayName() : recipe.inputItemId;
+        int haveMain = countItemInInventory(recipe.inputItemId);
+        if (haveMain < recipe.inputCount) {
+            missing.add(inputName + "(缺" + (recipe.inputCount - haveMain) + ")");
         }
-        return "";
+
+        // 额外输入
+        if (recipe.additionalInputs != null) {
+            for (ProcessingRecipe.Output extra : recipe.additionalInputs) {
+                ItemType extraType = ItemRegistry.getByName(extra.itemId);
+                String extraName = extraType != null ? extraType.getDisplayName() : extra.itemId;
+                int extraHave = countItemInInventory(extra.itemId);
+                if (extraHave < extra.count) {
+                    missingExtra.add(extraName + "(缺" + (extra.count - extraHave) + ")");
+                }
+            }
+        }
+
+        // 工具
+        if (recipe.toolRequired != null && !hasToolWithTag(recipe.toolRequired)) {
+            missing.add("工具[" + recipe.toolRequired + "]");
+        }
+
+        if (missing.isEmpty() && missingExtra.isEmpty()) return "";
+
+        // 关键缺失优先显示
+        if (!missing.isEmpty()) {
+            return "缺: " + String.join(", ", missing);
+        }
+        return "缺: " + String.join(", ", missingExtra);
     }
 
     /** 执行制作 */
@@ -362,7 +415,7 @@ public class CraftingScreen extends MenuScreen {
 
             ProcessingRecipe recipe = filteredRecipes.get(i);
             boolean sel = (i == selectedIndex);
-            boolean craftable = canCraft(recipe);
+            CraftStatus status = getCraftStatus(recipe);
 
             // 选中高亮
             if (sel) {
@@ -373,23 +426,20 @@ public class CraftingScreen extends MenuScreen {
             renderer.setFont(new Font("Monospaced", Font.PLAIN, 13));
             String prefix = sel ? "▶ " : "  ";
 
-            // 配方名称
-            renderer.setColor(sel ? Color.YELLOW : (craftable ? Color.WHITE : Color.GRAY));
+            // 配方名称 — 三级颜色
+            renderer.setColor(status.getListColor(sel));
             renderer.drawText(prefix + recipe.name, 30, listStartY + vi * itemHeight);
 
             // 右侧状态标记
-            String status;
-            Color statusColor;
-            if (craftable) {
-                status = "[可制作]";
-                statusColor = new Color(100, 220, 100);
-            } else {
-                status = "[" + getCraftFailureReason(recipe) + "]";
-                statusColor = new Color(220, 100, 100);
-            }
+            String statusText = "[" + status.getLabel() + "]";
             renderer.setFont(new Font("Monospaced", Font.PLAIN, 11));
-            renderer.setColor(sel ? statusColor : (craftable ? new Color(80, 160, 80) : new Color(160, 80, 80)));
-            renderer.drawText(status, width - 30 - renderer.getTextWidth(status),
+            Color rightColor = sel ? status.getListColor(true) : switch (status) {
+                case READY -> new Color(80, 160, 80);
+                case NEARLY -> new Color(160, 140, 50);
+                case MISSING -> new Color(160, 80, 80);
+            };
+            renderer.setColor(rightColor);
+            renderer.drawText(statusText, width - 30 - renderer.getTextWidth(statusText),
                     listStartY + vi * itemHeight);
 
             // 材料简述

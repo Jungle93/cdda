@@ -318,12 +318,29 @@ public class NpcInteractionScreen extends MenuScreen {
         if (items.isEmpty() || index >= items.size()) return;
 
         ItemStack stack = items.get(index);
-        // TODO: 实现购买逻辑（需要金币系统）
-        GameLog.getInstance().log(
-                String.format("%s 携带了 %s ×%d（暂未实现交易）",
-                        targetNpc.getName(),
-                        stack.getType().getDisplayName(),
-                        stack.getCount()));
+
+        // 检查 NPC 态度 — 友好的 NPC 愿意交易
+        if (targetNpc.getNpcType() == com.github.game.cdda.npc.NpcType.HOSTILE) {
+            GameLog.getInstance().log(targetNpc.getName() + " 不愿意和你交易！");
+            return;
+        }
+
+        // 执行交易
+        boolean success = targetNpc.getInventory().sellToPlayer(
+                index, player.getInventory(), 1);
+
+        if (success) {
+            GameLog.getInstance().log(
+                    String.format("从 %s 处获得了 %s ×1",
+                            targetNpc.getName(),
+                            stack.getType().getDisplayName()));
+            targetNpc.getSocial().adjustAttitude(1);
+
+            // 刷新交易列表
+            tradeActions = null;
+        } else {
+            GameLog.getInstance().log("无法获得该物品（背包容量不足）");
+        }
     }
 
     @Override

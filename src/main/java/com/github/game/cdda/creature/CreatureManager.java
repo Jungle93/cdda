@@ -11,6 +11,7 @@ import com.github.game.cdda.item.registry.LootTable;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.chunk.Chunk;
+import com.github.game.cdda.world.chunk.ChunkCoords;
 import com.github.game.cdda.world.chunk.ChunkManager;
 import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
@@ -74,6 +75,8 @@ public class CreatureManager {
     private int bubbleCenterY = 0;
     /** 现实气泡激活半径（瓦片数，曼哈顿距离） */
     private static final int BUBBLE_RADIUS = 40;
+    /** 气泡外过渡带宽度（气泡边缘外 N 瓦片的简化移动带） */
+    private static final int TRANSITION_BAND_WIDTH = 10;
 
     /** 上次全局繁殖检查的回合数 */
     private long lastReproductionCheckRound = 0;
@@ -168,7 +171,7 @@ public class CreatureManager {
         int spawned = 0;
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cy = minChunkY; cy <= maxChunkY; cy++) {
-                long key = chunkKey(cx, cy);
+                long key = ChunkCoords.key(cx, cy);
                 if (spawnedChunks.contains(key)) continue;
 
                 spawnedChunks.add(key);
@@ -218,7 +221,7 @@ public class CreatureManager {
 
         for (int cx = centerChunkX - radiusChunks; cx <= centerChunkX + radiusChunks; cx++) {
             for (int cy = centerChunkY - radiusChunks; cy <= centerChunkY + radiusChunks; cy++) {
-                long key = chunkKey(cx, cy);
+                long key = ChunkCoords.key(cx, cy);
                 spawnedChunks.add(key);
                 spawnCreaturesInChunkInitial(cx, cy);
             }
@@ -255,10 +258,6 @@ public class CreatureManager {
                 break;
             }
         }
-    }
-
-    private static long chunkKey(int cx, int cy) {
-        return ((long) cx << 32) | (cy & 0xFFFFFFFFL);
     }
 
     private void injectEnergyFlowManager(Animal animal) {
@@ -371,26 +370,51 @@ public class CreatureManager {
         for (Animal animal : animals) {
             if (!animal.isAlive()) continue;
 
-            boolean inBubble;
             if (bubbleCenterX < 0) {
-                inBubble = true;
-            } else {
-                int dist = Math.abs(animal.getTileX() - bubbleCenterX)
-                         + Math.abs(animal.getTileY() - bubbleCenterY);
-                inBubble = dist <= bubbleRadius;
-            }
-
-            if (inBubble) {
-                // 气泡内：检查移动点并执行 AI（while 循环，用完所有积攒的移动点）
+                // 无气泡中心：所有生物活跃
                 while (turnManager.canAct(animal)) {
                     animal.takeTurn(context);
                     animal.spendMoves(com.github.game.cdda.Constants.MOVE_COST);
                 }
-                // 繁殖检查
+                Animal baby = tryReproduce(animal, currentRound);
+                if (baby != null) newborns.add(baby);
+                continue;
+            }
+
+            int dist = Math.abs(animal.getTileX() - bubbleCenterX)
+                     + Math.abs(animal.getTileY() - bubbleCenterY);
+
+            if (dist <= bubbleRadius) {
+                // 气泡内：完整 AI
+                while (turnManager.canAct(animal)) {
+                    animal.takeTurn(context);
+                    animal.spendMoves(com.github.game.cdda.Constants.MOVE_COST);
+                }
+                Animal baby = tryReproduce(animal, currentRound);
+                if (baby != null) newborns.add(baby);
+            } else if (dist <= bubbleRadius + TRANSITION_BAND_WIDTH) {
+                // 过渡带外缘：每 100 回合简化移动
+                if (currentRound - lastReproductionCheckRound >= 100) {
+                    if (random.nextBoolean()) {
+                        int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
+                        int[] dy = {-1, -1, -1, 0, 0, 1, 1, 1};
+                        int idx = random.nextInt(8);
+                        int nx = animal.getTileX() + dx[idx];
+                        int ny = animal.getTileY() + dy[idx];
+                        TileType tile = chunkManager.getTile(nx, ny);
+                        if (tile != null && tile.isPassable()) {
+                            int oldX = animal.getTileX();
+                            int oldY = animal.getTileY();
+                            animal.setTileX(nx);
+                            animal.setTileY(ny);
+                            creatureGrid.move(animal, oldX, oldY, nx, ny);
+                        }
+                    }
+                }
                 Animal baby = tryReproduce(animal, currentRound);
                 if (baby != null) newborns.add(baby);
             } else if (doOutOfBubbleReproduction) {
-                // 气泡外：仅繁殖检查
+                // 气泡外（>50 瓦片）：仅繁殖检查
                 Animal baby = tryReproduce(animal, currentRound);
                 if (baby != null) newborns.add(baby);
             }
@@ -521,15 +545,15 @@ public class CreatureManager {
 
         int playerTileX = context.getPlayerTileX();
         int playerTileY = context.getPlayerTileY();
-        int playerChunkX = playerTileX >> 5;
-        int playerChunkY = playerTileY >> 5;
+        int playerChunkX = ChunkCoords.toChunkX(playerTileX);
+        int playerChunkY = ChunkCoords.toChunkY(playerTileY);
 
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
                 int cx = playerChunkX + dx;
                 int cy = playerChunkY + dy;
-                long chunkKey = chunkKey(cx, cy);
-                trySpawnMigratingPredator(cx, cy, chunkKey);
+                long cKey = ChunkCoords.key(cx, cy);
+                trySpawnMigratingPredator(cx, cy, cKey);
             }
         }
     }

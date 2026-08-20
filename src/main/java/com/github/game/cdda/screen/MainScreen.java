@@ -82,6 +82,9 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     /** 世界设置 */
     private final WorldSettings worldSettings;
 
+    /** 角色设置 */
+    private final CharacterSettings characterSettings;
+
     /** 使用默认设置创建 */
     public MainScreen(GameEngine engine) {
         this(engine, new WorldSettings(), new CharacterSettings());
@@ -94,6 +97,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
                       CharacterSettings characterSettings) {
         super(engine);
         this.worldSettings = worldSettings;
+        this.characterSettings = characterSettings;
     }
 
     @Override
@@ -117,7 +121,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         int gameHeight = getHeight();
 
         // ── 创建游戏世界（逻辑层） ──
-        gameWorld = new GameWorld(worldSettings, Month.MARCH, 8);
+        gameWorld = new GameWorld(worldSettings, characterSettings, Month.MARCH, 8);
 
         // ── 游戏场景（显示层，左侧） ──
         gameScene = new GameScene(
@@ -133,7 +137,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         );
 
         // 添加时间显示面板（从 GameWorld 获取时间数据）
-        TimePanel timePanel = new TimePanel(gameWorld.getGameTime(), fontSize);
+        TimePanel timePanel = new TimePanel(gameWorld.getGameTime(), gameWorld.getTemperatureManager(), fontSize);
         hudScene.addPanel(timePanel);
 
         // 添加角色信息面板
@@ -168,6 +172,15 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
 
         // 播放游戏背景音乐（循环，淡入 3 秒）
         EngineServices.audio.playBGM("audio/music/background.mp3", true, 0.7f, 3000);
+
+        // 首次进入游戏自动弹出帮助
+        HelpOverlay.autoShowIfFirstTime(
+                v -> {
+                    Viewport gv = new Viewport(0, 0, getWidth() - ConfigManager.getInstance().getInfoPanelWidth(), getHeight());
+                    return new HelpOverlay(gv);
+                },
+                this::showOverlay
+        );
 
         initialized = true;
     }
@@ -262,8 +275,11 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     public void pushHelpOverlay() {
         int infoPanelWidth = ConfigManager.getInstance().getInfoPanelWidth();
         Viewport gameViewport = new Viewport(0, 0, getWidth() - infoPanelWidth, getHeight());
-        HelpOverlay overlay = new HelpOverlay(gameViewport);
-        showOverlay(overlay);
+        HelpOverlay.autoShowIfFirstTime(v -> new HelpOverlay(gameViewport), this::showOverlay);
+        // 如果已经显示过，走正常手动打开
+        if (activeOverlay == null) {
+            showOverlay(new HelpOverlay(gameViewport));
+        }
     }
 
     @Override

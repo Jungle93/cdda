@@ -198,7 +198,5 @@ public class PlayerInventory {
      */
     public void clear() {
         items.clear();
-        weight = 0;
-        volume = 0;
     }
 }

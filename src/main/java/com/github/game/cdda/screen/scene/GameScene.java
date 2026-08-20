@@ -196,6 +196,14 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         GameLog.getInstance().log("游戏开始。方向键移动/攻击，5等待，L观察，C对话，M大地图，E进食，G拾取，D丢弃，I背包，`调试，ESC菜单");
         GameLog.getInstance().log(String.format("周围生成了 %d 个生物", creatureManager.getCreatureCount()));
 
+        // 新手引导提示
+        GameLog.getInstance().log("—— 新手提示 ——");
+        GameLog.getInstance().log("按 [?] 或 F1 查看完整帮助");
+        GameLog.getInstance().log("按 [I] 打开背包查看初始装备");
+        GameLog.getInstance().log("按 [F2] 打开合成界面");
+        GameLog.getInstance().log("按 [C] 与附近 NPC 对话");
+        GameLog.getInstance().log("按 [L] 观察周围环境");
+
         initialized = true;
     }
 
@@ -321,6 +329,9 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         // this 实现 TileLayerRenderer，提供物品和生物图层回调
         tileMap.render(renderer, camera, this);
 
+        // 渲染陷阱（在生物层之上、玩家高亮之下）
+        renderTraps(renderer, tileW, tileH);
+
         // 渲染玩家高亮光环（在玩家角色之下，帮助快速定位）
         renderPlayerHighlight(renderer, tileW, tileH);
 
@@ -377,6 +388,63 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         // 白色边框（更明显）
         renderer.setColor(new Color(255, 255, 255, Math.min(255, alpha + 80)));
         renderer.drawOval(glowX, glowY, glowSize, glowSize);
+    }
+
+    /**
+     * 渲染陷阱层。
+     * 在生物层之上、玩家高亮之下绘制。
+     * - ARMED: 半透明白色 '∧' 标记
+     * - TRIGGERED（有捕获）: 红色 '⚑' 标记
+     * - TRIGGERED（空触发）: 橙色 '×' 标记
+     */
+    private void renderTraps(Renderer renderer, int tileW, int tileH) {
+        var trapManager = world.getTrapManager();
+        if (trapManager == null) return;
+
+        double zoom = camera.getZoom();
+        int scaledW = (int) (tileW * zoom);
+        int scaledH = (int) (tileH * zoom);
+
+        // 计算可见范围
+        int viewStartX = camera.getX();
+        int viewStartY = camera.getY();
+        int viewWidth = camera.getZoomedViewportWidth();
+        int viewHeight = camera.getZoomedViewportHeight();
+
+        int startTileX = viewStartX / tileW;
+        int startTileY = viewStartY / tileH;
+        int endTileX = (viewStartX + viewWidth) / tileW;
+        int endTileY = (viewStartY + viewHeight) / tileH;
+
+        for (var trap : trapManager.getAllTraps()) {
+            int tx = trap.getTileX();
+            int ty = trap.getTileY();
+            // 只渲染可见范围内的陷阱
+            if (tx < startTileX || tx > endTileX || ty < startTileY || ty > endTileY) continue;
+
+            int viewX = camera.toViewX(tx * tileW);
+            int viewY = camera.toViewY(ty * tileH);
+
+            if (trap.getState() == com.github.game.cdda.trap.PlacedTrap.State.ARMED) {
+                // ARMED: 半透明白色 '∧'
+                renderer.setColor(new Color(255, 255, 255, 150));
+                int fontSize = Math.max(8, (int) (scaledW * 0.7));
+                renderer.setFont(new Font("Monospaced", Font.BOLD, fontSize));
+                renderer.drawText("∧", viewX, viewY + scaledH - 2);
+            } else if (trap.hasCapture()) {
+                // TRIGGERED + 捕获: 红色 '⚑'
+                renderer.setColor(new Color(255, 60, 60, 200));
+                int fontSize = Math.max(8, (int) (scaledW * 0.7));
+                renderer.setFont(new Font("Monospaced", Font.BOLD, fontSize));
+                renderer.drawText("⚑", viewX, viewY + scaledH - 2);
+            } else {
+                // TRIGGERED 空触发: 橙色 '×'
+                renderer.setColor(new Color(255, 165, 0, 180));
+                int fontSize = Math.max(8, (int) (scaledW * 0.7));
+                renderer.setFont(new Font("Monospaced", Font.BOLD, fontSize));
+                renderer.drawText("×", viewX, viewY + scaledH - 2);
+            }
+        }
     }
 
     /**
@@ -1274,6 +1342,15 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
                     creature.getDisplayChar(), getCreatureDisplayName(creature));
             renderer.setColor(Color.CYAN);
             renderer.drawText(bioStr, 4, barY + 30);
+
+            // Debug 模式：显示 AI 状态和能量值
+            if (Constants.SHOW_DEBUG_INFO && creature instanceof com.github.game.cdda.creature.Animal animal) {
+                String debugInfo = String.format(" | AI:%s 能量:%d 疲劳:%d",
+                        animal.getAIState(), animal.getBodyEnergy(), animal.getFatigue());
+                renderer.setColor(new Color(200, 200, 100));
+                int bioW = renderer.getTextWidth(bioStr);
+                renderer.drawText(debugInfo, 4 + bioW, barY + 30);
+            }
 
             int bioStrWidth = renderer.getTextWidth(bioStr);
             int hpBarWidth = 80;

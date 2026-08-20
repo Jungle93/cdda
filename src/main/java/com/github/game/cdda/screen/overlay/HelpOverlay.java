@@ -29,6 +29,9 @@ public class HelpOverlay extends GameOverlay {
     /** 字体大小 */
     private static final int FONT_SIZE = 13;
 
+    /** 是否已显示过帮助（单次游戏生命周期内） */
+    private static boolean hasShownAutoHelp = false;
+
     /** 当前页码（0-2） */
     private int currentPage = 0;
 
@@ -98,6 +101,20 @@ public class HelpOverlay extends GameOverlay {
         super(viewport);
     }
 
+    /**
+     * 首次进入游戏时自动显示帮助（单次生命周期内仅一次）。
+     *
+     * @param create 创建回调，返回 HelpOverlay 实例
+     * @param show   显示回调
+     */
+    public static void autoShowIfFirstTime(java.util.function.Function<Viewport, HelpOverlay> create,
+                                           java.util.function.Consumer<HelpOverlay> show) {
+        if (!hasShownAutoHelp) {
+            hasShownAutoHelp = true;
+            show.accept(create.apply(null));
+        }
+    }
+
     @Override
     public void onKeyPressed(int keyCode) {
         switch (keyCode) {
@@ -142,7 +159,6 @@ public class HelpOverlay extends GameOverlay {
 
         int contentX = panelX + PADDING;
         int contentY = panelY + PADDING + LINE_HEIGHT;
-        int contentWidth = panelWidth - PADDING * 2;
 
         // 绘制页标题
         renderer.setColor(Color.YELLOW);

@@ -80,12 +80,14 @@ public class MainMenuScreen extends MenuScreen {
      * 创建新的 GameWorld 并加载存档数据。
      */
     private void loadGame() {
-        GameWorld world = new GameWorld(new WorldSettings(), Month.MARCH, 8);
+        com.github.game.cdda.game.CharacterSettings charSettings =
+                new com.github.game.cdda.game.CharacterSettings();
+        GameWorld world = new GameWorld(new WorldSettings(), charSettings, Month.MARCH, 8);
         boolean success = SaveManager.loadGame(world, 1);
         if (success) {
             GameLog.getInstance().log("游戏已从槽位 1 加载");
             engine.getScreenManager().switchScreen(new MainScreen(engine,
-                    world.getWorldSettings(), new com.github.game.cdda.game.CharacterSettings()));
+                    null, new com.github.game.cdda.game.CharacterSettings()));
         } else {
             GameLog.getInstance().log("加载失败，存档可能不存在");
         }

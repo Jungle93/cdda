@@ -29,6 +29,7 @@ import java.util.Random;
  * <ul>
  *   <li>IDLE: 不动</li>
  *   <li>WALK: 30% 概率随机移动一个瓦片</li>
+ *   <li>PATROL: 沿巡逻路径点移动</li>
  *   <li>ATTACK: 近战攻击玩家</li>
  *   <li>HUNT_PREY: 向玩家方向移动（追击）</li>
  *   <li>FLEE: 远离玩家方向移动</li>
@@ -95,8 +96,8 @@ public class NpcAI {
                 break;
 
             case PATROL:
-                // 预留：巡逻逻辑
-                if (stateTurns >= maxStateTurns) {
+                // 沿巡逻路径移动
+                if (!npc.hasPatrolRoute() || stateTurns >= maxStateTurns) {
                     enterState(NpcAIState.IDLE);
                 }
                 break;
@@ -155,6 +156,18 @@ public class NpcAI {
         if (npc.getHp() < npc.getMaxHp() * 0.3f) {
             enterState(NpcAIState.SLEEP);
             return;
+        }
+
+        // 有巡逻路线且未进入战斗状态时，优先巡逻
+        if (npc.hasPatrolRoute() && npc.getNpcType() != NpcType.HOSTILE) {
+            float r = random.nextFloat();
+            if (r < 0.4f) {
+                enterState(NpcAIState.PATROL);
+                return;
+            } else if (r < 0.7f) {
+                enterState(NpcAIState.WALK);
+                return;
+            }
         }
 
         // 敌对 NPC 有概率进入游荡
@@ -229,15 +242,7 @@ public class NpcAI {
                 break;
 
             case PATROL:
-                // 预留：沿固定路线巡逻
-                // 当前退化为随机移动
-                if (random.nextInt(100) < 40) {
-                    int dx = random.nextInt(3) - 1;
-                    int dy = random.nextInt(3) - 1;
-                    if (dx != 0 || dy != 0) {
-                        tryMove(npc, dx, dy, context);
-                    }
-                }
+                patrol(npc, context);
                 break;
 
             case HUNT_PREY:
@@ -345,6 +350,42 @@ public class NpcAI {
         // 对角线逃跑
         if (dx != 0 && dy != 0) {
             tryMove(npc, dx, dy, context);
+        }
+    }
+
+    /**
+     * 沿巡逻路径移动。
+     * 向当前目标路径点方向移动，到达后自动推进到下一个。
+     *
+     * @param npc     NPC 实例
+     * @param context 行动上下文
+     */
+    private void patrol(Npc npc, CreatureActionContext context) {
+        java.awt.Point target = npc.getPatrolTarget();
+        if (target == null) return;
+
+        int dx = Integer.compare(target.x, npc.getTileX());
+        int dy = Integer.compare(target.y, npc.getTileY());
+
+        // 到达当前路径点
+        if (dx == 0 && dy == 0) {
+            npc.advancePatrolWaypoint();
+            // 尝试移动到下一个点
+            target = npc.getPatrolTarget();
+            if (target == null) return;
+            dx = Integer.compare(target.x, npc.getTileX());
+            dy = Integer.compare(target.y, npc.getTileY());
+        }
+
+        // 尝试向目标移动（优先主轴，备选副轴）
+        if (dx != 0 && dy != 0) {
+            if (!tryMove(npc, dx, 0, context)) {
+                tryMove(npc, 0, dy, context);
+            }
+        } else if (dx != 0) {
+            tryMove(npc, dx, 0, context);
+        } else {
+            tryMove(npc, 0, dy, context);
         }
     }
 

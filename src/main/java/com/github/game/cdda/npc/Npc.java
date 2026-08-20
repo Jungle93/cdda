@@ -16,6 +16,7 @@ import com.github.game.engine.core.Camera;
 import com.github.game.engine.core.render.Renderer;
 
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -59,6 +60,20 @@ public class Npc extends Creature {
 
     /** 是否已处理掉落 */
     private boolean lootDropped = false;
+
+    // ── 巡逻系统 ──────────────────────────────────
+
+    /** 巡逻路径点（瓦片坐标） */
+    private List<Point> patrolWaypoints = new ArrayList<>();
+
+    /** 当前巡逻路径点索引 */
+    private int patrolWaypointIndex = 0;
+
+    /** 巡逻是否往返（true=到达终点后反向，false=循环重置） */
+    private boolean patrolRoundTrip = true;
+
+    /** 当前巡逻方向（true=正向，false=反向） */
+    private boolean patrolForward = true;
 
     /**
      * 创建 NPC。
@@ -365,6 +380,79 @@ public class Npc extends Creature {
     private long getCurrentGameSeconds() {
         GameWorld world = GameWorld.getInstance();
         return world != null ? world.getGameTime().getTotalSeconds() : -1;
+    }
+
+    // ── 巡逻系统 ──────────────────────────────────
+
+    /**
+     * 生成巡逻路径点。
+     * 以当前位置为中心，生成 3-5 个路径点。
+     *
+     * @param radius 巡逻半径（瓦片）
+     */
+    public void generatePatrolRoute(int radius) {
+        patrolWaypoints.clear();
+        int count = 3 + random.nextInt(3); // 3-5 个点
+        patrolWaypoints.add(new Point(tileX, tileY)); // 起点
+
+        for (int i = 1; i < count; i++) {
+            int wx = tileX + random.nextInt(radius * 2 + 1) - radius;
+            int wy = tileY + random.nextInt(radius * 2 + 1) - radius;
+            patrolWaypoints.add(new Point(wx, wy));
+        }
+
+        patrolWaypointIndex = 0;
+        patrolRoundTrip = random.nextBoolean();
+        patrolForward = true;
+    }
+
+    /** 获取当前目标巡逻点 */
+    public Point getPatrolTarget() {
+        if (patrolWaypoints.isEmpty()) return null;
+        int idx = patrolWaypointIndex;
+        if (!patrolForward && patrolRoundTrip) {
+            idx = patrolWaypoints.size() - 1 - patrolWaypointIndex;
+        }
+        return patrolWaypoints.get(idx);
+    }
+
+    /** 推进到下一个巡逻点，返回是否已走完一轮 */
+    public boolean advancePatrolWaypoint() {
+        if (patrolWaypoints.isEmpty()) return false;
+
+        if (patrolRoundTrip) {
+            if (patrolForward) {
+                patrolWaypointIndex++;
+                if (patrolWaypointIndex >= patrolWaypoints.size()) {
+                    // 到达终点，开始返回
+                    patrolWaypointIndex = patrolWaypoints.size() - 1;
+                    patrolForward = false;
+                    return true; // 完成一轮
+                }
+            } else {
+                patrolWaypointIndex++;
+                if (patrolWaypointIndex >= patrolWaypoints.size()) {
+                    // 返回起点，重新开始
+                    patrolWaypointIndex = 0;
+                    patrolForward = true;
+                    return true;
+                }
+            }
+        } else {
+            patrolWaypointIndex = (patrolWaypointIndex + 1) % patrolWaypoints.size();
+            if (patrolWaypointIndex == 0) return true; // 循环一圈
+        }
+        return false;
+    }
+
+    /** 是否有巡逻路径 */
+    public boolean hasPatrolRoute() {
+        return !patrolWaypoints.isEmpty();
+    }
+
+    /** 获取巡逻路径点数量 */
+    public int getPatrolWaypointCount() {
+        return patrolWaypoints.size();
     }
 
     // ── 访问器 ──────────────────────────────────

@@ -4,8 +4,10 @@ import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.creature.Player;
 import com.github.game.cdda.creature.config.CreatureRegistry;
 import com.github.game.cdda.creature.energy.EnergyFlowManager;
+import com.github.game.cdda.game.CharacterSettings;
 import com.github.game.cdda.game.HydrationManager;
 import com.github.game.cdda.game.MetabolismManager;
+import com.github.game.cdda.game.StartingPackage;
 import com.github.game.cdda.game.TemperatureManager;
 import com.github.game.cdda.game.TurnManager;
 import com.github.game.cdda.game.WorldSettings;
@@ -58,6 +60,7 @@ public class GameWorld {
     // ── 游戏子系统 ──────────────────────────────────
     private final WorldMap worldMap;
     private final ChunkManager chunkManager;
+    private final WorldSettings worldSettings;
     private final GameCalendar gameTime;
     private final TurnManager turnManager;
     private final TemperatureManager temperatureManager;
@@ -76,12 +79,17 @@ public class GameWorld {
     /**
      * 创建游戏世界，初始化所有子系统。
      *
-     * @param settings   世界设置（种子等）
-     * @param startMonth 起始月份
-     * @param startHour  起始小时（0-23）
+     * @param settings          世界设置（种子等）
+     * @param characterSettings 角色设置（名称、性别、起始包）
+     * @param startMonth        起始月份
+     * @param startHour         起始小时（0-23）
      */
-    public GameWorld(WorldSettings settings, Month startMonth, int startHour) {
+    public GameWorld(WorldSettings settings, CharacterSettings characterSettings,
+                     Month startMonth, int startHour) {
         instance = this;
+
+        // 保存设置引用（用于存档/加载时读取种子）
+        this.worldSettings = settings;
 
         // 0) 世界地图（大地图 — 生物群落分布）
         worldMap = new WorldMap(settings.getSeed(), settings.getGradients());
@@ -134,31 +142,36 @@ public class GameWorld {
         int[] spawn = findPassableSpawn();
         player = new Player(spawn[0], spawn[1]);
 
-        // 9) 初始物品（开局自带一把刀和一把斧头）
-        giveStartingItems();
+        // 9) 初始物品（根据起始包发放）
+        giveStartingItems(characterSettings);
     }
 
     /**
-     * 给玩家发放初始物品：一把生锈小刀、一把石斧。
+     * 给玩家发放初始物品：根据起始包决定装备。
      * 须在 ItemRegistry.loadAll() 之后调用。
+     *
+     * @param settings 角色设置（包含起始包选择）
      */
-    private void giveStartingItems() {
-        ItemType knife = ItemRegistry.getByName("rusty_knife");
-        ItemType axe = ItemRegistry.getByName("stone_axe");
-        if (knife != null) {
-            player.getInventory().addItem(new ItemStack(knife, 1));
+    private void giveStartingItems(CharacterSettings settings) {
+        StartingPackage pkg = settings != null
+                ? settings.getStartingPackage()
+                : StartingPackage.EXPLORER;
+
+        if (pkg == StartingPackage.NONE) {
+            GameLog.getInstance().log("起始装备：无（极限挑战模式）");
+            return;
         }
-        if (axe != null) {
-            player.getInventory().addItem(new ItemStack(axe, 1));
-        }
-        // 开局种子（让玩家能立即尝试农业）
-        String[] seedNames = {"barley_seed", "turnip_seed", "bean_seed"};
-        for (String seedName : seedNames) {
-            ItemType seed = ItemRegistry.getByName(seedName);
-            if (seed != null) {
-                player.getInventory().addItem(new ItemStack(seed, 5));
+
+        StringBuilder log = new StringBuilder("起始装备 [").append(pkg.getDisplayName()).append("]：");
+        for (StartingPackage.ItemEntry entry : pkg.getItems()) {
+            ItemType item = ItemRegistry.getByName(entry.itemId);
+            if (item != null) {
+                player.getInventory().addItem(new ItemStack(item, entry.count));
+                if (log.length() > 0) log.append(" ");
+                log.append(item.getName()).append("×").append(entry.count);
             }
         }
+        GameLog.getInstance().log(log.toString());
     }
 
     // ── 延迟初始化 ──────────────────────────────────
@@ -212,6 +225,8 @@ public class GameWorld {
      */
     public void initNpcManager() {
         npcManager.setPlayer(player);
+        // 游戏初始化时在玩家附近生成 1-2 个 NPC
+        npcManager.spawnInitialNpcs();
     }
 
     /**
@@ -256,6 +271,7 @@ public class GameWorld {
     // ── 访问器 ──────────────────────────────────
 
     public WorldMap getWorldMap() { return worldMap; }
+    public WorldSettings getWorldSettings() { return worldSettings; }
     public ChunkManager getChunkManager() { return chunkManager; }
     public GameCalendar getGameTime() { return gameTime; }
     public TurnManager getTurnManager() { return turnManager; }

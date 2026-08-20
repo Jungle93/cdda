@@ -85,6 +85,8 @@ public class NpcManager {
         npcs.add(npc);
         // 注册到 CreatureManager 的空间索引和回合系统
         creatureManager.addCreature(npc);
+        // 为 NPC 生成巡逻路线
+        npc.generatePatrolRoute(6);
         logger.debug("添加 NPC: {} at ({},{})", npc.getName(), npc.getTileX(), npc.getTileY());
     }
 
@@ -183,6 +185,52 @@ public class NpcManager {
         if (spawned > 0) {
             GameLog.getInstance().log(
                     String.format("调试生成: %d 个 NPC 出现在你附近", spawned));
+        }
+    }
+
+    /**
+     * 游戏初始化时在玩家附近生成 1-2 个 NPC（向导 + 村民）。
+     * 这是 NPC 正式接入游戏的入口。
+     */
+    public void spawnInitialNpcs() {
+        if (player == null) {
+            logger.warn("玩家未设置，无法生成初始 NPC");
+            return;
+        }
+
+        int playerX = player.getTileX();
+        int playerY = player.getTileY();
+        int maxDistance = 8;
+        Random rng = new Random();
+
+        // 生成一个向导（FUNCTIONAL 类型，提供指引）
+        spawnNpcNearPlayer(NpcType.FUNCTIONAL, playerX, playerY, maxDistance, rng);
+
+        // 50% 概率生成一个村民（FRIENDLY 类型）
+        if (rng.nextFloat() < 0.5f) {
+            spawnNpcNearPlayer(NpcType.FRIENDLY, playerX, playerY, maxDistance, rng);
+        }
+    }
+
+    /**
+     * 在玩家附近指定类型生成一个 NPC。
+     */
+    private void spawnNpcNearPlayer(NpcType type, int playerX, int playerY, int maxDistance, Random rng) {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            int dx = rng.nextInt(maxDistance * 2 + 1) - maxDistance;
+            int dy = rng.nextInt(maxDistance * 2 + 1) - maxDistance;
+            if (dx == 0 && dy == 0) continue;
+
+            int nx = playerX + dx;
+            int ny = playerY + dy;
+
+            // 检查位置是否可通行且没有生物
+            var tile = chunkManager.getTile(nx, ny);
+            if (tile == null || !tile.isPassable()) continue;
+            if (creatureManager.getCreatureAtTile(nx, ny) != null) continue;
+
+            spawnDebugNpc(nx, ny, type);
+            return;
         }
     }
 

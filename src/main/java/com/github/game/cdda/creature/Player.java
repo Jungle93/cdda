@@ -315,6 +315,18 @@ public class Player extends Creature {
 
     public int getWorldX() { return worldX; }
     public int getWorldY() { return worldY; }
+
+    /**
+     * 设置玩家世界坐标（像素坐标），并同步更新瓦片坐标。
+     * 用于存档恢复位置。
+     */
+    public void setWorldPosition(int worldX, int worldY) {
+        this.worldX = Math.floorDiv(worldX, tileWidth) * tileWidth;
+        this.worldY = Math.floorDiv(worldY, tileHeight) * tileHeight;
+        this.tileX = this.worldX / tileWidth;
+        this.tileY = this.worldY / tileHeight;
+    }
+
     public int getPixelWidth() { return pixelWidth; }
     public int getPixelHeight() { return pixelHeight; }
 

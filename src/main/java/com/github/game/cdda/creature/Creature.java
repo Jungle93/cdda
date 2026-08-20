@@ -199,6 +199,21 @@ public abstract class Creature extends Entity {
     public void setTileX(int tileX) { this.tileX = tileX; }
     public void setTileY(int tileY) { this.tileY = tileY; }
 
+    /** 设置当前 HP（用于存档恢复） */
+    public void setHp(int hp) { this.hp = Math.max(0, Math.min(hp, maxHp)); }
+
+    /** 设置最大 HP（会同步调整当前 HP） */
+    public void setMaxHp(int maxHp) { this.maxHp = maxHp; this.hp = Math.min(hp, maxHp); }
+
+    /** 设置力量（用于存档恢复） */
+    public void setStrength(int strength) { this.strength = strength; }
+
+    /** 设置敏捷（用于存档恢复） */
+    public void setAgility(int agility) { this.agility = agility; }
+
+    /** 设置耐力（用于存档恢复） */
+    public void setEndurance(int endurance) { this.endurance = endurance; }
+
     public char getDisplayChar() { return displayChar; }
     public Color getDisplayColor() { return displayColor; }
 }

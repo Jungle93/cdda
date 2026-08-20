@@ -359,7 +359,7 @@ public class SaveManager {
         GameCalendar gameTime = world.getGameTime();
 
         return new GameStateSaveData(
-                0, // 种子需要从设置获取，暂时使用 0
+                world.getWorldSettings().getSeed(),
                 gameTime.getMonth().ordinal() + 1, // 转换为 1-12
                 gameTime.getHour(),
                 gameTime.getTotalSeconds()
@@ -374,17 +374,18 @@ public class SaveManager {
     private static void loadPlayer(GameWorld world, PlayerSaveData data) {
         Player player = world.getPlayer();
 
-        // 恢复位置
-        player.getWorldX(); // 需要 setter，暂时跳过
-        // player.moveTo(data.worldX, data.worldY); // 需要实现 moveTo 方法
+        // 恢复位置（像素坐标 → 自动对齐瓦片）
+        player.setWorldPosition(data.worldX, data.worldY);
+
+        // 恢复生命
+        player.setMaxHp(data.maxHp);
+        player.setHp(data.hp);
 
         // 恢复属性
-        // player.setHp(data.hp); // 需要实现 setter
-        // player.setMaxHp(data.maxHp);
-        // player.setStrength(data.strength);
-        // player.setAgility(data.agility);
-        // player.setEndurance(data.endurance);
-        // player.setSpeed(data.speed);
+        player.setStrength(data.strength);
+        player.setAgility(data.agility);
+        player.setEndurance(data.endurance);
+        player.setSpeed(data.speed);
 
         // 恢复背包
         player.getInventory().clear();
@@ -395,7 +396,9 @@ public class SaveManager {
             }
         }
 
-        logger.info("玩家数据已恢复：位置({}, {})", data.worldX, data.worldY);
+        logger.info("玩家数据已恢复：位置({}, {}) 属性 HP={}/{} STR={} AGI={} CON={} SPD={}",
+                data.worldX, data.worldY, data.hp, data.maxHp,
+                data.strength, data.agility, data.endurance, data.speed);
     }
 
     /**
@@ -435,9 +438,10 @@ public class SaveManager {
      */
     private static void loadGameState(GameWorld world, GameStateSaveData data) {
         GameCalendar gameTime = world.getGameTime();
-        // gameTime.setTotalSeconds(data.totalSeconds); // 需要实现 setter
+        gameTime.setTotalSeconds(data.totalSeconds);
 
-        logger.info("游戏状态已恢复：时间 {} 秒", data.totalSeconds);
+        logger.info("游戏状态已恢复：时间 {} 秒（第{}月 {}:{}）",
+                data.totalSeconds, data.startMonth, gameTime.getHour(), gameTime.getMinute());
     }
 
     // ── JSON 工具方法 ──────────────────────────────────

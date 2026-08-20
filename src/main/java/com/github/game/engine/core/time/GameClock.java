@@ -39,6 +39,11 @@ public class GameClock {
         return totalSeconds;
     }
 
+    /** 设置累计总秒数（用于存档恢复） */
+    public void setTotalSeconds(long seconds) {
+        this.totalSeconds = Math.max(0, seconds);
+    }
+
     /** 获取从起始时间以来的总天数 */
     public long getTotalDays() {
         return totalSeconds / SECONDS_PER_DAY;

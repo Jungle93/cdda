@@ -60,8 +60,10 @@ public class InventoryScreen extends MenuScreen {
     private int actionIndex = 0;
 
     // ── 详情查看状态 ──
-    /** 详情面板滚动偏移 */
+    /** 详情面板滚动偏移（像素） */
     private int detailScrollOffset = 0;
+    /** 渲染时计算的详情内容总高度（不含提示栏） */
+    private int detailContentHeight = 0;
 
     /**
      * 内置动作类型标识。
@@ -237,9 +239,16 @@ public class InventoryScreen extends MenuScreen {
     }
 
     private void handleItemDetailKey(int keyCode) {
+        int panelH = Math.min(340, getHeight() - 40);
+        int hintBarH = 24;
+        int usableH = panelH - hintBarH;
+        int maxScroll = Math.max(0, detailContentHeight - usableH);
         switch (keyCode) {
+            case KeyEvent.VK_UP ->
+                    detailScrollOffset = Math.max(0, detailScrollOffset - 18);
+            case KeyEvent.VK_DOWN ->
+                    detailScrollOffset = Math.min(maxScroll, detailScrollOffset + 18);
             case KeyEvent.VK_ESCAPE -> state = State.ACTION_MENU;
-            // TODO: ↑/↓ 滚动长描述
         }
     }
 
@@ -415,15 +424,21 @@ public class InventoryScreen extends MenuScreen {
         int panelX = (width - panelW) / 2;
         int panelY = (height - panelH) / 2;
 
-        // 面板背景
+        // 面板背景 + 边框
         renderer.setColor(new Color(15, 15, 25));
         renderer.fillRect(panelX, panelY, panelW, panelH);
         renderer.setColor(new Color(80, 80, 110));
         renderer.drawRect(panelX, panelY, panelW, panelH);
 
+        // 可滚动内容区域（推入裁剪，留出底部提示栏）
+        int hintBarH = 24;
+        int contentTop = panelY + 4;
+        int contentBottom = panelY + panelH - hintBarH;
+        renderer.pushClip(panelX + 2, contentTop, panelW - 4, contentBottom - contentTop);
+
         int contentX = panelX + 20;
         int contentW = panelW - 40;
-        int curY = panelY + 16;
+        int curY = panelY + 16 - detailScrollOffset;
 
         // ── 图标（精灵贴图优先，无贴图时用字符替代） ──
         String spriteId = "item." + stack.getType().getName();
@@ -431,13 +446,11 @@ public class InventoryScreen extends MenuScreen {
                 ? SpriteManager.getSprite(spriteId) : null;
 
         if (sprite != null) {
-            // 渲染精灵图片（居中，放大到 48×48）
             int iconSize = 48;
             int iconX = panelX + (panelW - iconSize) / 2;
             renderer.drawImage(sprite.getImage(), iconX, curY, iconSize, iconSize);
             curY += iconSize + 16;
         } else {
-            // 字符回退
             String icon = stack.getType().getIcon();
             renderer.setFont(new Font("Monospaced", Font.BOLD, 36));
             renderer.setColor(new Color(255, 220, 100));
@@ -542,7 +555,11 @@ public class InventoryScreen extends MenuScreen {
             }
         }
 
-        // 底部提示
+        // 记录内容总高度（不含提示栏），用于滚动边界
+        detailContentHeight = curY - (panelY + 16) + 18;
+
+        // 弹出裁剪区域，绘制不受滚动影响的提示栏
+        renderer.popClip();
         drawHintBar(renderer, "Esc 返回");
     }
 

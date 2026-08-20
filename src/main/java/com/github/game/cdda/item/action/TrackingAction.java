@@ -116,10 +116,7 @@ public class TrackingAction implements ItemAction {
 
     /** 获取足迹描述（根据动物类型和状态） */
     private String getTrackDescription(Animal animal) {
-        String name = "未知动物";
-        if (animal.getDefinition() != null) {
-            name = animal.getDefinition().name;
-        }
+        String name = animal.getLocalizedName();
 
         // 根据 HP 状态给出不同提示
         int hpPercent = animal.getMaxHp() > 0

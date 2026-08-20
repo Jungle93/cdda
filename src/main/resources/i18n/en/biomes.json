@@ -1,0 +1,12 @@
+{
+  "biome.ocean.name": "Ocean",
+  "biome.plains.name": "Plains",
+  "biome.forest.name": "Forest",
+  "biome.dense_forest.name": "Dense Forest",
+  "biome.swamp.name": "Swamp",
+  "biome.hills.name": "Hills",
+  "biome.mountain.name": "Mountain",
+  "biome.desert.name": "Desert",
+  "biome.grassland.name": "Grassland",
+  "biome.plateau.name": "Plateau"
+}

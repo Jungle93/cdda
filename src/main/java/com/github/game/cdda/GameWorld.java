@@ -168,7 +168,7 @@ public class GameWorld {
             if (item != null) {
                 player.getInventory().addItem(new ItemStack(item, entry.count));
                 if (log.length() > 0) log.append(" ");
-                log.append(item.getName()).append("×").append(entry.count);
+                log.append(item.getDisplayName()).append("×").append(entry.count);
             }
         }
         GameLog.getInstance().log(log.toString());
@@ -258,7 +258,7 @@ public class GameWorld {
                     TileType tile = chunkManager.getTile(dx, dy);
                     if (tile != null && tile.isPassable()) {
                         GameLog.getInstance().log(
-                                String.format("出生点: 瓦片(%d,%d) %s", dx, dy, tile.getName()));
+                                String.format("出生点: 瓦片(%d,%d) %s", dx, dy, tile.getLocalizedName()));
                         return new int[]{dx, dy};
                     }
                 }

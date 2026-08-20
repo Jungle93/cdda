@@ -263,7 +263,7 @@ public class EatingScreen extends MenuScreen {
             turnManager.processRound();
 
             GameLog.getInstance().log(String.format("食用了 %s x%d (%s)",
-                    type.getName(), count, effectLog.toString().trim()));
+                    type.getDisplayName(), count, effectLog.toString().trim()));
 
             refreshConsumables();
         }

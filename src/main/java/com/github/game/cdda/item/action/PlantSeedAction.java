@@ -110,7 +110,7 @@ public class PlantSeedAction implements ItemAction {
 
         // 从植被定义获取作物显示名
         VegetationDefinition vegDef = VegetationRegistry.getById(cropSpecies);
-        String cropName = (vegDef != null) ? vegDef.name : cropSpecies;
+        String cropName = (vegDef != null) ? vegDef.getLocalizedName() : cropSpecies;
 
         // 消耗种子
         if (seedStack.getCount() > 1) {

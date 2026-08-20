@@ -1,0 +1,12 @@
+{
+  "biome.ocean.name": "海洋",
+  "biome.plains.name": "平原",
+  "biome.forest.name": "森林",
+  "biome.dense_forest.name": "密林",
+  "biome.swamp.name": "沼泽",
+  "biome.hills.name": "丘陵",
+  "biome.mountain.name": "山地",
+  "biome.desert.name": "沙漠",
+  "biome.grassland.name": "草原",
+  "biome.plateau.name": "高原"
+}

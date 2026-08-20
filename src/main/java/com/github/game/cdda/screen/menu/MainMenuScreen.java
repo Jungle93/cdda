@@ -77,17 +77,25 @@ public class MainMenuScreen extends MenuScreen {
 
     /**
      * 加载存档（槽位 1）。
-     * 创建新的 GameWorld 并加载存档数据。
+     * 先从存档读取种子创建 GameWorld，再加载存档数据，最后传入 MainScreen。
      */
     private void loadGame() {
+        // 先读取存档的游戏状态，获取正确的种子
+        com.github.game.cdda.save.GameStateSaveData gameStateData =
+                SaveManager.readGameStateData(1);
+        WorldSettings worldSettings = gameStateData != null
+                ? new WorldSettings(gameStateData.seed)
+                : new WorldSettings();
+
         com.github.game.cdda.game.CharacterSettings charSettings =
                 new com.github.game.cdda.game.CharacterSettings();
-        GameWorld world = new GameWorld(new WorldSettings(), charSettings, Month.MARCH, 8);
+        GameWorld world = new GameWorld(worldSettings, charSettings, Month.MARCH, 8);
         boolean success = SaveManager.loadGame(world, 1);
         if (success) {
             GameLog.getInstance().log("游戏已从槽位 1 加载");
-            engine.getScreenManager().switchScreen(new MainScreen(engine,
-                    null, new com.github.game.cdda.game.CharacterSettings()));
+            // 传入已加载的 world，避免 MainScreen.init() 重新创建覆盖存档数据
+            engine.getScreenManager().switchScreen(
+                    new MainScreen(engine, worldSettings, charSettings, world));
         } else {
             GameLog.getInstance().log("加载失败，存档可能不存在");
         }

@@ -167,6 +167,23 @@ com.github.game.cdda.mod            — ModLoader (Mod 加载器)
 - 代谢/水分/温度等管理器基于游戏时钟的时间差（`dt`，`long` 类型）计算变化量
 - 避免使用 `int` 表示时间/回合值，防止长期游戏运行时的溢出风险
 
+### 国际化（i18n）规范
+
+- **内部标识符 vs 显示名称**：每种游戏对象都有内部 ID（技术名）和显示名称（本地化名），两者必须严格区分
+  - 内部标识符：`getName()`、`id`、`getItemId()` 等 — 仅用于内部查找、注册、序列化，**禁止**出现在用户可见文本中
+  - 显示名称：`getDisplayName()`、`getLocalizedName()` — 通过 i18n 系统查找翻译，用于所有用户可见文本
+- **用户可见文本**：所有 `GameLog`、UI 标签、提示信息、状态栏文本等必须使用显示名称方法
+  - 物品 → `ItemType.getDisplayName()`（key: `item.{name}.name`）
+  - 地形 → `TileType.getLocalizedName()`（key: `tile.{name}.name`）
+  - 生物 → `Animal.getLocalizedName()`（key: `creature.{id}.name`）
+  - 生物群落 → `BiomeType.getLocalizedName()`（key: `biome.{name}.name`）
+  - 植被 → `VegetationDefinition.getLocalizedName()`（key: `vegetation.{id}.name`）
+- **新增类型时的 i18n 检查清单**：
+  1. 在对应 i18n 翻译文件中添加翻译条目（`i18n/zh/*.json` 和 `i18n/en/*.json`）
+  2. 为新类型添加 `getLocalizedName()` / `getDisplayName()` 方法（参考已有实现）
+  3. 如果是新类别，需在 `I18nManager.loadLocale()` 的 files 数组中注册新的翻译文件
+  4. 搜索所有使用内部名称的位置，替换为显示名称方法
+
 ## 设计要求
 - 代码要考虑可扩展性
 - 游戏引擎那块代码尽可能参考优秀的游戏引擎设计理念

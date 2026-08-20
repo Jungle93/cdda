@@ -319,12 +319,22 @@ public class Player extends Creature {
     /**
      * 设置玩家世界坐标（像素坐标），并同步更新瓦片坐标。
      * 用于存档恢复位置。
+     * <p>如果瓦片尺寸尚未初始化（tileWidth=0），则直接存储像素值，
+     * 等 initDimensions() 调用时再做对齐。
      */
     public void setWorldPosition(int worldX, int worldY) {
-        this.worldX = Math.floorDiv(worldX, tileWidth) * tileWidth;
-        this.worldY = Math.floorDiv(worldY, tileHeight) * tileHeight;
-        this.tileX = this.worldX / tileWidth;
-        this.tileY = this.worldY / tileHeight;
+        if (tileWidth > 0 && tileHeight > 0) {
+            this.worldX = Math.floorDiv(worldX, tileWidth) * tileWidth;
+            this.worldY = Math.floorDiv(worldY, tileHeight) * tileHeight;
+            this.tileX = this.worldX / tileWidth;
+            this.tileY = this.worldY / tileHeight;
+        } else {
+            // 瓦片尺寸尚未初始化，直接存储像素值，等 initDimensions 时再对齐
+            this.worldX = worldX;
+            this.worldY = worldY;
+            this.tileX = 0;
+            this.tileY = 0;
+        }
     }
 
     public int getPixelWidth() { return pixelWidth; }

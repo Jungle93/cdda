@@ -262,6 +262,29 @@ public class BiomeType {
     /** 该群落是否适合树木生长（treeDensity > 0.1） */
     public boolean isWooded() { return treeDensity > 0.1f; }
 
+    /**
+     * 获取本地化的生物群落显示名称。
+     * 优先从 i18n 获取（key: biome.{name}.name），未找到时回退到 getName()。
+     */
+    public String getLocalizedName() {
+        String key = "biome." + name + ".name";
+        String value = resolveI18n(key);
+        return value != null ? value : name;
+    }
+
+    /** 尝试通过 I18nManager 解析翻译键，未找到时返回 null */
+    private String resolveI18n(String key) {
+        try {
+            com.github.game.engine.core.i18n.I18nManager i18n =
+                    com.github.game.engine.core.EngineServices.i18n;
+            if (i18n == null) return null;
+            String value = i18n.t(key);
+            return key.equals(value) ? null : value;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @Override
     public String toString() {
         return name;

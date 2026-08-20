@@ -118,6 +118,19 @@ public class SaveManager {
     }
 
     /**
+     * 读取指定槽位的游戏状态数据（用于获取种子等信息）。
+     *
+     * @param slot 槽位编号（1-3）
+     * @return 游戏状态数据，不存在或读取失败返回 null
+     */
+    public static GameStateSaveData readGameStateData(int slot) {
+        if (slot < 1 || slot > SAVE_SLOTS) return null;
+        File saveDir = getSaveDir(slot);
+        if (!saveDir.exists()) return null;
+        return readJson(new File(saveDir, "game_state.json"), GameStateSaveData.class);
+    }
+
+    /**
      * 从指定槽位加载游戏。
      *
      * @param world 游戏世界（将被覆盖）

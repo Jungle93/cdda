@@ -120,9 +120,9 @@ public class HarvestCropAction implements ItemAction {
 
         if (dropCount > 0) {
             GameLog.getInstance().log(String.format("收获了%s，获得 %d 件物品%s",
-                    def.name, dropCount, hasHarvestingTool ? "" : "（无收割工具，未获得种子）"));
+                    def.getLocalizedName(), dropCount, hasHarvestingTool ? "" : "（无收割工具，未获得种子）"));
         } else {
-            GameLog.getInstance().log(String.format("收获了%s", def.name));
+            GameLog.getInstance().log(String.format("收获了%s", def.getLocalizedName()));
         }
     }
 

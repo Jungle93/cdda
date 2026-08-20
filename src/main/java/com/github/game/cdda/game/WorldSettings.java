@@ -23,6 +23,13 @@ public class WorldSettings {
         this.mapHeight = 64;
     }
 
+    /** 使用指定种子创建世界设置 */
+    public WorldSettings(long seed) {
+        this.seed = seed;
+        this.mapWidth = 64;
+        this.mapHeight = 64;
+    }
+
     /** 从已有设置复制 */
     public WorldSettings(WorldSettings other) {
         this.seed = other.seed;

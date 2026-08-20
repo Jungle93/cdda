@@ -115,6 +115,29 @@ public class VegetationDefinition {
     public VegetationDefinition() {}
 
     /**
+     * 获取本地化的植被显示名称。
+     * 优先从 i18n 获取（key: vegetation.{id}.name），未找到时回退到 name 字段。
+     */
+    public String getLocalizedName() {
+        String key = "vegetation." + id + ".name";
+        String value = resolveI18n(key);
+        return value != null ? value : name;
+    }
+
+    /** 尝试通过 I18nManager 解析翻译键，未找到时返回 null */
+    private String resolveI18n(String key) {
+        try {
+            com.github.game.engine.core.i18n.I18nManager i18n =
+                    com.github.game.engine.core.EngineServices.i18n;
+            if (i18n == null) return null;
+            String value = i18n.t(key);
+            return key.equals(value) ? null : value;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * 检查环境条件是否适合此植被生长。
      *
      * @param temperature 温度 (°C)

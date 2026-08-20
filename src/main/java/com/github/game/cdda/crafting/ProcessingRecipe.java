@@ -60,13 +60,13 @@ public class ProcessingRecipe {
     public ProcessingRecipe() {}
 
     /**
-     * 获取配方的描述文本。
+     * 获取配方的描述文本（使用本地化物品名称）。
      *
      * @return 如 "1x 橡木原木 → 4x 橡木板"
      */
     public String getDescription() {
         StringBuilder sb = new StringBuilder();
-        sb.append(inputCount).append("x ").append(inputItemId);
+        sb.append(inputCount).append("x ").append(resolveItemName(inputItemId));
         if (toolRequired != null) {
             sb.append(" + ").append(toolRequired);
         }
@@ -74,8 +74,20 @@ public class ProcessingRecipe {
         for (int i = 0; i < outputs.size(); i++) {
             if (i > 0) sb.append(", ");
             Output out = outputs.get(i);
-            sb.append(out.count).append("x ").append(out.itemId);
+            sb.append(out.count).append("x ").append(resolveItemName(out.itemId));
         }
         return sb.toString();
+    }
+
+    /** 通过 ItemRegistry 解析物品显示名，未找到时回退到 ID */
+    private static String resolveItemName(String itemId) {
+        if (itemId == null) return "?";
+        try {
+            com.github.game.cdda.item.model.ItemType type =
+                    com.github.game.cdda.item.registry.ItemRegistry.getByName(itemId);
+            return type != null ? type.getDisplayName() : itemId;
+        } catch (Exception e) {
+            return itemId;
+        }
     }
 }

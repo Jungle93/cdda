@@ -77,7 +77,7 @@ public class EnergyFlowManager {
         com.github.game.cdda.log.EcologyLog.getInstance().log(
                 com.github.game.cdda.log.EcologyLog.Category.DEATH,
                 String.format("%s 在 (%d,%d) 自然死亡",
-                        animal.getDefinition().name, animal.getTileX(), animal.getTileY()));
+                        animal.getLocalizedName(), animal.getTileX(), animal.getTileY()));
 
         logger.debug("自然死亡: {} at ({},{}), bodyEnergy={}",
                 animal.getDefinition().name, animal.getTileX(), animal.getTileY(),
@@ -102,7 +102,7 @@ public class EnergyFlowManager {
         if (actualGain > 0) {
             predator.addBodyEnergy(actualGain);
             com.github.game.cdda.log.EcologyLog.getInstance().logPredation(
-                    predator.getDefinition().name, prey.getDefinition().name,
+                    predator.getLocalizedName(), prey.getLocalizedName(),
                     String.format("(%d,%d)", prey.getTileX(), prey.getTileY()));
             logger.debug("捕食: {} 吃掉 {}，获得 {} 能量（base={}%, huntGain={}）",
                     predator.getDefinition().name, prey.getDefinition().name, actualGain,
@@ -129,7 +129,7 @@ public class EnergyFlowManager {
             com.github.game.cdda.log.EcologyLog.getInstance().log(
                     com.github.game.cdda.log.EcologyLog.Category.DEATH,
                     String.format("%s 在 (%d,%d) 被玩家击杀",
-                            animal.getDefinition().name, animal.getTileX(), animal.getTileY()));
+                            animal.getLocalizedName(), animal.getTileX(), animal.getTileY()));
         }
 
         logger.debug("玩家杀死: {} at ({},{}), bodyEnergy={}, 回流={}",

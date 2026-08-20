@@ -1,0 +1,22 @@
+{
+  "vegetation.oak.name": "橡树",
+  "vegetation.birch.name": "桦树",
+  "vegetation.beech.name": "山毛榉",
+  "vegetation.fir.name": "冷杉",
+  "vegetation.pine.name": "松树",
+  "vegetation.hazel.name": "榛树",
+  "vegetation.holly.name": "冬青",
+  "vegetation.willow.name": "柳树",
+  "vegetation.gorse.name": "荆豆",
+  "vegetation.tall_grass.name": "高草",
+  "vegetation.green_moss.name": "绿苔藓",
+  "vegetation.sphagnum.name": "泥炭藓",
+  "vegetation.reed.name": "芦苇",
+  "vegetation.cattail.name": "香蒲",
+  "vegetation.heather.name": "石楠",
+  "vegetation.barley.name": "大麦",
+  "vegetation.rye.name": "黑麦",
+  "vegetation.bean.name": "菜豆",
+  "vegetation.potato.name": "马铃薯",
+  "vegetation.turnip.name": "芜菁"
+}

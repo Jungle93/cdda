@@ -470,7 +470,7 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
             // 显示当前生物群落
             com.github.game.cdda.world.biome.BiomeType biome =
                     world.getWorldMap().getBiomeAt(ptx, pty);
-            sb.append(String.format(" [%s]", biome.getName()));
+            sb.append(String.format(" [%s]", biome.getLocalizedName()));
         }
         if (Constants.DEBUG_SHOW_CAMERA) {
             if (sb.length() > 0) sb.append("  ");
@@ -1305,7 +1305,7 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         String coordStr = String.format("[%d,%d] 距离:%d", targetTileX, targetTileY, distance);
         if (tile != null) {
             String tileStr = String.format("  %s(%c) %s",
-                    tile.getName(), tile.getChar(),
+                    tile.getLocalizedName(), tile.getChar(),
                     tile.isPassable() ? "可通过" : "不可通过");
             coordStr += tileStr;
         } else {
@@ -1317,7 +1317,7 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         VegetationDefinition vegDef = (vegSpeciesId != null)
                 ? VegetationRegistry.getById(vegSpeciesId) : null;
         if (vegDef != null) {
-            coordStr += String.format("  %s", vegDef.name);
+            coordStr += String.format("  %s", vegDef.getLocalizedName());
         }
 
         // 附加地面物品提示
@@ -1383,11 +1383,11 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
             // 无生物时显示植被或地形信息
             if (vegDef != null) {
                 renderer.setColor(new Color(100, 200, 100));
-                renderer.drawText(String.format("%s (%s)  %s",
-                        vegDef.name, vegDef.type.getDisplayName(), vegDef.id), 4, barY + 30);
+                renderer.drawText(String.format("%s (%s)",
+                        vegDef.getLocalizedName(), vegDef.type.getDisplayName()), 4, barY + 30);
             } else if (tile != null) {
                 renderer.setColor(Color.GRAY);
-                renderer.drawText("地形：" + tile.getName(), 4, barY + 30);
+                renderer.drawText("地形：" + tile.getLocalizedName(), 4, barY + 30);
             }
         }
 

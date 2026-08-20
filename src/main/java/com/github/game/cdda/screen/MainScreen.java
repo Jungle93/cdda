@@ -85,19 +85,32 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     /** 角色设置 */
     private final CharacterSettings characterSettings;
 
+    /** 已有游戏世界（加载存档时传入，跳过创建新实例） */
+    private final GameWorld existingWorld;
+
     /** 使用默认设置创建 */
     public MainScreen(GameEngine engine) {
         this(engine, new WorldSettings(), new CharacterSettings());
     }
 
     /**
-     * 使用指定设置创建。
+     * 使用指定设置创建（新游戏）。
      */
     public MainScreen(GameEngine engine, WorldSettings worldSettings,
                       CharacterSettings characterSettings) {
+        this(engine, worldSettings, characterSettings, null);
+    }
+
+    /**
+     * 使用已有游戏世界创建（加载存档时使用）。
+     * existingWorld 不为 null 时，init() 直接复用该世界，不再重新创建。
+     */
+    public MainScreen(GameEngine engine, WorldSettings worldSettings,
+                      CharacterSettings characterSettings, GameWorld existingWorld) {
         super(engine);
         this.worldSettings = worldSettings;
         this.characterSettings = characterSettings;
+        this.existingWorld = existingWorld;
     }
 
     @Override
@@ -120,8 +133,13 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         int gameWidth = getWidth() - infoPanelWidth;
         int gameHeight = getHeight();
 
-        // ── 创建游戏世界（逻辑层） ──
-        gameWorld = new GameWorld(worldSettings, characterSettings, Month.MARCH, 8);
+        // ── 创建/复用游戏世界（逻辑层） ──
+        if (existingWorld != null) {
+            // 加载存档时复用已有世界（不重新创建，保留存档数据）
+            gameWorld = existingWorld;
+        } else {
+            gameWorld = new GameWorld(worldSettings, characterSettings, Month.MARCH, 8);
+        }
 
         // ── 游戏场景（显示层，左侧） ──
         gameScene = new GameScene(

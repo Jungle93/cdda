@@ -395,7 +395,7 @@ public class WorldMapScene extends Scene {
 
         renderer.setColor(Color.CYAN);
         String cursorInfo = String.format("光标:(%d,%d) %s",
-                cursorChunkX, cursorChunkY, cursorBiome.getName());
+                cursorChunkX, cursorChunkY, cursorBiome.getLocalizedName());
         renderer.drawText(cursorInfo, 4, barY + 14);
 
         int textX = 4 + renderer.getTextWidth(cursorInfo);

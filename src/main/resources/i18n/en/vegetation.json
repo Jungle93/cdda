@@ -1,0 +1,22 @@
+{
+  "vegetation.oak.name": "Oak",
+  "vegetation.birch.name": "Birch",
+  "vegetation.beech.name": "Beech",
+  "vegetation.fir.name": "Fir",
+  "vegetation.pine.name": "Pine",
+  "vegetation.hazel.name": "Hazel",
+  "vegetation.holly.name": "Holly",
+  "vegetation.willow.name": "Willow",
+  "vegetation.gorse.name": "Gorse",
+  "vegetation.tall_grass.name": "Tall Grass",
+  "vegetation.green_moss.name": "Green Moss",
+  "vegetation.sphagnum.name": "Sphagnum",
+  "vegetation.reed.name": "Reed",
+  "vegetation.cattail.name": "Cattail",
+  "vegetation.heather.name": "Heather",
+  "vegetation.barley.name": "Barley",
+  "vegetation.rye.name": "Rye",
+  "vegetation.bean.name": "Bean",
+  "vegetation.potato.name": "Potato",
+  "vegetation.turnip.name": "Turnip"
+}

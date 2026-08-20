@@ -31,6 +31,15 @@ public class InGameMenuScreen extends MenuScreen {
     /** 游戏场景引用（用于传递 Camera 到设置界面） */
     private final com.github.game.cdda.screen.scene.GameScene gameScene;
 
+    /** 保存反馈消息（null 表示无消息） */
+    private String saveMessage;
+
+    /** 保存反馈消息剩余显示时间（毫秒） */
+    private long saveMessageTimer;
+
+    /** 反馈消息是否成功（控制颜色） */
+    private boolean saveSuccess;
+
     /**
      * 创建游戏内菜单。
      *
@@ -64,12 +73,37 @@ public class InGameMenuScreen extends MenuScreen {
             renderMenuItem(renderer, i, ITEMS[i], null, menuStartY + i * 40, 18);
         }
 
+        // 保存反馈消息（居中显示在菜单上方）
+        if (saveMessage != null && saveMessageTimer > 0) {
+            renderer.setFont(new Font("Monospaced", Font.BOLD, 16));
+            renderer.setColor(saveSuccess ? new Color(0, 220, 0) : new Color(220, 0, 0));
+            drawCentered(renderer, saveMessage, menuStartY - 40);
+        }
+
         // 底部提示
         drawHintBar(renderer, "↑↓ 选择   Enter 确认   Esc 返回游戏");
     }
 
     @Override
+    public void update(long deltaTime) {
+        // 倒计时保存反馈消息，到期后自动关闭菜单
+        if (saveMessage != null && saveMessageTimer > 0) {
+            saveMessageTimer -= deltaTime;
+            if (saveMessageTimer <= 0) {
+                saveMessage = null;
+                saveMessageTimer = 0;
+                // 保存成功后自动关闭菜单返回游戏
+                engine.getScreenManager().popScreen();
+            }
+        }
+    }
+
+    @Override
     protected void onSelect(int index) {
+        // 如果正在显示保存反馈消息，忽略输入
+        if (saveMessage != null && saveMessageTimer > 0) {
+            return;
+        }
         switch (index) {
             case ITEM_RETURN:
                 engine.getScreenManager().popScreen();
@@ -77,6 +111,10 @@ public class InGameMenuScreen extends MenuScreen {
             case ITEM_SAVE:
                 if (gameScene != null && gameScene.getWorld() != null) {
                     boolean success = SaveManager.saveGame(gameScene.getWorld(), 1);
+                    saveSuccess = success;
+                    saveMessage = success ? "✓ 游戏已保存到槽位 1" : "✗ 保存失败，请查看日志";
+                    // 成功显示 1.5 秒后自动关闭，失败显示 2.5 秒让用户看到
+                    saveMessageTimer = success ? 1500 : 2500;
                     com.github.game.cdda.log.GameLog.getInstance().log(
                             success ? "游戏已保存到槽位 1" : "保存失败，请查看日志");
                 }

@@ -35,6 +35,8 @@ import java.util.Map;
  *   <li>{@code tile.{name}.name} — 地块显示名</li>
  *   <li>{@code tile.{name}.description} — 地块描述</li>
  *   <li>{@code creature.{id}.name} — 生物显示名</li>
+ *   <li>{@code biome.{name}.name} — 生物群落显示名</li>
+ *   <li>{@code vegetation.{id}.name} — 植被显示名</li>
  *   <li>{@code ui.{screen}.{element}} — UI 文本</li>
  *   <li>{@code system.{key}} — 系统通用文本</li>
  * </ul>
@@ -113,7 +115,7 @@ public class I18nManager {
 
         try {
             // 尝试加载已知的翻译文件
-            String[] files = { "items.json", "tiles.json", "creatures.json", "ui.json", "system.json" };
+            String[] files = { "items.json", "tiles.json", "creatures.json", "biomes.json", "vegetation.json", "ui.json", "system.json" };
             for (String fileName : files) {
                 String fullPath = dirPath + fileName;
                 try (InputStream is = getClass().getClassLoader().getResourceAsStream(fullPath)) {

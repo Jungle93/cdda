@@ -238,10 +238,7 @@ public class TrapManager {
 
     /** 获取动物显示名称 */
     private String getAnimalDisplayName(Animal animal) {
-        if (animal.getDefinition() != null) {
-            return animal.getDefinition().name;
-        }
-        return "动物";
+        return animal.getLocalizedName();
     }
 
     /** 根据动物获取对应的尸体物品 ID */

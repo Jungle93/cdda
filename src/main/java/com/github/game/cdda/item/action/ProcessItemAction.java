@@ -180,7 +180,7 @@ public class ProcessItemAction implements ItemAction {
             if (i > 0) sb.append(", ");
             ProcessingRecipe.Output out = recipe.outputs.get(i);
             ItemType type = ItemRegistry.getByName(out.itemId);
-            String name = (type != null) ? type.getName() : out.itemId;
+            String name = (type != null) ? type.getDisplayName() : out.itemId;
             sb.append(out.count).append("x ").append(name);
         }
         return sb.toString();

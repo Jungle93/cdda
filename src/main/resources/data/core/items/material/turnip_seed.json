@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1092,
   "name": "turnip_seed",
   "description": "芜菁种子 — 播种在耕地上可种植芜菁",
@@ -6,5 +6,6 @@
   "volumeMl": 20,
   "maxStackSize": 20,
   "producesCrop": "turnip",
-  "tags": ["seed", "sowing"]
+  "tags": ["seed", "sowing"],
+  "value": 3
 }

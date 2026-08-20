@@ -1,9 +1,10 @@
-{
+﻿{
   "id": 1083,
   "name": "fiber_cord",
   "description": "植物纤维搓成的细绳 — 制作陷阱和捆绑的基本材料",
   "weightGrams": 50,
   "volumeMl": 100,
   "maxStackSize": 10,
-  "tags": ["crafting", "processing"]
+  "tags": ["crafting", "processing"],
+  "value": 3
 }

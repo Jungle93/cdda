@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1006,
   "name": "hare_meat_raw",
   "description": "野兔肉，比家兔更结实",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 425000,
   "satiety": 60,
-  "waterContent": 40
+  "waterContent": 40,
+  "value": 10
 }

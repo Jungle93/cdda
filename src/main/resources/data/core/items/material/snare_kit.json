@@ -1,9 +1,10 @@
-{
+﻿{
   "id": 1082,
   "name": "snare_kit",
   "description": "圈套陷阱组件 — 由纤维绳和木棍组成，用于设置捕猎陷阱",
   "weightGrams": 200,
   "volumeMl": 300,
   "maxStackSize": 5,
-  "tags": ["snaring"]
+  "tags": ["snaring"],
+  "value": 40
 }

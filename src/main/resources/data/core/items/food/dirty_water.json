@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1,
   "name": "dirty_water",
   "description": "浑浊的水，饮用可能导致不适",
@@ -6,5 +6,6 @@
   "volumeMl": 500,
   "maxStackSize": 4,
   "consumableTypes": 2,
-  "waterContent": 500
+  "waterContent": 500,
+  "value": 4
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1097,
   "name": "turnip",
   "description": "芜菁 — 根茎类蔬菜，可生吃但煮熟更佳",
@@ -9,5 +9,6 @@
   "calories": 40000,
   "satiety": 25,
   "waterContent": 50,
-  "tags": ["vegetable", "processing"]
+  "tags": ["vegetable", "processing"],
+  "value": 4
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 0,
   "name": "water_bottle",
   "description": "一瓶干净的饮用水",
@@ -6,5 +6,6 @@
   "volumeMl": 500,
   "maxStackSize": 4,
   "consumableTypes": 2,
-  "waterContent": 500
+  "waterContent": 500,
+  "value": 5
 }

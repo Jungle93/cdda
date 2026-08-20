@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1008,
   "name": "squirrel_meat_raw",
   "description": "松鼠肉，量少但细腻",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 170000,
   "satiety": 40,
-  "waterContent": 30
+  "waterContent": 30,
+  "value": 5
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1044,
   "name": "grass_bundle",
   "description": "干草捆，可作 bedding 或编织",
@@ -9,5 +9,6 @@
     "crafting",
     "material",
     "processing"
-  ]
+  ],
+  "value": 1
 }

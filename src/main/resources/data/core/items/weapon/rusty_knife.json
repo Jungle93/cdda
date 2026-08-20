@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 7,
   "name": "rusty_knife",
   "description": "一把生锈的小刀，聊胜于无",
@@ -11,5 +11,6 @@
     "tracking",
     "gathering",
     "foraging"
-  ]
+  ],
+  "value": 20
 }

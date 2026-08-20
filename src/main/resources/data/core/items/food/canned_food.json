@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 3,
   "name": "canned_food",
   "description": "罐头食品，保质期长",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 500000,
   "satiety": 80,
-  "waterContent": 50
+  "waterContent": 50,
+  "value": 20
 }

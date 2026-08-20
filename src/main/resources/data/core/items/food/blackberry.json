@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1041,
   "name": "blackberry",
   "description": "黑莓，甜美多汁",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 50000,
   "satiety": 30,
-  "waterContent": 20
+  "waterContent": 20,
+  "value": 2
 }

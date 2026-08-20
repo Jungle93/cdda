@@ -1,9 +1,10 @@
-{
+﻿{
   "id": 1107,
   "name": "flail",
   "description": "连枷 — 用来给谷物脱粒的农具",
   "weightGrams": 600,
   "volumeMl": 400,
   "unique": true,
-  "tags": ["threshing"]
+  "tags": ["threshing"],
+  "value": 40
 }

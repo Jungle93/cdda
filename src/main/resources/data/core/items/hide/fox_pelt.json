@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1012,
   "name": "fox_pelt",
   "description": "狐皮，珍贵毛皮",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "leather"
-  ]
+  ],
+  "value": 12
 }

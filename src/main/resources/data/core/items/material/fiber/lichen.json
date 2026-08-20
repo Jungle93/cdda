@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1048,
   "name": "lichen",
   "description": "地衣，可应急食用",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 10,
   "satiety": 5,
-  "waterContent": 5
+  "waterContent": 5,
+  "value": 2
 }

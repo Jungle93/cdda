@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1060,
   "name": "oak_firewood",
   "description": "橡木柴，热值高，燃烧持久",
@@ -9,5 +9,6 @@
     "fuel",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

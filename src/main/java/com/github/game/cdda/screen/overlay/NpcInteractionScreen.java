@@ -11,6 +11,8 @@ import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.render.Renderer;
 
 import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,7 +22,7 @@ import java.util.List;
  * <p>主菜单选项：
  * <ol>
  *   <li>对话 — 显示 NPC 对话内容</li>
- *   <li>交易 — 查看 NPC 背包商品（可买卖）</li>
+ *   <li>交易 — 选择想要的 NPC 物品，进入以物换物交易界面</li>
  *   <li>观察 — 获取 NPC 信息</li>
  *   <li>离开 — 关闭菜单</li>
  * </ol>
@@ -29,10 +31,10 @@ public class NpcInteractionScreen extends MenuScreen {
 
     /** 子菜单类型 */
     private enum SubMenu {
-        MAIN,       // 主菜单
-        DIALOG,     // 对话子菜单
-        TRADE,      // 交易子菜单
-        INFO        // 信息子菜单
+        MAIN,          // 主菜单
+        DIALOG,        // 对话子菜单
+        TRADE_SELECT,  // 选择想要的 NPC 物品（进入 TradeScreen 前的选择步骤）
+        INFO           // 信息子菜单
     }
 
     private static final String TITLE = "NPC 交互";
@@ -48,9 +50,6 @@ public class NpcInteractionScreen extends MenuScreen {
     /** 对话子菜单项（动态生成） */
     private String[] dialogActions;
 
-    /** 交易子菜单项：显示 NPC 背包物品 */
-    private String[] tradeActions;
-
     /** 信息子菜单：固定选项 */
     private static final String[] INFO_ACTIONS = {
             "返回"
@@ -65,6 +64,15 @@ public class NpcInteractionScreen extends MenuScreen {
 
     /** 当前交互的 NPC（由光标选中，构造时传入） */
     private final Npc targetNpc;
+
+    /** 玩家在 TRADE_SELECT 中已选中的想要物品（ItemStack + 数量） */
+    private final List<TradeScreen.TradeSelection> wantedItems = new ArrayList<>();
+
+    /** TRADE_SELECT 面板的光标索引 */
+    private int tradeSelectCursor = 0;
+
+    /** TRADE_SELECT 面板的滚动偏移 */
+    private int tradeSelectScroll = 0;
 
     /**
      * 创建 NPC 交互菜单。
@@ -86,9 +94,15 @@ public class NpcInteractionScreen extends MenuScreen {
         return switch (currentSubMenu) {
             case MAIN -> MAIN_ACTIONS.length;
             case DIALOG -> dialogActions != null ? dialogActions.length : 1;
-            case TRADE -> tradeActions != null ? tradeActions.length : 1;
+            case TRADE_SELECT -> getNpcGoodsCount();
             case INFO -> INFO_ACTIONS.length;
         };
+    }
+
+    /** 获取 NPC 货物种类数 */
+    private int getNpcGoodsCount() {
+        if (targetNpc == null || !targetNpc.isAlive()) return 0;
+        return targetNpc.getInventory().getItems().size();
     }
 
     /**
@@ -99,10 +113,71 @@ public class NpcInteractionScreen extends MenuScreen {
             case MAIN -> MAIN_ACTIONS[index];
             case DIALOG -> dialogActions != null && index < dialogActions.length
                     ? dialogActions[index] : "无对话内容";
-            case TRADE -> tradeActions != null && index < tradeActions.length
-                    ? tradeActions[index] : "背包空空如也";
+            case TRADE_SELECT -> formatTradeSelectItem(index);
             case INFO -> INFO_ACTIONS[index];
         };
+    }
+
+    /** 格式化 TRADE_SELECT 中的物品条目（显示已选数量） */
+    private String formatTradeSelectItem(int index) {
+        var items = targetNpc.getInventory().getItems();
+        if (index >= items.size()) return "";
+        ItemStack stack = items.get(index);
+        int selectedCount = getWantedCount(stack.getType().getName());
+        String suffix = selectedCount > 0 ? "  [已选 ×" + selectedCount + "]" : "";
+        return String.format("%s ×%d%s",
+                stack.getType().getDisplayName(),
+                stack.getCount(),
+                suffix);
+    }
+
+    /** 查询某个物品在 wantedItems 中已选数量 */
+    private int getWantedCount(String itemName) {
+        for (TradeScreen.TradeSelection sel : wantedItems) {
+            if (sel.getStack().getType().getName().equals(itemName)) {
+                return sel.getCount();
+            }
+        }
+        return 0;
+    }
+
+    /** 在 wantedItems 中为某物品增加数量（+1），返回是否成功 */
+    private boolean addToWanted(int npcItemIndex) {
+        var items = targetNpc.getInventory().getItems();
+        if (npcItemIndex >= items.size()) return false;
+        ItemStack npcStack = items.get(npcItemIndex);
+
+        // 检查是否已在 wantedItems 中
+        for (TradeScreen.TradeSelection sel : wantedItems) {
+            if (sel.getStack().getType() == npcStack.getType()) {
+                if (sel.getCount() < npcStack.getCount()) {
+                    sel.setCount(sel.getCount() + 1);
+                    return true;
+                }
+                return false; // 已达上限
+            }
+        }
+        // 新增
+        wantedItems.add(new TradeScreen.TradeSelection(npcStack, 1));
+        return true;
+    }
+
+    /** 在 wantedItems 中为某物品减少数量（-1），为 0 则移除 */
+    private void removeFromWanted(int npcItemIndex) {
+        var items = targetNpc.getInventory().getItems();
+        if (npcItemIndex >= items.size()) return;
+        ItemStack npcStack = items.get(npcItemIndex);
+
+        for (int i = 0; i < wantedItems.size(); i++) {
+            TradeScreen.TradeSelection sel = wantedItems.get(i);
+            if (sel.getStack().getType() == npcStack.getType()) {
+                sel.setCount(sel.getCount() - 1);
+                if (sel.getCount() <= 0) {
+                    wantedItems.remove(i);
+                }
+                return;
+            }
+        }
     }
 
     @Override
@@ -147,7 +222,7 @@ public class NpcInteractionScreen extends MenuScreen {
         renderer.setColor(new Color(100, 180, 100));
         String divider = currentSubMenu == SubMenu.MAIN ? "── 选择操作 ──────────────────────────"
                 : currentSubMenu == SubMenu.DIALOG ? "── 对话 ──────────────────────────────────"
-                : currentSubMenu == SubMenu.TRADE ? "── 交易 ──────────────────────────────────"
+                : currentSubMenu == SubMenu.TRADE_SELECT ? "── 选择想要的物品（F 确认交易）───────────"
                 : "── 观察信息 ──────────────────────────────";
         renderer.drawText(divider, 15, y);
         y += lineHeight + 2;
@@ -156,11 +231,10 @@ public class NpcInteractionScreen extends MenuScreen {
         renderer.setFont(new Font("Monospaced", Font.PLAIN, fontSize));
         int maxVisible = (height - y - 40) / lineHeight;
 
-        // 特殊处理：对话和信息子菜单需要显示额外内容
         if (currentSubMenu == SubMenu.INFO && targetNpc != null) {
             renderInfoPanel(renderer, y, lineHeight, maxVisible);
-        } else if (currentSubMenu == SubMenu.TRADE) {
-            renderTradePanel(renderer, y, lineHeight, maxVisible);
+        } else if (currentSubMenu == SubMenu.TRADE_SELECT) {
+            renderTradeSelectPanel(renderer, y, lineHeight, maxVisible);
         } else {
             renderMenuItems(renderer, y, lineHeight, maxVisible);
         }
@@ -170,6 +244,8 @@ public class NpcInteractionScreen extends MenuScreen {
         renderer.setColor(Color.GRAY);
         String hint = currentSubMenu == SubMenu.MAIN
                 ? "↑↓ 选择 | Enter 确认 | Esc 关闭"
+                : currentSubMenu == SubMenu.TRADE_SELECT
+                ? "↑↓ 选择 | Enter 添加 | D 移除 | F 确认 | Esc 返回"
                 : "↑↓ 选择 | Enter 确认 | Esc 返回";
         renderer.drawText(hint, (width - renderer.getTextWidth(hint)) / 2, height - 12);
     }
@@ -198,9 +274,9 @@ public class NpcInteractionScreen extends MenuScreen {
     }
 
     /**
-     * 渲染交易面板。
+     * 渲染物品选择面板（TRADE_SELECT 专用，使用 tradeSelectCursor）。
      */
-    private void renderTradePanel(Renderer renderer, int startY, int lineHeight, int maxVisible) {
+    private void renderTradeSelectPanel(Renderer renderer, int startY, int lineHeight, int maxVisible) {
         if (targetNpc == null || !targetNpc.isAlive()) {
             renderer.setColor(Color.GRAY);
             renderer.drawText("无法交易", 15, startY);
@@ -214,17 +290,35 @@ public class NpcInteractionScreen extends MenuScreen {
             return;
         }
 
-        // 构建交易菜单项
-        tradeActions = new String[items.size()];
-        for (int i = 0; i < items.size(); i++) {
-            ItemStack stack = items.get(i);
-            tradeActions[i] = String.format("%s ×%d  (%dg)",
-                    stack.getType().getDisplayName(),
-                    stack.getCount(),
-                    (int) stack.getTotalWeightGrams());
+        // 更新滚动偏移
+        if (tradeSelectCursor >= maxVisible) {
+            tradeSelectScroll = tradeSelectCursor - maxVisible + 1;
+        } else {
+            tradeSelectScroll = 0;
         }
 
-        renderMenuItems(renderer, startY, lineHeight, maxVisible);
+        for (int i = 0; i < items.size(); i++) {
+            int visibleIndex = i - tradeSelectScroll;
+            if (visibleIndex < 0 || visibleIndex >= maxVisible) continue;
+
+            boolean sel = (i == tradeSelectCursor);
+            ItemStack stack = items.get(i);
+            int selectedCount = getWantedCount(stack.getType().getName());
+            String suffix = selectedCount > 0 ? "  [已选 ×" + selectedCount + "]" : "";
+            String prefix = sel ? "▶ " : "  ";
+            String line = prefix + stack.getType().getDisplayName() + " ×" + stack.getCount() + suffix;
+
+            renderer.setColor(sel ? Color.YELLOW : new Color(180, 220, 180));
+            renderer.drawText(line, 15, startY + visibleIndex * lineHeight);
+        }
+
+        // 已选提示
+        if (!wantedItems.isEmpty()) {
+            renderer.setColor(new Color(255, 200, 100));
+            int totalWanted = wantedItems.stream().mapToInt(TradeScreen.TradeSelection::getCount).sum();
+            renderer.drawText("已选 " + totalWanted + " 件物品，按 F 进入交易",
+                    15, startY + items.size() * lineHeight + 4);
+        }
     }
 
     /**
@@ -264,8 +358,61 @@ public class NpcInteractionScreen extends MenuScreen {
         switch (currentSubMenu) {
             case MAIN -> handleMainMenuItem(index);
             case DIALOG -> handleDialogMenuItem(index);
-            case TRADE -> handleTradeMenuItem(index);
+            case TRADE_SELECT -> handleTradeSelectItem(index);
             case INFO -> onCancel();
+        }
+    }
+
+    @Override
+    public void onKeyPressed(int keyCode) {
+        if (currentSubMenu == SubMenu.TRADE_SELECT) {
+            handleTradeSelectKey(keyCode);
+            return;
+        }
+        super.onKeyPressed(keyCode);
+    }
+
+    /** 处理 TRADE_SELECT 面板的按键输入 */
+    private void handleTradeSelectKey(int keyCode) {
+        int count = getNpcGoodsCount();
+        if (count == 0) return;
+
+        switch (keyCode) {
+            case KeyEvent.VK_UP -> {
+                tradeSelectCursor = (tradeSelectCursor - 1 + count) % count;
+            }
+            case KeyEvent.VK_DOWN -> {
+                tradeSelectCursor = (tradeSelectCursor + 1) % count;
+            }
+            case KeyEvent.VK_ENTER -> {
+                // 添加到 wantedItems
+                if (addToWanted(tradeSelectCursor)) {
+                    GameLog.getInstance().log("已选择: " +
+                            targetNpc.getInventory().getItems().get(tradeSelectCursor).getType().getDisplayName());
+                } else {
+                    GameLog.getInstance().log("已达到该物品的可用数量上限");
+                }
+            }
+            case KeyEvent.VK_D -> {
+                // 移除 wantedItems
+                removeFromWanted(tradeSelectCursor);
+            }
+            case KeyEvent.VK_F -> {
+                // 确认选择，进入 TradeScreen
+                if (wantedItems.isEmpty()) {
+                    GameLog.getInstance().log("还没有选择任何物品");
+                    return;
+                }
+                npcManager.startInteraction(targetNpc);
+                engine.getScreenManager().pushScreen(
+                        new TradeScreen(engine, world, targetNpc, wantedItems));
+            }
+            case KeyEvent.VK_ESCAPE -> {
+                // 清空选择，返回主菜单
+                wantedItems.clear();
+                currentSubMenu = SubMenu.MAIN;
+                selectedIndex = 0;
+            }
         }
     }
 
@@ -280,10 +427,14 @@ public class NpcInteractionScreen extends MenuScreen {
                 List<String> dialogs = targetNpc.getDialogLines();
                 dialogActions = dialogs.toArray(new String[0]);
             }
-            case 1 -> { // 交易
-                currentSubMenu = SubMenu.TRADE;
-                selectedIndex = 0;
-                npcManager.startInteraction(targetNpc);
+            case 1 -> { // 交易 — 进入物品选择子流程
+                if (targetNpc.getNpcType() == com.github.game.cdda.npc.NpcType.HOSTILE) {
+                    GameLog.getInstance().log(targetNpc.getName() + " 不愿意和你交易！");
+                    return;
+                }
+                currentSubMenu = SubMenu.TRADE_SELECT;
+                tradeSelectCursor = 0;
+                wantedItems.clear();
             }
             case 2 -> { // 观察
                 currentSubMenu = SubMenu.INFO;
@@ -308,43 +459,26 @@ public class NpcInteractionScreen extends MenuScreen {
         selectedIndex = 0;
     }
 
-    /**
-     * 处理交易菜单项选择。
-     */
-    private void handleTradeMenuItem(int index) {
-        if (targetNpc == null) return;
-
-        var items = targetNpc.getInventory().getItems();
-        if (items.isEmpty() || index >= items.size()) return;
-
-        ItemStack stack = items.get(index);
-
-        // 检查 NPC 态度 — 友好的 NPC 愿意交易
-        if (targetNpc.getNpcType() == com.github.game.cdda.npc.NpcType.HOSTILE) {
-            GameLog.getInstance().log(targetNpc.getName() + " 不愿意和你交易！");
-            return;
-        }
-
-        // 执行交易
-        boolean success = targetNpc.getInventory().sellToPlayer(
-                index, player.getInventory(), 1);
-
-        if (success) {
-            GameLog.getInstance().log(
-                    String.format("从 %s 处获得了 %s ×1",
-                            targetNpc.getName(),
-                            stack.getType().getDisplayName()));
-            targetNpc.getSocial().adjustAttitude(1);
-
-            // 刷新交易列表
-            tradeActions = null;
+    /** 处理 TRADE_SELECT 中 Enter 确认（兼容 MenuScreen 的 onSelect） */
+    private void handleTradeSelectItem(int index) {
+        // Enter 在 TRADE_SELECT 中 = 添加物品到 wantedItems
+        if (addToWanted(index)) {
+            GameLog.getInstance().log("已选择: " +
+                    targetNpc.getInventory().getItems().get(index).getType().getDisplayName());
         } else {
-            GameLog.getInstance().log("无法获得该物品（背包容量不足）");
+            GameLog.getInstance().log("已达到该物品的可用数量上限");
         }
     }
 
     @Override
     protected void onCancel() {
+        if (currentSubMenu == SubMenu.TRADE_SELECT) {
+            wantedItems.clear();
+            currentSubMenu = SubMenu.MAIN;
+            selectedIndex = 0;
+            return;
+        }
+
         if (currentSubMenu != SubMenu.MAIN) {
             // 返回主菜单
             currentSubMenu = SubMenu.MAIN;

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1094,
   "name": "bean_seed",
   "description": "菜豆种子 — 播种在耕地上可种植菜豆",
@@ -6,5 +6,6 @@
   "volumeMl": 20,
   "maxStackSize": 20,
   "producesCrop": "bean",
-  "tags": ["seed", "sowing"]
+  "tags": ["seed", "sowing"],
+  "value": 3
 }

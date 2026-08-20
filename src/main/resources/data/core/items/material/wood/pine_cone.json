@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1043,
   "name": "pine_cone",
   "description": "松果，富含树脂，易燃",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "material"
-  ]
+  ],
+  "value": 1
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1010,
   "name": "deer_hide",
   "description": "鹿皮，可用于制作皮革制品",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "leather"
-  ]
+  ],
+  "value": 8
 }

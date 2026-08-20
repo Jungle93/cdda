@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1054,
   "name": "beech_plank",
   "description": "山毛榉板，硬度高，耐磨",
@@ -9,5 +9,6 @@
     "crafting",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

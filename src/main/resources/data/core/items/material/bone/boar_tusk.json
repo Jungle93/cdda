@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1022,
   "name": "boar_tusk",
   "description": "野猪獠牙，珍贵的工艺品材料",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "material"
-  ]
+  ],
+  "value": 16
 }

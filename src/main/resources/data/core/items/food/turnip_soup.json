@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1103,
   "name": "turnip_soup",
   "description": "芜菁汤 — 用芜菁煮成的清汤，易消化",
@@ -9,5 +9,6 @@
   "calories": 120000,
   "satiety": 50,
   "waterContent": 200,
-  "tags": ["cooked"]
+  "tags": ["cooked"],
+  "value": 12
 }

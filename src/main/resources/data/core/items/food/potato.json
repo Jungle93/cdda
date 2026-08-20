@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1098,
   "name": "potato",
   "description": "马铃薯 — 高淀粉块茎，必须煮熟食用",
@@ -9,5 +9,6 @@
   "calories": 80000,
   "satiety": 40,
   "waterContent": 30,
-  "tags": ["vegetable", "processing"]
+  "tags": ["vegetable", "processing"],
+  "value": 4
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1051,
   "name": "birch_plank",
   "description": "桦木板，纹理细腻，质地较轻",
@@ -9,5 +9,6 @@
     "crafting",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

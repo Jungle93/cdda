@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1046,
   "name": "green_moss",
   "description": "绿苔藓，吸水性好",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "material"
-  ]
+  ],
+  "value": 1
 }

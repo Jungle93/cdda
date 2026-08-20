@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1049,
   "name": "peat",
   "description": "泥炭，缓慢燃烧的燃料",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "fuel"
-  ]
+  ],
+  "value": 1
 }

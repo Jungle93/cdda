@@ -1,9 +1,10 @@
-{
+﻿{
   "id": 4,
   "name": "bandage",
   "description": "简易绷带，用于处理伤口",
   "weightGrams": 50,
   "volumeMl": 30,
   "maxStackSize": 10,
-  "consumableTypes": 4
+  "consumableTypes": 4,
+  "value": 30
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1062,
   "name": "pine_firewood",
   "description": "松木柴，含油脂，火焰明亮",
@@ -9,5 +9,6 @@
     "fuel",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

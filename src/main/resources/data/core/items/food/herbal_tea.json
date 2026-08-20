@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 6,
   "name": "herbal_tea",
   "description": "草药茶，既能解渴又有疗效",
@@ -8,5 +8,6 @@
   "consumableTypes": 6,
   "calories": 10,
   "satiety": 5,
-  "waterContent": 200
+  "waterContent": 200,
+  "value": 30
 }

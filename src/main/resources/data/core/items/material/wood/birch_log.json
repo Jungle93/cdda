@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1031,
   "name": "birch_log",
   "description": "桦木原木，质地较轻",
@@ -9,5 +9,6 @@
     "crafting",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

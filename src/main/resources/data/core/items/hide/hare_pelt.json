@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1016,
   "name": "hare_pelt",
   "description": "野兔皮，冬季毛更厚",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "leather"
-  ]
+  ],
+  "value": 5
 }

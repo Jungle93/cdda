@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 2,
   "name": "bread",
   "description": "一块基本的面包，能填饱肚子",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 350000,
   "satiety": 60,
-  "waterContent": 30
+  "waterContent": 30,
+  "value": 10
 }

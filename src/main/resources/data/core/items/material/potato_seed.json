@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1093,
   "name": "potato_seed",
   "description": "马铃薯种薯 — 播种在耕地上可种植马铃薯",
@@ -6,5 +6,6 @@
   "volumeMl": 50,
   "maxStackSize": 10,
   "producesCrop": "potato",
-  "tags": ["seed", "sowing"]
+  "tags": ["seed", "sowing"],
+  "value": 3
 }

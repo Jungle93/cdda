@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1034,
   "name": "beech_log",
   "description": "山毛榉原木，质地坚硬",
@@ -9,5 +9,6 @@
     "crafting",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

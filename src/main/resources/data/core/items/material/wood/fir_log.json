@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1033,
   "name": "fir_log",
   "description": "冷杉原木，纹理细腻",
@@ -9,5 +9,6 @@
     "crafting",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1073,
   "name": "wolf_corpse",
   "description": "狼的尸体，可以解剖获取肉和皮",
@@ -8,5 +8,6 @@
   "tags": [
     "corpse",
     "butchering"
-  ]
+  ],
+  "value": 24
 }

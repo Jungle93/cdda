@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1102,
   "name": "bean_stew",
   "description": "炖菜豆 — 慢火炖煮的豆子，蛋白质丰富",
@@ -9,5 +9,6 @@
   "calories": 280000,
   "satiety": 80,
   "waterContent": 120,
-  "tags": ["cooked"]
+  "tags": ["cooked"],
+  "value": 15
 }

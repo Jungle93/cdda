@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1015,
   "name": "badger_fur",
   "description": "獾皮，厚实耐用",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "leather"
-  ]
+  ],
+  "value": 25
 }

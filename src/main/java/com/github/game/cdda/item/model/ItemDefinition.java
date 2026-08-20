@@ -60,6 +60,8 @@ public class ItemDefinition {
     public double satiety = 0;
     /** 含水量（毫升） */
     public double waterContent = 0;
+    /** 物品价值（整数，用于交易；未定义时默认为 0） */
+    public int value = 0;
 
     /**
      * 将定义转换为不可变的 {@link ItemType} 实例。
@@ -102,6 +104,10 @@ public class ItemDefinition {
 
         if (calories > 0 || satiety > 0 || waterContent > 0) {
             builder.nutrition(calories, satiety, waterContent);
+        }
+
+        if (value > 0) {
+            builder.value(value);
         }
 
         return builder.build();

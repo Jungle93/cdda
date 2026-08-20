@@ -28,5 +28,16 @@
   "ui.debug.enabled": "调试模式已启用",
   "ui.craft.title": "制作",
   "ui.pickup.title": "拾取",
-  "ui.drop.title": "丢弃物品"
+  "ui.drop.title": "丢弃物品",
+  "ui.trade.title": "交易",
+  "ui.trade.my_items": "我的物品",
+  "ui.trade.i_offer": "我出的",
+  "ui.trade.npc_gives": "NPC 这次给的",
+  "ui.trade.not_enough": "这些东西不够换",
+  "ui.trade.feedback.full": "嗯嗯，够了！",
+  "ui.trade.feedback.almost": "七七八八了，再加一点就好",
+  "ui.trade.feedback.half": "差不多一半吧，还差点",
+  "ui.trade.feedback.thirty": "嗯...差不多三成",
+  "ui.trade.feedback.ten": "才一成左右，太少了",
+  "ui.trade.feedback.no": "这点东西就想换？不够不够"
 }

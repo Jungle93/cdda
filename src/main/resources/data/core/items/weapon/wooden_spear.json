@@ -1,9 +1,10 @@
-{
+﻿{
   "id": 1080,
   "name": "wooden_spear",
   "description": "削尖的木矛 — 简陋但有效的狩猎武器",
   "weightGrams": 600,
   "volumeMl": 800,
   "unique": true,
-  "tags": ["hunting", "throwing", "processing"]
+  "tags": ["hunting", "throwing", "processing"],
+  "value": 18
 }

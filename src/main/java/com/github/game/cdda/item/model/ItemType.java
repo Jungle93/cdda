@@ -47,6 +47,10 @@ public class ItemType {
     /** 含水量（毫升） */
     private final double waterContent;
 
+    // ── 经济值（用于 NPC 交易） ──
+    /** 物品价值（整数，用于以物换物交易；0 表示无价值） */
+    private final int value;
+
     // ── 私有构造 ──
     private ItemType(Builder b) {
         this.id = b.id;
@@ -68,6 +72,7 @@ public class ItemType {
         this.calories = b.calories;
         this.satiety = b.satiety;
         this.waterContent = b.waterContent;
+        this.value = b.value;
     }
 
     // ── 访问器 ──────────────────────────────────────────
@@ -120,6 +125,9 @@ public class ItemType {
     public double getCalories() { return calories; }
     public double getSatiety() { return satiety; }
     public double getWaterContent() { return waterContent; }
+
+    /** 获取物品价值（整数，用于 NPC 交易；0 表示无价值）。 */
+    public int getValue() { return value; }
 
     /** 是否可食用/饮用/使用（有任何消耗标签即可） */
     public boolean isConsumable() { return !consumableTypes.isEmpty(); }
@@ -209,6 +217,7 @@ public class ItemType {
         private double waterContent = 0;
         private String icon = null;
         private String producesCrop = null;
+        private int value = 0;
 
         /** 创建 Builder（id 和 name 必填） */
         public Builder(int id, String name) {
@@ -306,6 +315,15 @@ public class ItemType {
          * @return 当前 Builder 实例（链式调用）
          */
         public Builder producesCrop(String cropSpeciesId) { this.producesCrop = cropSpeciesId; return this; }
+
+        /**
+         * 设置物品价值（用于 NPC 交易）。
+         * 以"面包 = 10"为基准单位的整数价值。
+         *
+         * @param value 价值（非负整数）
+         * @return 当前 Builder 实例（链式调用）
+         */
+        public Builder value(int value) { this.value = value; return this; }
 
         /**
          * 构建 ItemType 实例（不注册）。

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1014,
   "name": "wolf_pelt",
   "description": "狼皮，厚实保暖",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "leather"
-  ]
+  ],
+  "value": 12
 }

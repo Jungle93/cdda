@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1040,
   "name": "gorse_branch",
   "description": "金雀花枝，带刺",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "material"
-  ]
+  ],
+  "value": 2
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1100,
   "name": "grain_porridge",
   "description": "谷物粥 — 用谷粒熬制的热粥，暖胃又饱腹",
@@ -9,5 +9,6 @@
   "calories": 250000,
   "satiety": 70,
   "waterContent": 100,
-  "tags": ["cooked"]
+  "tags": ["cooked"],
+  "value": 12
 }

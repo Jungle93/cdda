@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1047,
   "name": "sphagnum_moss",
   "description": "泥炭藓，可作绷带填充",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "material"
-  ]
+  ],
+  "value": 2
 }

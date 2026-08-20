@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1001,
   "name": "rabbit_meat_raw",
   "description": "兔肉，瘦肉，低脂肪",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 340000,
   "satiety": 55,
-  "waterContent": 40
+  "waterContent": 40,
+  "value": 5
 }

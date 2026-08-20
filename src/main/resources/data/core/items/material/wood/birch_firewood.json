@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1061,
   "name": "birch_firewood",
   "description": "桦木柴，易燃，适合引火",
@@ -9,5 +9,6 @@
     "fuel",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

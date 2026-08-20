@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1021,
   "name": "bone",
   "description": "骨头，可磨制工具或熬汤",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "material"
-  ]
+  ],
+  "value": 3
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1050,
   "name": "oak_plank",
   "description": "橡木板，坚硬耐用，建筑良材",
@@ -9,5 +9,6 @@
     "crafting",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

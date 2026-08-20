@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1053,
   "name": "fir_plank",
   "description": "冷杉板，清香耐久",
@@ -9,5 +9,6 @@
     "crafting",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1039,
   "name": "heather_flower",
   "description": "石楠花，可泡茶",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 10,
   "satiety": 5,
-  "waterContent": 30
+  "waterContent": 30,
+  "value": 2
 }

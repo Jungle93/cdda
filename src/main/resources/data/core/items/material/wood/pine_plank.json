@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1052,
   "name": "pine_plank",
   "description": "松木板，轻质柔软，易加工",
@@ -9,5 +9,6 @@
     "crafting",
     "wood",
     "processing"
-  ]
+  ],
+  "value": 2
 }

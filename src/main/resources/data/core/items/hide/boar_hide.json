@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1013,
   "name": "boar_hide",
   "description": "野猪皮，厚实粗糙",
@@ -8,5 +8,6 @@
   "tags": [
     "crafting",
     "leather"
-  ]
+  ],
+  "value": 15
 }

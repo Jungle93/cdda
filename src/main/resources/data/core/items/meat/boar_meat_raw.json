@@ -1,4 +1,4 @@
-{
+﻿{
   "id": 1002,
   "name": "boar_meat_raw",
   "description": "野猪肉，脂肪丰富",
@@ -8,5 +8,6 @@
   "consumableTypes": 1,
   "calories": 1680000,
   "satiety": 85,
-  "waterContent": 40
+  "waterContent": 40,
+  "value": 10
 }

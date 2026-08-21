@@ -261,9 +261,9 @@ public class TradeScreen extends Screen {
     private void handleRightAmount(int amount) {
         if (currentFocus == Focus.OFFERED_ITEMS && !offeredItems.isEmpty()) {
             TradeSelection sel = offeredItems.get(offeredCursor);
-            int maxCount = getPlayerAvailableCount(sel.getStack().getType().getName());
-            if (sel.getCount() < maxCount) {
-                int newCount = Math.min(sel.getCount() + amount, maxCount);
+            int available = getPlayerAvailableCount(sel.getStack().getType().getId());
+            if (available > 0) {
+                int newCount = Math.min(sel.getCount() + amount, sel.getCount() + available);
                 sel.setCount(newCount);
                 updateNpcFeedback();
             }
@@ -277,21 +277,19 @@ public class TradeScreen extends Screen {
             var items = player.getInventory().getItems();
             if (items.isEmpty() || playerCursor >= items.size()) return;
             ItemStack stack = items.get(playerCursor);
-            int available = getPlayerAvailableCount(stack.getType().getName());
+            int available = getPlayerAvailableCount(stack.getType().getId());
             if (available <= 0) {
                 GameLog.getInstance().log("该物品已全部用于交易");
                 return;
             }
-            // 检查中栏是否已有该物品
+            // 检查中栏是否已有该物品（用 ID 比较，避免引用不一致）
+            int itemId = stack.getType().getId();
             for (int i = 0; i < offeredItems.size(); i++) {
                 TradeSelection sel = offeredItems.get(i);
-                if (sel.getStack().getType() == stack.getType()) {
-                    if (sel.getCount() < available) {
-                        sel.setCount(sel.getCount() + 1);
-                        updateNpcFeedback();
-                    } else {
-                        GameLog.getInstance().log("已达到该物品的最大可交易数量");
-                    }
+                if (sel.getStack().getType().getId() == itemId) {
+                    // available > 0 已在上文确认，直接 +1
+                    sel.setCount(sel.getCount() + 1);
+                    updateNpcFeedback();
                     return;
                 }
             }
@@ -350,16 +348,16 @@ public class TradeScreen extends Screen {
     /**
      * 查询玩家背包中某物品可供交易的数量（总数量 - 已在 offeredItems 中的数量）。
      */
-    private int getPlayerAvailableCount(String itemName) {
+    private int getPlayerAvailableCount(int itemId) {
         int total = 0;
         for (ItemStack stack : player.getInventory().getItems()) {
-            if (stack.getType().getName().equals(itemName)) {
+            if (stack.getType().getId() == itemId) {
                 total += stack.getCount();
             }
         }
         int offered = 0;
         for (TradeSelection sel : offeredItems) {
-            if (sel.getStack().getType().getName().equals(itemName)) {
+            if (sel.getStack().getType().getId() == itemId) {
                 offered += sel.getCount();
             }
         }
@@ -383,13 +381,13 @@ public class TradeScreen extends Screen {
         // 检查 NPC 能否承载玩家提供的物品
         double npcAddedWeight = 0;
         for (TradeSelection sel : offeredItems) {
-            String itemName = sel.getStack().getType().getName();
+            int itemId = sel.getStack().getType().getId();
             // 计算实际要从玩家背包移除的数量（可能已有部分在 NPC 背包中）
             int remaining = sel.getCount();
             Iterator<ItemStack> it = playerInv.getItems().iterator();
             while (it.hasNext() && remaining > 0) {
                 ItemStack stack = it.next();
-                if (stack.getType().getName().equals(itemName)) {
+                if (stack.getType().getId() == itemId) {
                     int take = Math.min(remaining, stack.getCount());
                     double unitWeight = stack.getType().getWeightGrams();
                     npcAddedWeight += unitWeight * take;
@@ -407,12 +405,12 @@ public class TradeScreen extends Screen {
         // 检查玩家能否承载想要的物品
         double playerAddedWeight = 0;
         for (TradeSelection sel : wantedItems) {
-            String itemName = sel.getStack().getType().getName();
+            int itemId = sel.getStack().getType().getId();
             int remaining = sel.getCount();
             Iterator<ItemStack> it = npcInv.getItems().iterator();
             while (it.hasNext() && remaining > 0) {
                 ItemStack stack = it.next();
-                if (stack.getType().getName().equals(itemName)) {
+                if (stack.getType().getId() == itemId) {
                     int take = Math.min(remaining, stack.getCount());
                     double unitWeight = stack.getType().getWeightGrams();
                     playerAddedWeight += unitWeight * take;
@@ -429,36 +427,16 @@ public class TradeScreen extends Screen {
 
         // 从玩家背包移除 offeredItems
         for (TradeSelection sel : offeredItems) {
-            String itemName = sel.getStack().getType().getName();
-            int remaining = sel.getCount();
-            Iterator<ItemStack> it = playerInv.getItems().iterator();
-            while (it.hasNext() && remaining > 0) {
-                ItemStack stack = it.next();
-                if (stack.getType().getName().equals(itemName)) {
-                    int take = Math.min(remaining, stack.getCount());
-                    stack.setCount(stack.getCount() - take);
-                    remaining -= take;
-                    if (stack.getCount() <= 0) it.remove();
-                }
-            }
+            int itemId = sel.getStack().getType().getId();
+            playerInv.removeItemsById(itemId, sel.getCount());
         }
 
         // 从 NPC 背包移除 wantedItems，并添加到玩家背包
         for (TradeSelection sel : wantedItems) {
-            String itemName = sel.getStack().getType().getName();
-            int remaining = sel.getCount();
+            int itemId = sel.getStack().getType().getId();
 
             // 从 NPC 移除
-            Iterator<ItemStack> it = targetNpc.getInventory().getItems().iterator();
-            while (it.hasNext() && remaining > 0) {
-                ItemStack stack = it.next();
-                if (stack.getType().getName().equals(itemName)) {
-                    int take = Math.min(remaining, stack.getCount());
-                    stack.setCount(stack.getCount() - take);
-                    remaining -= take;
-                    if (stack.getCount() <= 0) it.remove();
-                }
-            }
+            targetNpc.getInventory().removeItemsById(itemId, sel.getCount());
 
             // 添加到玩家背包
             ItemStack toAdd = new ItemStack(sel.getStack().getType(), sel.getCount());
@@ -582,7 +560,7 @@ public class TradeScreen extends Screen {
 
             ItemStack stack = items.get(i);
             boolean sel = (i == playerCursor && focused);
-            int available = getPlayerAvailableCount(stack.getType().getName());
+            int available = getPlayerAvailableCount(stack.getType().getId());
             String prefix = sel ? "▶ " : "  ";
             String suffix = available < stack.getCount() ? " (" + available + ")" : "";
             String line = prefix + stack.getType().getDisplayName()

@@ -152,6 +152,26 @@ public class PlayerInventory {
         return removed;
     }
 
+    /**
+     * 按物品 ID 移除指定数量的物品。
+     * 遍历背包，从匹配 ID 的堆中依次扣减，直到满足数量或耗尽。
+     *
+     * @param itemId 物品 ID
+     * @param count  要移除的总数量
+     */
+    public void removeItemsById(int itemId, int count) {
+        java.util.Iterator<ItemStack> it = items.iterator();
+        while (it.hasNext() && count > 0) {
+            ItemStack stack = it.next();
+            if (stack.getType().getId() == itemId) {
+                int take = Math.min(count, stack.getCount());
+                stack.setCount(stack.getCount() - take);
+                count -= take;
+                if (stack.getCount() <= 0) it.remove();
+            }
+        }
+    }
+
     // ── 查询 ──────────────────────────────────
 
     /**

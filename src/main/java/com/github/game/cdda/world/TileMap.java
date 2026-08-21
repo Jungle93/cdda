@@ -6,8 +6,6 @@ import com.github.game.engine.core.sprite.Sprite;
 import com.github.game.engine.core.sprite.SpriteManager;
 import com.github.game.cdda.world.chunk.ChunkManager;
 import java.awt.*;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * 瓦片地图（渲染层）。
@@ -18,7 +16,7 @@ import java.util.Set;
  * 设置占据多格（如松树占 2 格宽 × 2.5 格高），通过 {@link Sprite#setAnchor(double, double)}
  * 设置渲染锚点（默认左下角，精灵向上延伸）。
  *
- * <p>植被精灵优先使用物种 ID 查找（"vegetation.oak"），回退到瓦片类型精灵（"tile.tree"）。
+ * <p>植被精灵优先使用物种 ID 查找（"vegetation.{speciesId}"），回退到瓦片类型精灵（"tile.{name}"）。
  *
  * <p><b>按 tile 图层循环</b>（参考 Cataclysm-DDA 设计）：
  * 对每个可见 tile 按固定图层顺序渲染 —
@@ -143,7 +141,11 @@ public class TileMap {
      *   <li>地面物品（通过 layerRenderer 回调）</li>
      *   <li>生物（通过 layerRenderer 回调）</li>
      * </ol>
-     * 之后执行<b>覆盖层 pass</b>（扩展范围，含多瓦片植被精灵去重）。
+     * 之后执行<b>覆盖层 pass</b>（扩展范围，含多瓦片植被精灵）。
+     *
+     * <p><b>不做多瓦片精灵去重</b>：每个覆盖层瓦片都必须渲染自己的精灵。
+     * 去重会导致相邻树木互相遮挡、贴图丢失（前方树的延伸部分标记了后方格子，
+     * 使后方树的精灵被跳过）。精灵重叠绘制视觉上正常（前方遮后方），与主流 2D 游戏一致。
      *
      * <p><b>遮挡正确性</b>：同一 tile 内物品在生物之下，生物在植被之下；
      * 行优先迭代确保前方（下方行）的元素遮挡后方。
@@ -181,9 +183,6 @@ public class TileMap {
         int renderEndCol = endCol + margin;
         int renderEndRow = endRow + margin;
 
-        // 记录已渲染的多瓦片精灵位置，避免重复绘制
-        Set<String> renderedMultiTile = useSprites ? new HashSet<>() : null;
-
         // ── 按 tile 图层循环（行优先，从上到下） ──
         // 图层顺序：地形 → 地面物品 → 生物
         for (int r = startRow; r <= endRow; r++) {
@@ -207,16 +206,12 @@ public class TileMap {
         }
 
         // ── 覆盖层 pass（扩展范围，含多瓦片植被精灵） ──
+        // 不做去重：每个覆盖层瓦片都渲染自己的精灵，前方遮后方，视觉正确。
         for (int r = renderStartRow; r <= renderEndRow; r++) {
             for (int c = renderStartCol; c <= renderEndCol; c++) {
                 // 使用非阻塞查询，区块未完成生成则跳过
                 TileType tile = chunkManager.getTileIfReady(c, r);
                 if (tile == null || !tile.isOverlay()) continue;
-
-                // 已被多瓦片精灵覆盖 → 跳过
-                if (renderedMultiTile != null && renderedMultiTile.contains(c + "," + r)) {
-                    continue;
-                }
 
                 int screenX = camera.toViewX(c * tileWidth);
                 int screenY = camera.toViewY(r * tileHeight);
@@ -225,9 +220,8 @@ public class TileMap {
                     // 优先使用植被物种精灵（支持物种差异化和多瓦片）
                     Sprite sprite = getVegetationSprite(c, r);
                     if (sprite != null) {
-                        drawOverlaySprite(renderer, sprite, screenX, screenY,
-                                scaledTileW, scaledTileH, c, r,
-                                renderedMultiTile, camera, zoom);
+                        drawSprite(renderer, sprite, screenX, screenY,
+                                scaledTileW, scaledTileH);
                         continue;
                     }
                     // 回退：使用瓦片类型精灵
@@ -328,37 +322,5 @@ public class TileMap {
         int drawY = tileScreenY - offsetY;
 
         renderer.drawImage(sprite.getImage(), drawX, drawY, drawW, drawH);
-    }
-
-    /**
-     * 绘制覆盖层精灵（含多瓦片标记）。
-     * 对于多瓦片精灵，记录其占据的所有瓦片位置以避免重复绘制。
-     */
-    private void drawOverlaySprite(Renderer renderer, Sprite sprite,
-                                   int tileScreenX, int tileScreenY,
-                                   int scaledTileW, int scaledTileH,
-                                   int tileCol, int tileRow,
-                                   Set<String> renderedMultiTile,
-                                   Camera camera, double zoom) {
-        // 先正常绘制
-        drawSprite(renderer, sprite, tileScreenX, tileScreenY, scaledTileW, scaledTileH);
-
-        // 多瓦片精灵：标记其占据的所有瓦片位置
-        if (sprite.isMultiTile() && renderedMultiTile != null) {
-            int spanW = (int) Math.ceil(sprite.getTileWidth());
-            int spanH = (int) Math.ceil(sprite.getTileHeight());
-
-            // 根据锚点计算精灵占据的瓦片范围
-            // 锚点(0,1)=左下角：精灵向右延伸 spanW 格，向上延伸 spanH 格
-            int anchorTileColOffset = (int) (sprite.getAnchorX() * spanW);
-            int anchorTileRowOffset = (int) (sprite.getAnchorY() * spanH);
-
-            for (int dr = -anchorTileRowOffset; dr < spanH - anchorTileRowOffset; dr++) {
-                for (int dc = -anchorTileColOffset; dc < spanW - anchorTileColOffset; dc++) {
-                    if (dr == 0 && dc == 0) continue; // 跳过锚点本身
-                    renderedMultiTile.add((tileCol + dc) + "," + (tileRow + dr));
-                }
-            }
-        }
     }
 }

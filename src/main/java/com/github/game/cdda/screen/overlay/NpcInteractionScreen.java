@@ -123,7 +123,7 @@ public class NpcInteractionScreen extends MenuScreen {
         var items = targetNpc.getInventory().getItems();
         if (index >= items.size()) return "";
         ItemStack stack = items.get(index);
-        int selectedCount = getWantedCount(stack.getType().getName());
+        int selectedCount = getWantedCount(stack.getType().getId());
         String suffix = selectedCount > 0 ? "  [已选 ×" + selectedCount + "]" : "";
         return String.format("%s ×%d%s",
                 stack.getType().getDisplayName(),
@@ -132,9 +132,9 @@ public class NpcInteractionScreen extends MenuScreen {
     }
 
     /** 查询某个物品在 wantedItems 中已选数量 */
-    private int getWantedCount(String itemName) {
+    private int getWantedCount(int itemId) {
         for (TradeScreen.TradeSelection sel : wantedItems) {
-            if (sel.getStack().getType().getName().equals(itemName)) {
+            if (sel.getStack().getType().getId() == itemId) {
                 return sel.getCount();
             }
         }
@@ -147,9 +147,9 @@ public class NpcInteractionScreen extends MenuScreen {
         if (npcItemIndex >= items.size()) return false;
         ItemStack npcStack = items.get(npcItemIndex);
 
-        // 检查是否已在 wantedItems 中
+        // 检查是否已在 wantedItems 中（用 ID 比较，避免引用不一致问题）
         for (TradeScreen.TradeSelection sel : wantedItems) {
-            if (sel.getStack().getType() == npcStack.getType()) {
+            if (sel.getStack().getType().getId() == npcStack.getType().getId()) {
                 if (sel.getCount() < npcStack.getCount()) {
                     sel.setCount(sel.getCount() + 1);
                     return true;
@@ -171,7 +171,7 @@ public class NpcInteractionScreen extends MenuScreen {
 
         for (int i = 0; i < wantedItems.size(); i++) {
             TradeScreen.TradeSelection sel = wantedItems.get(i);
-            if (sel.getStack().getType() == npcStack.getType()) {
+            if (sel.getStack().getType().getId() == npcStack.getType().getId()) {
                 sel.setCount(sel.getCount() - 1);
                 if (sel.getCount() <= 0) {
                     wantedItems.remove(i);
@@ -304,7 +304,7 @@ public class NpcInteractionScreen extends MenuScreen {
 
             boolean sel = (i == tradeSelectCursor);
             ItemStack stack = items.get(i);
-            int selectedCount = getWantedCount(stack.getType().getName());
+            int selectedCount = getWantedCount(stack.getType().getId());
             String suffix = selectedCount > 0 ? "  [已选 ×" + selectedCount + "]" : "";
             String prefix = sel ? "▶ " : "  ";
             String line = prefix + stack.getType().getDisplayName() + " ×" + stack.getCount() + suffix;
@@ -408,7 +408,7 @@ public class NpcInteractionScreen extends MenuScreen {
                 for (TradeScreen.TradeSelection sel : wantedItems) {
                     boolean found = false;
                     for (ItemStack npcStack : targetNpc.getInventory().getItems()) {
-                        if (npcStack.getType() == sel.getStack().getType() && npcStack.getCount() >= sel.getCount()) {
+                        if (npcStack.getType().getId() == sel.getStack().getType().getId() && npcStack.getCount() >= sel.getCount()) {
                             found = true;
                             break;
                         }

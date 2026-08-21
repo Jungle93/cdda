@@ -87,7 +87,7 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
     private int creatureCycleIndex = -1;
 
     /** 瓦片尺寸是否已初始化 */
-    private boolean initialized = false;
+    private volatile boolean initialized = false;
 
     // ── FPS 计算 ──────────────────────────────────
     private long fpsFrameCount = 0;

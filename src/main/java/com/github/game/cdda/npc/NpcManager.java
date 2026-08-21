@@ -191,6 +191,7 @@ public class NpcManager {
     /**
      * 游戏初始化时在玩家附近生成 1-2 个 NPC（向导 + 村民）。
      * 这是 NPC 正式接入游戏的入口。
+     * 保证至少生成一个 NPC，确保玩家有可交互对象。
      */
     public void spawnInitialNpcs() {
         if (player == null) {
@@ -200,23 +201,39 @@ public class NpcManager {
 
         int playerX = player.getTileX();
         int playerY = player.getTileY();
-        int maxDistance = 8;
         Random rng = new Random();
+        boolean anySpawned = false;
 
-        // 生成一个向导（FUNCTIONAL 类型，提供指引）
-        spawnNpcNearPlayer(NpcType.FUNCTIONAL, playerX, playerY, maxDistance, rng);
+        // 优先生成向导（FUNCTIONAL 类型），扩大搜索范围确保至少生成一个
+        boolean guideSpawned = spawnNpcNearPlayer(NpcType.FUNCTIONAL, playerX, playerY, 12, rng);
+        if (guideSpawned) anySpawned = true;
 
-        // 50% 概率生成一个村民（FRIENDLY 类型）
+        // 50% 概率生成一个村民（FRIENDLY 类型），范围稍小
         if (rng.nextFloat() < 0.5f) {
-            spawnNpcNearPlayer(NpcType.FRIENDLY, playerX, playerY, maxDistance, rng);
+            boolean villagerSpawned = spawnNpcNearPlayer(NpcType.FRIENDLY, playerX, playerY, 10, rng);
+            if (villagerSpawned) anySpawned = true;
+        }
+
+        // 如果向导未生成成功，尝试 fallback 生成村民
+        if (!guideSpawned) {
+            logger.warn("向导生成失败，尝试生成村民作为备用 NPC");
+            boolean fallbackSpawned = spawnNpcNearPlayer(NpcType.FRIENDLY, playerX, playerY, 12, rng);
+            if (fallbackSpawned) anySpawned = true;
+        }
+
+        // 终极保障：扩大搜索范围到 20 格，确保至少有一个 NPC
+        if (!anySpawned) {
+            logger.warn("初始 NPC 全部生成失败，扩大范围强制生成向导");
+            spawnNpcNearPlayer(NpcType.FUNCTIONAL, playerX, playerY, 20, rng);
         }
     }
 
     /**
      * 在玩家附近指定类型生成一个 NPC。
+     * @return true 如果成功生成
      */
-    private void spawnNpcNearPlayer(NpcType type, int playerX, int playerY, int maxDistance, Random rng) {
-        for (int attempt = 0; attempt < 20; attempt++) {
+    private boolean spawnNpcNearPlayer(NpcType type, int playerX, int playerY, int maxDistance, Random rng) {
+        for (int attempt = 0; attempt < 30; attempt++) {
             int dx = rng.nextInt(maxDistance * 2 + 1) - maxDistance;
             int dy = rng.nextInt(maxDistance * 2 + 1) - maxDistance;
             if (dx == 0 && dy == 0) continue;
@@ -230,8 +247,9 @@ public class NpcManager {
             if (creatureManager.getCreatureAtTile(nx, ny) != null) continue;
 
             spawnDebugNpc(nx, ny, type);
-            return;
+            return true;
         }
+        return false;
     }
 
     // ═══════════════════════════════════════════════

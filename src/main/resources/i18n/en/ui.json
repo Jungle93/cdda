@@ -39,5 +39,7 @@
   "ui.trade.feedback.half": "About half, still short",
   "ui.trade.feedback.thirty": "Hmm... about thirty percent",
   "ui.trade.feedback.ten": "Only ten percent? Too little",
-  "ui.trade.feedback.no": "You want to trade with just that? Not enough"
+  "ui.trade.feedback.no": "You want to trade with just that? Not enough",
+  "ui.trade.too_heavy": "Too heavy, I can't carry all that",
+  "ui.trade.player_too_heavy": "You can't carry that much weight"
 }

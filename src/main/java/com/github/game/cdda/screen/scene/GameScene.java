@@ -21,6 +21,8 @@ import com.github.game.cdda.game.TurnManager;
 import com.github.game.cdda.game.MetabolismManager;
 import com.github.game.cdda.game.HydrationManager;
 import com.github.game.cdda.log.GameLog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.github.game.cdda.GameWorld;
 import com.github.game.cdda.world.TileMap;
 import com.github.game.cdda.world.TileType;
@@ -51,6 +53,8 @@ import java.util.List;
  * 通过 {@link #ensureInitialized(Renderer)} 在首帧渲染时完成。
  */
 public class GameScene extends Scene implements TileMap.TileLayerRenderer {
+
+    private static final Logger logger = LoggerFactory.getLogger(GameScene.class);
 
     private final GameWorld world;
     private final int fontSize;
@@ -578,6 +582,61 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
             }
         }
         world.updatePlantGrowth();
+
+        // 代谢/脱水伤害（在回合结束后统一结算）
+        applyMetabolismDamage();
+    }
+
+    /**
+     * 根据代谢和水分状态对玩家造成伤害。
+     *
+     * <p>伤害逻辑：
+     * <ul>
+     *   <li>能量耗尽且体温异常 → 扣 HP（饥饿/失温/中暑）</li>
+     *   <li>极度脱水 → 扣 HP（脱水）</li>
+     *   <li>HP 归零 → 触发对应死亡原因</li>
+     * </ul>
+     */
+    private void applyMetabolismDamage() {
+        if (!player.isAlive()) return;
+
+        int tempDamage = metabolismManager.calcTemperatureDamage();
+        if (tempDamage > 0) {
+            player.takeDamage(tempDamage);
+            String reason = metabolismManager.getTemperatureDeathReason();
+            GameLog.getInstance().log(String.format("%s（-%d HP）", reason, tempDamage));
+
+            if (!player.isAlive()) {
+                handlePlayerDeath(com.github.game.cdda.creature.energy.DeathCause.TEMPERATURE,
+                        "你因" + reason + "而倒下");
+                return;
+            }
+        }
+
+        int waterDamage = hydrationManager.calcDehydrationDamage();
+        if (waterDamage > 0) {
+            player.takeDamage(waterDamage);
+            String desc = hydrationManager.getThirstDescriptor();
+            GameLog.getInstance().log(String.format("%s（-%d HP）", desc, waterDamage));
+
+            if (!player.isAlive()) {
+                handlePlayerDeath(com.github.game.cdda.creature.energy.DeathCause.DEHYDRATION,
+                        "你因极度脱水而倒下");
+            }
+        }
+    }
+
+    /**
+     * 处理玩家死亡。
+     *
+     * @param cause 死亡原因
+     * @param message 死亡消息
+     */
+    private void handlePlayerDeath(com.github.game.cdda.creature.energy.DeathCause cause,
+                                   String message) {
+        GameLog.getInstance().log(message);
+        // TODO: 显示游戏结束画面
+        logger.info("玩家死亡 - 原因: {}, {}", cause, message);
     }
 
     // ── 活动内部类 ──────────────────────────────────

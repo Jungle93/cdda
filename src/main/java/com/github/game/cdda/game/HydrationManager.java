@@ -285,4 +285,26 @@ public class HydrationManager {
     public boolean isDehydrated() {
         return waterLevel < maxWater * 0.4;
     }
+
+    /**
+     * 计算极度脱水导致的 HP 伤害（每回合）。
+     *
+     * <p>判定逻辑：
+     * <ul>
+     *   <li><b>危险</b>：水分 &lt; 10% → 1 HP/回合</li>
+     *   <li><b>致命</b>：水分 &lt; 3% → 3 HP/回合</li>
+     * </ul>
+     *
+     * @return 本回合应扣除的 HP 值（0 表示无伤害）
+     */
+    public int calcDehydrationDamage() {
+        double ratio = waterLevel / maxWater;
+        if (ratio < 0.03) {
+            return 3; // 致命阶段
+        }
+        if (ratio < 0.10) {
+            return 1; // 危险阶段
+        }
+        return 0;
+    }
 }

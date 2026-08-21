@@ -39,5 +39,7 @@
   "ui.trade.feedback.half": "差不多一半吧，还差点",
   "ui.trade.feedback.thirty": "嗯...差不多三成",
   "ui.trade.feedback.ten": "才一成左右，太少了",
-  "ui.trade.feedback.no": "这点东西就想换？不够不够"
+  "ui.trade.feedback.no": "这点东西就想换？不够不够",
+  "ui.trade.too_heavy": "太重了，我背不动这些",
+  "ui.trade.player_too_heavy": "你背不动这么多东西"
 }

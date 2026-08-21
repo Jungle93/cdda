@@ -18,6 +18,12 @@ public enum DeathCause {
     /** 饿死（长期找不到食物） */
     STARVATION,
 
+    /** 脱水而死（长期缺水） */
+    DEHYDRATION,
+
+    /** 体温异常致死（失温/中暑） */
+    TEMPERATURE,
+
     /** 被上层捕食者吃掉 */
     PREDATION,
 
@@ -26,7 +32,8 @@ public enum DeathCause {
 
     /** 是否自然死亡（不掉落物品） */
     public boolean isNatural() {
-        return this == NATURAL_AGE || this == STARVATION;
+        return this == NATURAL_AGE || this == STARVATION
+                || this == DEHYDRATION || this == TEMPERATURE;
     }
 
     /** 是否被猎杀（有能量转移或掉落） */

@@ -35,7 +35,7 @@ public class HelpOverlay extends GameOverlay {
     /** 当前页码（0-2） */
     private int currentPage = 0;
 
-    /** 页面内容：3 页，每页多行 */
+    /** 页面内容：4 页，每页多行 */
     private static final String[][] PAGES = {
         {
             "══════ 基本控制 ═════",
@@ -87,14 +87,34 @@ public class HelpOverlay extends GameOverlay {
             "",
             "• 方向键移动时遇到生物会自动攻击",
             "• 武器伤害加成从背包自动计算",
+        },
+        {
+            "══════ NPC 与交易 ═══",
+            "",
+            "• 靠近 NPC 后按 C 键进入交互",
+            "• 选择'交易'后用 ↑↓ 浏览物品",
+            "• Enter 添加想要的物品到清单",
+            "• D 键移除已选物品",
+            "• F 键确认并进入交易界面",
+            "",
+            "交易界面操作：",
+            "• Tab/Q/E — 切换背包/提供物面板",
+            "• ↑↓ — 选择物品",
+            "• Enter — 添加/移除物品",
+            "• ←→ — 调整交易数量",
+            "• F — 确认交易（ESC 取消）",
+            "",
+            "• NPC 态度影响对话和交易意愿",
+            "• 敌对 NPC 拒绝交易",
         }
     };
 
     /** 页码提示 */
     private static final String[] PAGE_TITLES = {
-        "第 1/3 页 — 基本控制",
-        "第 2/3 页 — 高级功能",
-        "第 3/3 页 — 游戏机制"
+        "第 1/4 页 — 基本控制",
+        "第 2/4 页 — 高级功能",
+        "第 3/4 页 — 游戏机制",
+        "第 4/4 页 — NPC 与交易"
     };
 
     public HelpOverlay(Viewport viewport) {

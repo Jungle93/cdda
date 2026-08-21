@@ -325,4 +325,40 @@ public class MetabolismManager {
     public boolean isStarving() {
         return energyPool < maxEnergy * 0.2;
     }
+
+    /**
+     * 计算体温异常导致的 HP 伤害（每回合）。
+     *
+     * <p>判定逻辑：
+     * <ul>
+     *   <li><b>危险</b>：能量 &lt; 5% 且体温 &lt; 34°C 或 &gt; 39°C → 1 HP/回合</li>
+     *   <li><b>致命</b>：能量 &lt; 2% 且体温 &lt; 32°C 或 &gt; 41°C → 3 HP/回合</li>
+     *   <li>能量充足时不会因体温异常扣血（靠体温缓冲抵御）</li>
+     * </ul>
+     *
+     * @return 本回合应扣除的 HP 值（0 表示无伤害）
+     */
+    public int calcTemperatureDamage() {
+        boolean energyEmpty = energyPool < maxEnergy * 0.05;
+        boolean criticallyEmpty = energyPool < maxEnergy * 0.02;
+
+        if (criticallyEmpty && (bodyTemperature < 32 || bodyTemperature > 41)) {
+            return 3; // 致命阶段
+        }
+        if (energyEmpty && (bodyTemperature < 34 || bodyTemperature > 39)) {
+            return 1; // 危险阶段
+        }
+        return 0;
+    }
+
+    /**
+     * 获取体温伤害的死亡原因描述。
+     *
+     * @return 如 "饥饿导致体温过低", "饥饿导致体温过高"
+     */
+    public String getTemperatureDeathReason() {
+        if (bodyTemperature < 34) return "饥饿导致体温过低";
+        if (bodyTemperature > 39) return "饥饿导致体温过高";
+        return "";
+    }
 }

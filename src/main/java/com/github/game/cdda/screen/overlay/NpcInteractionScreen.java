@@ -404,6 +404,20 @@ public class NpcInteractionScreen extends MenuScreen {
                     GameLog.getInstance().log("还没有选择任何物品");
                     return;
                 }
+                // 验证 NPC 是否还有这些物品（防止 NPC 背包变动导致不一致）
+                for (TradeScreen.TradeSelection sel : wantedItems) {
+                    boolean found = false;
+                    for (ItemStack npcStack : targetNpc.getInventory().getItems()) {
+                        if (npcStack.getType() == sel.getStack().getType() && npcStack.getCount() >= sel.getCount()) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        GameLog.getInstance().log("NPC 已没有足够的 " + sel.getStack().getType().getDisplayName());
+                        return;
+                    }
+                }
                 npcManager.startInteraction(targetNpc);
                 engine.getScreenManager().pushScreen(
                         new TradeScreen(engine, world, targetNpc, wantedItems));
@@ -431,6 +445,11 @@ public class NpcInteractionScreen extends MenuScreen {
             case 1 -> { // 交易 — 进入物品选择子流程
                 if (targetNpc.getNpcType() == com.github.game.cdda.npc.NpcType.HOSTILE) {
                     GameLog.getInstance().log(targetNpc.getName() + " 不愿意和你交易！");
+                    return;
+                }
+                // 检查 NPC 是否有物品可交易
+                if (targetNpc.getInventory().getItems().isEmpty()) {
+                    GameLog.getInstance().log(targetNpc.getName() + " 没有携带任何物品");
                     return;
                 }
                 currentSubMenu = SubMenu.TRADE_SELECT;

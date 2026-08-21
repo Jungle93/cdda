@@ -6,6 +6,7 @@ import com.github.game.cdda.item.model.ItemStack;
 import com.github.game.cdda.item.world.PlayerInventory;
 import com.github.game.cdda.log.GameLog;
 import com.github.game.cdda.npc.Npc;
+import com.github.game.cdda.npc.NpcInventory;
 import com.github.game.cdda.npc.NpcManager;
 import com.github.game.engine.core.GameEngine;
 import com.github.game.engine.core.i18n.I18nManager;
@@ -95,8 +96,16 @@ public class TradeScreen extends Screen {
     /** 交易成功标志（用于关闭界面） */
     private boolean tradeSuccess = false;
 
+    /** 交易成功后的延迟关闭计时（毫秒） */
+    private long successTimer = 0;
+
+    /** 延迟关闭时间（毫秒） */
+    private static final long SUCCESS_CLOSE_DELAY = 2000;
+
     /** 滚动偏移（左栏） */
     private int playerScroll = 0;
+    /** 滚动偏移（中栏） */
+    private int offeredScroll = 0;
 
     // ── 构造 ────────────────────────────────────────────
 
@@ -191,6 +200,10 @@ public class TradeScreen extends Screen {
             case KeyEvent.VK_DOWN -> handleDown();
             case KeyEvent.VK_LEFT -> handleLeft();
             case KeyEvent.VK_RIGHT -> handleRight();
+            case KeyEvent.VK_PAGE_UP -> handleRightAmount(5);    // PageUp: +5
+            case KeyEvent.VK_PAGE_DOWN -> handleLeftAmount(5);   // PageDown: -5
+            case KeyEvent.VK_HOME -> handleRightAmount(10);      // Home: +10
+            case KeyEvent.VK_END -> handleLeftAmount(10);        // End: -10
             case KeyEvent.VK_ENTER -> handleEnter();
             case KeyEvent.VK_F -> handleConfirm();
             case KeyEvent.VK_ESCAPE -> handleCancel();
@@ -219,11 +232,16 @@ public class TradeScreen extends Screen {
         }
     }
 
-    /** 左键（中栏：减少数量） */
+    /** 左键（中栏：减少数量，支持 Shift=-5、Ctrl=-10） */
     private void handleLeft() {
+        handleLeftAmount(1);
+    }
+
+    /** 减少指定数量 */
+    private void handleLeftAmount(int amount) {
         if (currentFocus == Focus.OFFERED_ITEMS && !offeredItems.isEmpty()) {
             TradeSelection sel = offeredItems.get(offeredCursor);
-            sel.setCount(sel.getCount() - 1);
+            sel.setCount(sel.getCount() - amount);
             if (sel.getCount() <= 0) {
                 offeredItems.remove(offeredCursor);
                 if (offeredCursor >= offeredItems.size() && !offeredItems.isEmpty()) {
@@ -234,13 +252,19 @@ public class TradeScreen extends Screen {
         }
     }
 
-    /** 右键（中栏：增加数量，不能超过拥有数量） */
+    /** 右键（中栏：增加数量，不能超过拥有数量，支持 Shift=+5、Ctrl=+10） */
     private void handleRight() {
+        handleRightAmount(1);
+    }
+
+    /** 增加指定数量 */
+    private void handleRightAmount(int amount) {
         if (currentFocus == Focus.OFFERED_ITEMS && !offeredItems.isEmpty()) {
             TradeSelection sel = offeredItems.get(offeredCursor);
             int maxCount = getPlayerAvailableCount(sel.getStack().getType().getName());
             if (sel.getCount() < maxCount) {
-                sel.setCount(sel.getCount() + 1);
+                int newCount = Math.min(sel.getCount() + amount, maxCount);
+                sel.setCount(newCount);
                 updateNpcFeedback();
             }
         }
@@ -276,8 +300,14 @@ public class TradeScreen extends Screen {
             offeredCursor = offeredItems.size() - 1;  // 光标跳到新添加的物品
             updateNpcFeedback();
         } else {
-            // 从中栏移除物品（Enter 效果同左键，减1）
-            handleLeft();
+            // 从中栏完全移除该物品（Enter = 全部移除，← = 减 1）
+            if (!offeredItems.isEmpty() && offeredCursor < offeredItems.size()) {
+                offeredItems.remove(offeredCursor);
+                if (offeredCursor >= offeredItems.size() && !offeredItems.isEmpty()) {
+                    offeredCursor = offeredItems.size() - 1;
+                }
+                updateNpcFeedback();
+            }
         }
     }
 
@@ -299,6 +329,7 @@ public class TradeScreen extends Screen {
             // 交易成功！
             executeTrade();
             tradeSuccess = true;
+            successTimer = 0;
             GameLog.getInstance().log("交易成功！");
             targetNpc.getSocial().adjustAttitude(2);
             // 延迟关闭（让玩家看到成功状态）
@@ -341,9 +372,60 @@ public class TradeScreen extends Screen {
      * 2. 从 NPC 背包移除 wantedItems
      * 3. 向玩家背包添加 wantedItems
      * 4. 向 NPC 背包添加 offeredItems
+     *
+     * <p>交易前检查双方重量上限，超重则拒绝交易并记录日志。
      */
     private void executeTrade() {
         PlayerInventory playerInv = player.getInventory();
+        NpcInventory npcInv = targetNpc.getInventory();
+
+        // ── 重量验证 ──
+        // 检查 NPC 能否承载玩家提供的物品
+        double npcAddedWeight = 0;
+        for (TradeSelection sel : offeredItems) {
+            String itemName = sel.getStack().getType().getName();
+            // 计算实际要从玩家背包移除的数量（可能已有部分在 NPC 背包中）
+            int remaining = sel.getCount();
+            Iterator<ItemStack> it = playerInv.getItems().iterator();
+            while (it.hasNext() && remaining > 0) {
+                ItemStack stack = it.next();
+                if (stack.getType().getName().equals(itemName)) {
+                    int take = Math.min(remaining, stack.getCount());
+                    double unitWeight = stack.getType().getWeightGrams();
+                    npcAddedWeight += unitWeight * take;
+                    remaining -= take;
+                }
+            }
+        }
+        if (npcAddedWeight > npcInv.getRemainingCapacity()) {
+            GameLog.getInstance().log(targetNpc.getName() + "：" + t("ui.trade.too_heavy"));
+            GameLog.getInstance().log("交易取消：NPC 无法携带这么多物品");
+            tradeSuccess = false;
+            return;
+        }
+
+        // 检查玩家能否承载想要的物品
+        double playerAddedWeight = 0;
+        for (TradeSelection sel : wantedItems) {
+            String itemName = sel.getStack().getType().getName();
+            int remaining = sel.getCount();
+            Iterator<ItemStack> it = npcInv.getItems().iterator();
+            while (it.hasNext() && remaining > 0) {
+                ItemStack stack = it.next();
+                if (stack.getType().getName().equals(itemName)) {
+                    int take = Math.min(remaining, stack.getCount());
+                    double unitWeight = stack.getType().getWeightGrams();
+                    playerAddedWeight += unitWeight * take;
+                    remaining -= take;
+                }
+            }
+        }
+        if (playerAddedWeight > playerInv.getRemainingCapacity()) {
+            GameLog.getInstance().log("你的背包太重了，无法携带这些物品");
+            GameLog.getInstance().log("交易取消");
+            tradeSuccess = false;
+            return;
+        }
 
         // 从玩家背包移除 offeredItems
         for (TradeSelection sel : offeredItems) {
@@ -396,9 +478,11 @@ public class TradeScreen extends Screen {
     public void update(long deltaTime) {
         // 交易成功后短暂延迟关闭
         if (tradeSuccess) {
-            // 直接关闭（延迟效果可由 GameLog 消息体现）
-            npcManager.endInteraction();
-            engine.getScreenManager().popScreen();
+            successTimer += deltaTime;
+            if (successTimer >= SUCCESS_CLOSE_DELAY) {
+                npcManager.endInteraction();
+                engine.getScreenManager().popScreen();
+            }
         }
     }
 
@@ -460,7 +544,7 @@ public class TradeScreen extends Screen {
         // ── 底部提示栏 ──
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 11));
         renderer.setColor(Color.GRAY);
-        String hint = "Tab/Q/E 切换 | Enter 选择/移除 | ←→ 调整数量 | F 确认交易 | Esc 取消";
+        String hint = "Tab/Q/E 切换 | Enter 选择/移除 | ←→ 调整数量(±1) | PgUp/PgDn ±5 | Home/End ±10 | F 确认交易 | Esc 取消";
         renderer.drawText(hint, (width - renderer.getTextWidth(hint)) / 2, height - 14);
     }
 
@@ -504,7 +588,18 @@ public class TradeScreen extends Screen {
             String line = prefix + stack.getType().getDisplayName()
                     + (stack.getCount() > 1 ? " ×" + stack.getCount() : "") + suffix;
 
-            renderer.setColor(sel ? Color.YELLOW : new Color(200, 220, 200));
+            // 颜色：选中=黄色，部分可用=橙色，完全可用=绿色
+            Color itemColor;
+            if (sel) {
+                itemColor = Color.YELLOW;
+            } else if (available <= 0) {
+                itemColor = new Color(120, 120, 120); // 灰色：不可用
+            } else if (available < stack.getCount()) {
+                itemColor = new Color(255, 160, 60); // 橙色：部分可用
+            } else {
+                itemColor = new Color(200, 220, 200); // 绿色：完全可用
+            }
+            renderer.setColor(itemColor);
             renderer.drawText(line, x, contentY + visibleIndex * lineHeight);
         }
     }
@@ -528,8 +623,16 @@ public class TradeScreen extends Screen {
         }
 
         int maxVisible = (h - lineHeight - 4) / lineHeight;
+        // 更新滚动偏移
+        if (offeredCursor >= maxVisible) {
+            offeredScroll = offeredCursor - maxVisible + 1;
+        } else {
+            offeredScroll = 0;
+        }
+
         for (int i = 0; i < offeredItems.size(); i++) {
-            if (i >= maxVisible) break;
+            int visibleIndex = i - offeredScroll;
+            if (visibleIndex < 0 || visibleIndex >= maxVisible) continue;
             TradeSelection sel = offeredItems.get(i);
             boolean sel2 = (i == offeredCursor && focused);
             String prefix = sel2 ? "▶ " : "  ";
@@ -537,7 +640,7 @@ public class TradeScreen extends Screen {
                     + " ×" + sel.getCount();
 
             renderer.setColor(sel2 ? Color.YELLOW : new Color(220, 200, 150));
-            renderer.drawText(line, x, contentY + i * lineHeight);
+            renderer.drawText(line, x, contentY + visibleIndex * lineHeight);
         }
     }
 

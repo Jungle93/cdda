@@ -175,9 +175,17 @@ public class TradeScreen extends Screen {
 
         switch (keyCode) {
             case KeyEvent.VK_TAB -> {
-                // 切换焦点
+                // 切换焦点（Tab 或 Q/W 键都可以切换）
                 currentFocus = (currentFocus == Focus.PLAYER_ITEMS)
                         ? Focus.OFFERED_ITEMS : Focus.PLAYER_ITEMS;
+            }
+            case KeyEvent.VK_Q -> {
+                // Q 键也可以切换到左栏（防止 Tab 被系统/IDE 拦截）
+                currentFocus = Focus.PLAYER_ITEMS;
+            }
+            case KeyEvent.VK_E -> {
+                // E 键也可以切换到中栏
+                currentFocus = Focus.OFFERED_ITEMS;
             }
             case KeyEvent.VK_UP -> handleUp();
             case KeyEvent.VK_DOWN -> handleDown();
@@ -251,17 +259,21 @@ public class TradeScreen extends Screen {
                 return;
             }
             // 检查中栏是否已有该物品
-            for (TradeSelection sel : offeredItems) {
+            for (int i = 0; i < offeredItems.size(); i++) {
+                TradeSelection sel = offeredItems.get(i);
                 if (sel.getStack().getType() == stack.getType()) {
                     if (sel.getCount() < available) {
                         sel.setCount(sel.getCount() + 1);
                         updateNpcFeedback();
+                    } else {
+                        GameLog.getInstance().log("已达到该物品的最大可交易数量");
                     }
                     return;
                 }
             }
             // 新增
             offeredItems.add(new TradeSelection(stack, 1));
+            offeredCursor = offeredItems.size() - 1;  // 光标跳到新添加的物品
             updateNpcFeedback();
         } else {
             // 从中栏移除物品（Enter 效果同左键，减1）
@@ -448,7 +460,7 @@ public class TradeScreen extends Screen {
         // ── 底部提示栏 ──
         renderer.setFont(new Font("Monospaced", Font.PLAIN, 11));
         renderer.setColor(Color.GRAY);
-        String hint = "Tab 切换 | Enter 选择/移除 | ←→ 调整数量 | F 确认交易 | Esc 取消";
+        String hint = "Tab/Q/E 切换 | Enter 选择/移除 | ←→ 调整数量 | F 确认交易 | Esc 取消";
         renderer.drawText(hint, (width - renderer.getTextWidth(hint)) / 2, height - 14);
     }
 

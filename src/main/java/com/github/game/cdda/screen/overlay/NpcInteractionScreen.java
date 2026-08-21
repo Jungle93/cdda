@@ -154,6 +154,7 @@ public class NpcInteractionScreen extends MenuScreen {
                     sel.setCount(sel.getCount() + 1);
                     return true;
                 }
+                GameLog.getInstance().log("已达到该物品的可用数量上限");
                 return false; // 已达上限
             }
         }

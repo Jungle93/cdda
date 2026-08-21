@@ -30,6 +30,7 @@ public class GamePanel extends JPanel
     public GamePanel(GameEngine engine) {
         this.engine = engine;
         setFocusable(true);
+        setFocusTraversalKeysEnabled(false); // 禁用 Tab 焦点切换，让 Tab 键到达 KeyListener
 
         addMouseListener(this);
         addMouseMotionListener(this);

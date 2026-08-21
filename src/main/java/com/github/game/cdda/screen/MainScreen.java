@@ -191,15 +191,6 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
         // 播放游戏背景音乐（循环，淡入 3 秒）
         EngineServices.audio.playBGM("audio/music/background.mp3", true, 0.7f, 3000);
 
-        // 首次进入游戏自动弹出帮助
-        HelpOverlay.autoShowIfFirstTime(
-                v -> {
-                    Viewport gv = new Viewport(0, 0, getWidth() - ConfigManager.getInstance().getInfoPanelWidth(), getHeight());
-                    return new HelpOverlay(gv);
-                },
-                this::showOverlay
-        );
-
         initialized = true;
     }
 
@@ -293,11 +284,7 @@ public class MainScreen extends Screen implements InputStateMachine.OverlayCallb
     public void pushHelpOverlay() {
         int infoPanelWidth = ConfigManager.getInstance().getInfoPanelWidth();
         Viewport gameViewport = new Viewport(0, 0, getWidth() - infoPanelWidth, getHeight());
-        HelpOverlay.autoShowIfFirstTime(v -> new HelpOverlay(gameViewport), this::showOverlay);
-        // 如果已经显示过，走正常手动打开
-        if (activeOverlay == null) {
-            showOverlay(new HelpOverlay(gameViewport));
-        }
+        showOverlay(new HelpOverlay(gameViewport));
     }
 
     @Override

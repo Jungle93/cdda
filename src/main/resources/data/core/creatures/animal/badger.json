@@ -4,6 +4,7 @@
   "hp": 20,
   "speed": 137,
   "trophicLevel": "SECONDARY_CONSUMER",
+  "fleeFromPlayer": true,
   "preyLevels": [
     "PRIMARY_CONSUMER"
   ],
@@ -24,12 +25,6 @@
     160
   ],
   "lifeStages": [
-    {
-      "stage": "juvenile",
-      "name": "juvenile",
-      "hp": 10,
-      "growSeconds": 10800
-    },
     {
       "stage": "adult",
       "name": "adult",

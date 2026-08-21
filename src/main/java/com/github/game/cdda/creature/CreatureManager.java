@@ -83,20 +83,20 @@ public class CreatureManager {
     /** 气泡外繁殖检查间隔（回合数） */
     private static final int OUT_OF_BUBBLE_CHECK_INTERVAL = 500;
 
-    /** 每个区块最大初始生物数 */
-    private static final int MAX_CREATURES_PER_CHUNK = 5;
+    /** 每个区块最大初始生物数（匮乏世界，减少动物密度） */
+    private static final int MAX_CREATURES_PER_CHUNK = 3;
 
     /** 初始生物生成概率（0-1） */
-    private static final float INITIAL_SPAWN_CHANCE = 0.3f;
+    private static final float INITIAL_SPAWN_CHANCE = 0.15f;
 
     /** 区块加载时生成概率（0-1） */
-    private static final float CHUNK_LOAD_SPAWN_CHANCE = 0.2f;
+    private static final float CHUNK_LOAD_SPAWN_CHANCE = 0.1f;
 
     /** 区块加载时最大生成数 */
-    private static final int CHUNK_LOAD_MAX_CREATURES = 2;
+    private static final int CHUNK_LOAD_MAX_CREATURES = 1;
 
     /** 同物种密度上限（附近 5 格内） */
-    private static final int MAX_NEARBY_SAME_SPECIES = 4;
+    private static final int MAX_NEARBY_SAME_SPECIES = 3;
 
     // ═══════════════════════════════════════════════
     // 异步回合处理
@@ -296,6 +296,65 @@ public class CreatureManager {
         creatures.remove(creature);
         creatureGrid.remove(creature);
         turnManager.removeEntity(creature);
+    }
+
+    // ═══════════════════════════════════════════════
+    // 存档加载支持
+    // ═══════════════════════════════════════════════
+
+    /**
+     * 清除所有非玩家生物（加载存档时调用）。
+     * 保留 Player 实例，移除所有 Animal。
+     */
+    public void clearCreaturesExceptPlayer() {
+        List<Creature> toRemove = new ArrayList<>();
+        for (Creature c : creatures) {
+            if (!(c instanceof Player)) {
+                toRemove.add(c);
+            }
+        }
+        for (Creature c : toRemove) {
+            removeCreature(c);
+        }
+        logger.debug("清除所有非玩家生物，剩余: {} 个", creatures.size());
+    }
+
+    /**
+     * 从存档数据恢复生物。
+     * 同时标记该生物所在区块为"已生成"，避免重新生成。
+     *
+     * @param data 存档中的生物数据
+     * @return true 如果成功创建并添加
+     */
+    public boolean spawnFromSave(com.github.game.cdda.save.CreatureData data) {
+        if (data == null || data.speciesId == null) return false;
+
+        CreatureDefinition def = CreatureRegistry.get(data.speciesId);
+        if (def == null) {
+            logger.warn("存档中的未知物种: {}，跳过", data.speciesId);
+            return false;
+        }
+
+        Animal animal = new Animal(def, data.tileX, data.tileY);
+        animal.setMaxHp(data.maxHp);
+        animal.setHp(data.hp);
+        animal.setSpeed(data.speed);
+
+        injectEnergyFlowManager(animal);
+        addCreature(animal);
+
+        // 标记该生物所在区块为"已生成"，避免 onChunksGenerated 重新生成
+        markChunkSpawned(com.github.game.cdda.world.chunk.ChunkCoords.keyFromTile(data.tileX, data.tileY));
+        return true;
+    }
+
+    /**
+     * 标记区块已生成过生物（加载存档时调用，避免重新生成）。
+     *
+     * @param key 区块键（ChunkCoords.key）
+     */
+    public void markChunkSpawned(long key) {
+        spawnedChunks.add(key);
     }
 
     // ═══════════════════════════════════════════════

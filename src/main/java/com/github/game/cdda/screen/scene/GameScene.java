@@ -193,20 +193,14 @@ public class GameScene extends Scene implements TileMap.TileLayerRenderer {
         // 将玩家注册到回合系统
         world.registerPlayerToTurnSystem();
 
-        // 生成初始生物
-        world.spawnInitialCreatures();
+        // 生成初始生物（从存档加载时跳过，生物由存档恢复）
+        if (!world.isLoadedFromSave()) {
+            world.spawnInitialCreatures();
+        }
 
         // 记录开局日志
         GameLog.getInstance().log("游戏开始。方向键移动/攻击，5等待，L观察，C对话，M大地图，E进食，G拾取，D丢弃，I背包，`调试，ESC菜单");
         GameLog.getInstance().log(String.format("周围生成了 %d 个生物", creatureManager.getCreatureCount()));
-
-        // 新手引导提示
-        GameLog.getInstance().log("—— 新手提示 ——");
-        GameLog.getInstance().log("按 [?] 或 F1 查看完整帮助");
-        GameLog.getInstance().log("按 [I] 打开背包查看初始装备");
-        GameLog.getInstance().log("按 [F2] 打开合成界面");
-        GameLog.getInstance().log("按 [C] 与附近 NPC 对话");
-        GameLog.getInstance().log("按 [L] 观察周围环境");
 
         initialized = true;
     }

@@ -36,11 +36,8 @@ public class GameSetupScreen extends MenuScreen {
     private static final int ITEM_BACK = 5;
     private static final int ITEM_COUNT = 6;
 
-    /** 布局参数 */
-    private static final int TITLE_Y = 40;
-    private static final int ITEMS_START_Y = 90;
-    private static final int LINE_SPACING = 36;
-    private static final int ACTION_START_Y = ITEMS_START_Y + LINE_SPACING * 4 + 20;
+    /** 行间距 */
+    private static final int LINE_SPACING = 32;
 
     private final WorldSettings worldSettings;
     private final CharacterSettings characterSettings;
@@ -72,34 +69,48 @@ public class GameSetupScreen extends MenuScreen {
 
     @Override
     protected void renderMenu(Renderer renderer) {
+        int height = getHeight();
+
+        // 动态计算垂直居中位置（内容区在提示栏上方居中）
+        int hintBarY = height - 20;
+        int titleAreaHeight = 50;     // 标题区域高度（标题文字 + 间距）
+        int settingsBlockHeight = LINE_SPACING * 4;           // 4 个设置项
+        int actionBlockHeight = LINE_SPACING * 2;             // 2 个操作按钮
+        int gap = LINE_SPACING + 12;                          // 设置项与操作按钮间距
+        int totalContentHeight = titleAreaHeight + settingsBlockHeight + gap + actionBlockHeight;
+        int availableHeight = hintBarY - 20;                   // 顶部留 20px
+        int titleY = Math.max(40, (availableHeight - totalContentHeight) / 2);
+        int itemsStartY = titleY + titleAreaHeight;
+        int actionStartY = itemsStartY + settingsBlockHeight + gap;
+
         // ── 标题 ──
-        drawTitle(renderer, "新游戏", 24, TITLE_Y);
+        drawTitle(renderer, "新游戏", 24, titleY);
 
         // 种子：编辑中显示缓冲区+光标，否则显示当前值
         String seedDisplay = (editingItem == ITEM_SEED)
                 ? editBuffer + "_"
                 : String.valueOf(worldSettings.getSeed());
         renderMenuItem(renderer, ITEM_SEED, "世界种子", seedDisplay,
-                ITEMS_START_Y, 16);
+                itemsStartY, 16);
 
         // 名称：编辑中显示缓冲区+光标
         String nameDisplay = (editingItem == ITEM_NAME)
                 ? editBuffer + "|"
                 : characterSettings.getName();
         renderMenuItem(renderer, ITEM_NAME, "角色名称", nameDisplay,
-                ITEMS_START_Y + LINE_SPACING, 16);
+                itemsStartY + LINE_SPACING, 16);
         renderMenuItem(renderer, ITEM_GENDER, "角色性别",
                 characterSettings.getGender(),
-                ITEMS_START_Y + LINE_SPACING * 2, 16);
+                itemsStartY + LINE_SPACING * 2, 16);
         renderMenuItem(renderer, ITEM_PACKAGE, "起始装备",
                 characterSettings.getStartingPackage().getDisplayName(),
-                ITEMS_START_Y + LINE_SPACING * 3, 16);
+                itemsStartY + LINE_SPACING * 3, 16);
 
         // ── 操作按钮 ──
         renderMenuItem(renderer, ITEM_START, "开始游戏", null,
-                ACTION_START_Y, 16);
+                actionStartY, 16);
         renderMenuItem(renderer, ITEM_BACK, "返回", null,
-                ACTION_START_Y + LINE_SPACING, 16);
+                actionStartY + LINE_SPACING, 16);
 
         // ── 底部提示 ──
         String hint = (editingItem >= 0)

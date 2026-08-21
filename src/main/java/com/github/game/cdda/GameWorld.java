@@ -76,6 +76,15 @@ public class GameWorld {
     // ── 玩家 ──────────────────────────────────
     private final Player player;
 
+    /** 是否从存档加载（加载时跳过初始生物/物品生成） */
+    private boolean loadedFromSave = false;
+
+    /** @return 是否从存档加载 */
+    public boolean isLoadedFromSave() { return loadedFromSave; }
+
+    /** 标记为世界已从存档加载（跳过初始生成） */
+    public void setLoadedFromSave(boolean loaded) { this.loadedFromSave = loaded; }
+
     /**
      * 创建游戏世界，初始化所有子系统。
      *

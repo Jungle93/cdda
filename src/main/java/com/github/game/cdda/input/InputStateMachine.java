@@ -308,6 +308,7 @@ public class InputStateMachine {
                 overlayCallback.pushInventoryScreen();
                 return;
             case KeyEvent.VK_F1:
+            case KeyEvent.VK_SLASH:   // / 或 ? 查看帮助
                 overlayCallback.pushHelpOverlay();
                 return;
             case KeyEvent.VK_F2:

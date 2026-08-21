@@ -29,10 +29,7 @@ public class HelpOverlay extends GameOverlay {
     /** 字体大小 */
     private static final int FONT_SIZE = 13;
 
-    /** 是否已显示过帮助（单次游戏生命周期内） */
-    private static boolean hasShownAutoHelp = false;
-
-    /** 当前页码（0-2） */
+    /** 当前页码（0-3） */
     private int currentPage = 0;
 
     /** 页面内容：4 页，每页多行 */
@@ -119,20 +116,6 @@ public class HelpOverlay extends GameOverlay {
 
     public HelpOverlay(Viewport viewport) {
         super(viewport);
-    }
-
-    /**
-     * 首次进入游戏时自动显示帮助（单次生命周期内仅一次）。
-     *
-     * @param create 创建回调，返回 HelpOverlay 实例
-     * @param show   显示回调
-     */
-    public static void autoShowIfFirstTime(java.util.function.Function<Viewport, HelpOverlay> create,
-                                           java.util.function.Consumer<HelpOverlay> show) {
-        if (!hasShownAutoHelp) {
-            hasShownAutoHelp = true;
-            show.accept(create.apply(null));
-        }
     }
 
     @Override

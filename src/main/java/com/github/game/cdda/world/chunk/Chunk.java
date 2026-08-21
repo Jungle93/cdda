@@ -178,7 +178,11 @@ public class Chunk {
             }
         }
 
-        // 保存地面层（植被放置前，所有瓦片都是地面）
+        // ── 第一遍半：排水算法 → 湖泊/河流/海洋 ──
+        // 必须在植被放置之前执行，否则水域无法覆盖已放置的树木/泥土
+        carveWaterFeatures(worldMap);
+
+        // 保存地面层（水域雕刻后、植被放置前，所有瓦片都是地面）
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 groundTiles[row][col] = tiles[row][col];
@@ -186,15 +190,13 @@ public class Chunk {
         }
 
         // ── 第二遍：噪声 + 环境适配 → 植被 ──
+        // 此时水域已确定，植被不会放置在水域上
         placeVegetation(noise, worldMap);
 
         // ── 第二遍半：群落岩石率 → 散布岩石覆盖物 ──
         placeRocks(noise);
 
-        // ─ 第三遍：排水算法 → 湖泊/河流/海洋 ──
-        carveWaterFeatures(worldMap);
-
-        // ── 第四遍：水边放置水生植被（芦苇/香蒲）──
+        // ── 第三遍：水边放置水生植被（芦苇/香蒲）──
         placeAquaticVegetation(noise, worldMap);
 
         // 边界混合已拆分到 blendEdges()（阶段2，由 ChunkManager 统一调度）
@@ -231,16 +233,18 @@ public class Chunk {
                                       int globalX, int globalY) {
         // waterLevel 越高，低地阈值越宽松（海洋 waterLevel=1.0 → 阈值 +0.30）
         // 使海洋/沼泽群落更容易产生泥地，便于后续水域雕刻
-        double waterBonus = waterLevel * 0.30;
+        double waterBonus = waterLevel * 0.25;
 
         // 低海拔 + 高湿度 → 泥地（沼泽边缘/海底）
-        if (elevation < -0.10 + waterBonus && humidity > 0.8) {
+        // 阈值收紧，减少泥地产生
+        if (elevation < -0.15 + waterBonus && humidity > 0.8) {
             return TileType.MUD;
         }
 
         // 低海拔 + 中等湿度 → 泥土地
-        if (elevation < -0.05 + waterBonus && humidity > 0.3) {
-            return humidity > 0.7 ? TileType.MUD : TileType.DIRT;
+        // 阈值收紧，减少泥土产生
+        if (elevation < -0.10 + waterBonus && humidity > 0.5) {
+            return humidity > 0.8 ? TileType.MUD : TileType.DIRT;
         }
 
         // 干燥环境 → 沙地
@@ -249,7 +253,8 @@ public class Chunk {
         }
 
         // 高海拔 + 低温 → 高原冻土（改为泥土，不再产生 STONE 地面）
-        if (elevation > 0.30 && temperature < 0) {
+        // 提高阈值，减少冻土产生
+        if (elevation > 0.40 && temperature < 0) {
             return TileType.DIRT;
         }
 
@@ -715,7 +720,8 @@ public class Chunk {
                 }
 
                 // ── 草 / 花 / 苔藓 ──
-                double grassProb = grassD * (0.3 + 0.7 * densityFactor);
+                // 降低高草生成概率（乘法因子从 0.7 降到 0.35）
+                double grassProb = grassD * (0.3 + 0.35 * densityFactor);
                 if (hash < treeProb + grassProb) {
                     double flowerHash = tileHash(globalX + 131, globalY + 523);
 
@@ -826,8 +832,9 @@ public class Chunk {
                 double waterGradient = worldMap.getWaterFeature(globalX, globalY);
 
                 // 水边高频扰动（让边界曲折，不是平滑直线）
-                // 仅在过渡区（0.15 ~ 0.65）施加扰动，深水区和纯陆地不变
-                if (waterGradient > 0.15 && waterGradient < 0.65) {
+                // 仅在过渡区（0.15 ~ 0.6）施加扰动，深水（≥0.6）和纯陆地不变
+                // 注意：扰动后的值不能低于 0.6 当原始值 ≥ 0.6 时（防止深水变沙滩）
+                if (waterGradient > 0.15 && waterGradient < 0.6) {
                     double edgeJitter = tileHash(globalX * 7 + 31, globalY * 11 + 17) * 0.2 - 0.1;
                     // 四邻接水体检查：邻居有水 → 提高当前瓦片水位倾向
                     if (hasWaterNeighbor(row, col)) {
@@ -1098,5 +1105,48 @@ public class Chunk {
     public VegetationState getGrowthState(int localCol, int localRow) {
         if (vegetationMap == null) return null;
         return vegetationMap.getGrowthState(localCol, localRow);
+    }
+
+    // ── 存档加载 ────────────────────────────
+
+    /**
+     * 从存档数据恢复区块地形和植被。
+     * 跳过正常的噪声生成流程，直接使用存档中的瓦片数据。
+     *
+     * @param tiles      地形名称数组（行优先，size*size）
+     * @param vegetation 植被物种 ID 数组（行优先，size*size，null 表示无植被）
+     */
+    public void loadFromSave(String[] tiles, String[] vegetation) {
+        this.tiles = new TileType[SIZE][SIZE];
+        this.groundTiles = new TileType[SIZE][SIZE];
+        if (this.vegetationMap == null) {
+            this.vegetationMap = new VegetationMap(chunkX, chunkY);
+        }
+
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                int index = row * SIZE + col;
+
+                // 恢复地形
+                String tileName = (index < tiles.length && tiles[index] != null)
+                        ? tiles[index] : "grass";
+                TileType type = TileType.getByName(tileName);
+                this.tiles[row][col] = type != null ? type : TileType.GRASS;
+
+                // 地面层与地形层相同（存档中的地形已包含水域雕刻结果）
+                this.groundTiles[row][col] = this.tiles[row][col];
+
+                // 恢复植被
+                if (vegetation != null && index < vegetation.length) {
+                    String vegId = vegetation[index]; // null 表示无植被
+                    if (vegId != null && !vegId.isEmpty()) {
+                        vegetationMap.setVegetation(col, row, vegId);
+                    }
+                }
+            }
+        }
+
+        // 标记为已生成
+        generated = true;
     }
 }

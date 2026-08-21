@@ -92,6 +92,7 @@ public class MainMenuScreen extends MenuScreen {
         GameWorld world = new GameWorld(worldSettings, charSettings, Month.MARCH, 8);
         boolean success = SaveManager.loadGame(world, 1);
         if (success) {
+            world.setLoadedFromSave(true);
             GameLog.getInstance().log("游戏已从槽位 1 加载");
             // 传入已加载的 world，避免 MainScreen.init() 重新创建覆盖存档数据
             engine.getScreenManager().switchScreen(

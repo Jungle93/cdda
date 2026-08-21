@@ -66,6 +66,9 @@ public class CreatureDefinition {
     /** 自然死亡掉落表（始终 null = 不掉落） */
     public LootTable lootOnNaturalDeath;
 
+    /** 是否畏惧玩家（对玩家产生恐惧并逃离，即使是捕食者） */
+    public boolean fleeFromPlayer = false;
+
     // ── 辅助方法 ──────────────────────────────────
 
     /** 获取能量配置（未配置时返回默认值） */

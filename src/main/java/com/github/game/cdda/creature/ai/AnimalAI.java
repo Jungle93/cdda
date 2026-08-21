@@ -221,12 +221,13 @@ public class AnimalAI {
             spreadPanic(animal, context);
         }
 
-        // 1. 检测威胁 → FLEE（仅初级消费者）
+        // 1. 检测威胁 → FLEE（食草动物 或 畏惧玩家的动物）
         TrophicLevel trophicLevel = animal.getDefinition().getTrophicLevel();
+        boolean fearsPlayer = trophicLevel.isHerbivore() || animal.getDefinition().fleeFromPlayer;
         int playerDistance = animal.distanceTo(context.getPlayerTileX(), context.getPlayerTileY());
 
         // 视觉检测：玩家在视觉范围内 → FLEE
-        if (trophicLevel.isHerbivore() && playerDistance <= animal.getVisionRange()) {
+        if (fearsPlayer && playerDistance <= animal.getVisionRange()) {
             if (currentState != AIState.FLEE) {
                 animal.startFleeing();
                 enterState(AIState.FLEE);
@@ -235,7 +236,7 @@ public class AnimalAI {
             }
         }
         // 听觉检测：玩家超出视觉但在听觉范围内发出噪音 → 有概率 FLEE
-        else if (trophicLevel.isHerbivore() && currentState != AIState.FLEE
+        else if (fearsPlayer && currentState != AIState.FLEE
                 && playerDistance <= animal.getHearingRange() && playerDistance > animal.getVisionRange()) {
             // 听觉惊扰概率：距离越近概率越高
             double hearingChance = 1.0 - (playerDistance - animal.getVisionRange())

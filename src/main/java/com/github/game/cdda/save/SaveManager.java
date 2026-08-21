@@ -3,6 +3,7 @@ package com.github.game.cdda.save;
 import com.github.game.cdda.Constants;
 import com.github.game.cdda.GameWorld;
 import com.github.game.cdda.config.ConfigManager;
+import com.github.game.cdda.creature.Animal;
 import com.github.game.cdda.creature.Creature;
 import com.github.game.cdda.creature.CreatureManager;
 import com.github.game.cdda.creature.Player;
@@ -357,10 +358,14 @@ public class SaveManager {
 
     /**
      * 获取生物的物种 ID。
+     * 动物使用 CreatureDefinition 中的 id（如 "deer", "wolf"），
+     * 其他类型使用类名作为 ID。
      */
     private static String getSpeciesId(Creature creature) {
-        // 尝试通过反射或类型判断获取物种 ID
-        // 这里简化处理，使用类名作为 ID
+        if (creature instanceof Animal animal) {
+            return animal.getDefinition().id;
+        }
+        // 兜底：使用类名
         String className = creature.getClass().getSimpleName();
         return className.toLowerCase();
     }
@@ -415,35 +420,36 @@ public class SaveManager {
     }
 
     /**
-     * 加载世界数据。
+     * 加载世界数据（恢复已保存区块的地形和植被）。
      */
     private static void loadWorld(GameWorld world, WorldSaveData data) {
         ChunkManager chunkManager = world.getChunkManager();
 
         for (ChunkData chunkData : data.chunks) {
-            // 加载区块到 ChunkManager
-            // chunkManager.loadChunkFromSave(chunkData.cx, chunkData.cy, chunkData);
-            logger.debug("加载区块 ({}, {})", chunkData.cx, chunkData.cy);
+            chunkManager.loadChunkFromSave(chunkData.cx, chunkData.cy, chunkData);
         }
 
         logger.info("世界数据已恢复：{} 个区块", data.chunks.size());
     }
 
     /**
-     * 加载生物数据。
+     * 加载生物数据（恢复存档中保存的所有生物状态）。
      */
     private static void loadCreatures(GameWorld world, CreatureSaveData data) {
-        // 清除现有生物（保留玩家）
-        // world.getCreatureManager().clearCreaturesExceptPlayer();
+        CreatureManager creatureManager = world.getCreatureManager();
 
-        // 生成新生物
+        // 清除当前所有非玩家生物
+        creatureManager.clearCreaturesExceptPlayer();
+
+        // 从存档数据恢复每个生物（spawnFromSave 内部会标记区块为"已生成"）
+        int restored = 0;
         for (CreatureData creatureData : data.creatures) {
-            // world.getCreatureManager().spawnFromSave(creatureData);
-            logger.debug("生成生物: {} at ({}, {})",
-                    creatureData.speciesId, creatureData.tileX, creatureData.tileY);
+            if (creatureManager.spawnFromSave(creatureData)) {
+                restored++;
+            }
         }
 
-        logger.info("生物数据已恢复：{} 个生物", data.creatures.size());
+        logger.info("生物数据已恢复：{}/{} 个生物", restored, data.creatures.size());
     }
 
     /**

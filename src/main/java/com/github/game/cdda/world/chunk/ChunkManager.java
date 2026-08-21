@@ -4,6 +4,7 @@ import com.github.game.cdda.world.TileType;
 import com.github.game.cdda.world.biome.BiomeType;
 import com.github.game.cdda.world.biome.WorldMap;
 import com.github.game.cdda.creature.CreatureManager;
+import com.github.game.cdda.save.ChunkData;
 import com.github.game.engine.core.noise.PerlinNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -216,6 +217,23 @@ public class ChunkManager {
         Chunk chunk = new Chunk(cx, cy, biome);
         chunks.put(chunkKey(cx, cy), chunk);
         return chunk;
+    }
+
+    /**
+     * 从存档数据加载区块（跳过正常生成流程）。
+     * 直接恢复存档中保存的地形和植被数据。
+     *
+     * @param cx        区块 X 坐标
+     * @param cy        区块 Y 坐标
+     * @param chunkData 存档数据
+     */
+    public void loadChunkFromSave(int cx, int cy, ChunkData chunkData) {
+        long key = chunkKey(cx, cy);
+        BiomeType biome = worldMap.getBiomeAtChunk(cx, cy);
+        Chunk chunk = new Chunk(cx, cy, biome);
+        chunk.loadFromSave(chunkData.tiles, chunkData.vegetation);
+        chunks.put(key, chunk);
+        logger.debug("从存档恢复区块 ({}, {})", cx, cy);
     }
 
     /**
